@@ -1,0 +1,65 @@
+import { ProviderIcon } from "@/components/ProviderIcon";
+import { cn } from "@/lib/utils";
+import type { AppType } from "@/types";
+
+// 布局与交互复刻 CC Switch 的 AppSwitcher
+const ALL_APPS: AppType[] = ["claude", "codex", "gemini", "opencode", "openclaw"];
+const STORAGE_KEY = "conduit-last-app";
+
+const appIconName: Record<AppType, string> = {
+  claude: "claude",
+  codex: "openai",
+  gemini: "gemini",
+  opencode: "opencode",
+  openclaw: "openclaw",
+};
+
+const appDisplayName: Record<AppType, string> = {
+  claude: "Claude",
+  codex: "Codex",
+  gemini: "Gemini",
+  opencode: "OpenCode",
+  openclaw: "OpenClaw",
+};
+
+export function AppSwitcher({
+  activeApp,
+  onSwitch,
+}: {
+  activeApp: AppType;
+  onSwitch: (app: AppType) => void;
+}) {
+  const handleSwitch = (app: AppType) => {
+    if (app === activeApp) return;
+    localStorage.setItem(STORAGE_KEY, app);
+    onSwitch(app);
+  };
+  const iconSize = 20;
+
+  return (
+    <div className="inline-flex bg-muted rounded-xl p-1 gap-1">
+      {ALL_APPS.map((app) => (
+        <button
+          key={app}
+          type="button"
+          onClick={() => handleSwitch(app)}
+          className={cn(
+            "group inline-flex items-center px-3 h-8 rounded-md text-sm font-medium transition-all duration-200",
+            activeApp === app
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground hover:bg-background/50",
+          )}
+        >
+          <ProviderIcon
+            icon={appIconName[app]}
+            name={appDisplayName[app]}
+            size={iconSize}
+          />
+          <span className="transition-all duration-200 whitespace-nowrap overflow-hidden max-w-[80px] opacity-100 ml-2">
+            {appDisplayName[app]}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}

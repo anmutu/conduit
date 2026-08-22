@@ -63,6 +63,7 @@ pub fn run() {
             commands::provider::create_provider,
             commands::provider::switch_provider,
             commands::provider::delete_provider,
+            commands::provider::update_provider,
             commands::provider::set_provider_key,
             commands::proxy::proxy_status,
             commands::keychain::keychain_health,
