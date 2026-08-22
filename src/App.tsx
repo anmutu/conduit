@@ -1,18 +1,21 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Plus, Settings } from "lucide-react";
+import { Boxes, Plus, Settings } from "lucide-react";
 import type { AppType, Provider, ProxyStatus } from "@/types";
 import { AppSwitcher } from "@/components/AppSwitcher";
 import { ProviderCard } from "@/components/providers/ProviderCard";
 import { AddProviderDialog } from "@/components/providers/AddProviderDialog";
 import { EditProviderDialog } from "@/components/providers/EditProviderDialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { ToastStack, type ToastItem, type ToastType } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "conduit-last-app";
 const VALID_APPS: AppType[] = ["claude", "codex", "gemini", "opencode", "openclaw"];
 const HEADER_HEIGHT = 64; // px,与 CC Switch 一致
+/** 窗口窄于该宽度时,AppSwitcher 收起文字只留图标 */
+const COMPACT_BREAKPOINT = 860;
 
 function getInitialApp(): AppType {
   const saved = localStorage.getItem(STORAGE_KEY) as AppType | null;
@@ -20,37 +23,138 @@ function getInitialApp(): AppType {
   return "claude";
 }
 
+/** 把底层错误串转成人话 */
+function humanizeError(raw: string): string {
+  const msg = raw.replace(/^Error:\s*/i, "");
+  if (msg.includes("keychain")) return "系统钥匙串访问失败,请检查授权";
+  if (msg.includes("数据库") || msg.includes("database"))
+    return "本地数据库读写失败";
+  if (msg.includes("invoke") || msg.includes("ipc"))
+    return "无法连接本地服务(浏览器预览模式下属正常)";
+  return msg.length > 120 ? `${msg.slice(0, 120)}…` : msg;
+}
+
+/** 骨架卡片:列表加载时占位,避免布局抖动 */
+function SkeletonCard() {
+  return (
+    <div className="rounded-xl border border-border p-4 bg-card">
+      <div className="flex items-center gap-2">
+        <div className="h-8 w-8 rounded-lg bg-muted animate-pulse" />
+        <div className="space-y-1.5 flex-1">
+          <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+          <div className="h-3 w-56 rounded bg-muted animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+let toastSeq = 0;
+
 function App() {
   const [activeApp, setActiveApp] = useState<AppType>(getInitialApp);
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [hasCache, setHasCache] = useState(false); // 当前 app 是否已有可展示数据
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Provider | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [proxy, setProxy] = useState<ProxyStatus | null>(null);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [proxyOk, setProxyOk] = useState<boolean | null>(null);
+  const [proxyAddr, setProxyAddr] = useState("");
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [winWidth, setWinWidth] = useState(() => window.innerWidth);
+
+  // 按 app 缓存列表数据:切换时先显示缓存,后台刷新(stale-while-revalidate)
+  const cacheRef = useRef<Partial<Record<AppType, Provider[]>>>({});
+  // 跟踪当前 app:异步刷新返回时防竞态
+  const activeAppRef = useRef(activeApp);
+  useEffect(() => {
+    activeAppRef.current = activeApp;
+  }, [activeApp]);
+
+  const toast = useCallback((type: ToastType, msg: string) => {
+    const id = ++toastSeq;
+    setToasts((ts) => [...ts.slice(-2), { id, type, msg }]);
+    const ttl = type === "success" ? 1800 : 3500;
+    setTimeout(() => setToasts((ts) => ts.filter((t) => t.id !== id)), ttl);
+  }, []);
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts((ts) => ts.filter((t) => t.id !== id));
+  }, []);
 
   const refresh = useCallback(async (app: AppType) => {
-    setIsLoading(true);
+    const cached = cacheRef.current[app];
+    if (cached) {
+      // 已有缓存:先展示旧数据,静默刷新
+      setProviders(cached);
+      setHasCache(true);
+    } else {
+      setHasCache(false);
+    }
     try {
       const list = await invoke<Provider[]>("list_providers", { appType: app });
-      setProviders(list);
-      setErr(null);
+      cacheRef.current[app] = list;
+      // 异步返回时若已切走其他 app,不覆盖当前展示
+      if (activeAppRef.current === app) {
+        setProviders(list);
+        setHasCache(true);
+      }
     } catch (e) {
-      setErr(String(e));
-    } finally {
-      setIsLoading(false);
+      toast("error", humanizeError(String(e)));
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     void refresh(activeApp);
   }, [activeApp, refresh]);
 
+  // 代理状态:常显于 header(卖点可见性)
   useEffect(() => {
     invoke<ProxyStatus>("proxy_status")
-      .then(setProxy)
-      .catch(() => setProxy(null));
+      .then((s) => {
+        setProxyOk(s.running);
+        setProxyAddr(s.addr);
+      })
+      .catch(() => setProxyOk(false));
+  }, []);
+
+  // 窗口宽度:驱动 AppSwitcher compact 收缩
+  useEffect(() => {
+    const onResize = () => setWinWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // 快捷键:Cmd/Ctrl+N 新建,Cmd/Ctrl+1..5 切换应用
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      if (e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        setIsAddOpen(true);
+        return;
+      }
+      const idx = Number(e.key) - 1;
+      if (Number.isInteger(idx) && idx >= 0 && idx < VALID_APPS.length) {
+        e.preventDefault();
+        setActiveApp(VALID_APPS[idx]);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  /** 新建/更新后:滚动到该卡片并短暂高亮 */
+  const focusProvider = useCallback((id: string) => {
+    setHighlightId(id);
+    setTimeout(() => {
+      document
+        .getElementById(`provider-${id}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 80);
+    setTimeout(() => setHighlightId(null), 2200);
   }, []);
 
   const switchProvider = async (provider: Provider) => {
@@ -59,15 +163,16 @@ function App() {
         id: provider.id,
         appType: provider.app_type,
       });
+      toast("success", `已切换到 ${provider.name}`);
       await refresh(activeApp);
     } catch (e) {
-      setErr(String(e));
+      toast("error", humanizeError(String(e)));
     }
   };
 
   const duplicateProvider = async (provider: Provider) => {
     try {
-      await invoke("create_provider", {
+      const created = await invoke<Provider>("create_provider", {
         input: {
           app_type: provider.app_type,
           name: `${provider.name} (副本)`,
@@ -75,26 +180,30 @@ function App() {
           models: provider.models,
         },
       });
+      toast("success", `已复制为「${created.name}」`);
       await refresh(activeApp);
+      focusProvider(created.id);
     } catch (e) {
-      setErr(String(e));
+      toast("error", humanizeError(String(e)));
     }
   };
 
   const deleteProvider = async () => {
     if (!confirmDelete) return;
+    const target = confirmDelete;
     try {
-      await invoke("delete_provider", { id: confirmDelete.id });
+      await invoke("delete_provider", { id: target.id });
       setConfirmDelete(null);
+      toast("success", `已删除 ${target.name}`);
       await refresh(activeApp);
     } catch (e) {
-      setErr(String(e));
+      toast("error", humanizeError(String(e)));
     }
   };
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground selection:bg-primary/30">
-      {/* 顶部栏:品牌 + 应用切换胶囊 + 添加按钮(结构与 CC Switch 一致) */}
+      {/* 顶部栏:品牌 + 代理状态 + 应用切换胶囊 + 添加按钮 */}
       <header
         className="shrink-0 z-50 w-full transition-all duration-300 bg-background/80 backdrop-blur-md border-b border-border"
         style={{ height: HEADER_HEIGHT }}
@@ -102,30 +211,51 @@ function App() {
       >
         <div className="flex h-full items-center justify-between gap-2 px-6">
           <div className="flex items-center gap-2" data-tauri-no-drag>
-            <span
-              className="text-xl font-semibold transition-colors text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 select-none"
-              title={proxy?.running ? `本地代理 ${proxy.addr}` : "Conduit"}
-            >
+            <span className="text-xl font-semibold transition-colors text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 select-none">
               Conduit
             </span>
+            {/* 代理状态常显:产品核心卖点的可见性 */}
+            {proxyOk !== null && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium select-none",
+                  proxyOk
+                    ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+                    : "text-red-600 dark:text-red-400 bg-red-500/10",
+                )}
+                title={proxyOk ? `本地代理 ${proxyAddr}` : "代理未运行"}
+              >
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    proxyOk ? "bg-emerald-500" : "bg-red-500",
+                  )}
+                />
+                {proxyOk ? "代理运行中" : "代理离线"}
+              </span>
+            )}
             <Button
               variant="ghost"
               size="icon"
               title="设置"
               className="hover:bg-black/5 dark:hover:bg-white/5"
-              onClick={() => setErr("设置页即将在 M1 上线")}
+              onClick={() => toast("error", "设置页即将在 M1 上线")}
             >
               <Settings className="w-4 h-4" />
             </Button>
           </div>
 
           <div className="flex flex-1 min-w-0 items-center justify-end gap-1.5">
-            <AppSwitcher activeApp={activeApp} onSwitch={setActiveApp} />
+            <AppSwitcher
+              activeApp={activeApp}
+              onSwitch={setActiveApp}
+              compact={winWidth < COMPACT_BREAKPOINT}
+            />
             <Button
               onClick={() => setIsAddOpen(true)}
               size="icon"
               className="ml-2"
-              title="添加供应商"
+              title="添加供应商 (⌘N)"
             >
               <Plus className="w-5 h-5" />
             </Button>
@@ -134,27 +264,45 @@ function App() {
       </header>
 
       {/* 主内容区:供应商卡片列表 */}
-      <main className="flex-1 min-h-0 flex flex-col overflow-y-auto animate-fade-in">
+      <main className="flex-1 min-h-0 flex flex-col overflow-y-auto">
         <div className="px-6 flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="flex-1 overflow-y-auto overflow-x-hidden pb-12 px-1">
-            <div className="space-y-4" key={activeApp}>
-              {isLoading && providers.length === 0 && (
-                <div className="text-center text-muted-foreground py-16">
-                  加载中…
-                </div>
+            <div className="space-y-4 animate-fade-in" key={activeApp}>
+              {/* 首次加载:骨架屏占位 */}
+              {!hasCache && providers.length === 0 && (
+                <>
+                  <SkeletonCard />
+                  <SkeletonCard />
+                  <SkeletonCard />
+                </>
               )}
-              {!isLoading && providers.length === 0 && (
-                <div className="text-center py-16">
-                  <p className="text-muted-foreground">
-                    暂无供应商,点击右上角 + 添加
+
+              {/* 空状态:CTA 引导 */}
+              {hasCache && providers.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+                  <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center border border-border">
+                    <Boxes className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <p className="text-base font-medium">还没有{activeApp} 供应商</p>
+                  <p className="text-sm text-muted-foreground -mt-2">
+                    添加一个开始使用;切换即生效,无需重启终端
                   </p>
+                  <Button
+                    className="mt-2"
+                    onClick={() => setIsAddOpen(true)}
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    添加供应商
+                  </Button>
                 </div>
               )}
+
               {providers.map((p) => (
                 <ProviderCard
                   key={p.id}
                   provider={p}
                   isCurrent={p.is_current}
+                  highlight={p.id === highlightId}
                   onSwitch={(provider) => void switchProvider(provider)}
                   onEdit={(provider) => setEditingProvider(provider)}
                   onDuplicate={(provider) => void duplicateProvider(provider)}
@@ -166,35 +314,31 @@ function App() {
         </div>
       </main>
 
-      {/* 底部错误提示条(轻量,不占布局) */}
-      {err && (
-        <div
-          className={cn(
-            "fixed bottom-4 left-1/2 -translate-x-1/2 z-[60]",
-            "max-w-[80%] truncate px-4 py-2 rounded-lg text-sm shadow-lg",
-            "bg-red-500/90 text-white",
-          )}
-          onClick={() => setErr(null)}
-        >
-          {err}(点击关闭)
-        </div>
-      )}
+      <ToastStack items={toasts} onDismiss={dismissToast} />
 
       <AddProviderDialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         appId={activeApp}
-        onCreated={() => void refresh(activeApp)}
-        onError={setErr}
+        onCreated={async (created) => {
+          toast("success", `已添加 ${created.name}`);
+          await refresh(activeApp);
+          focusProvider(created.id);
+        }}
+        onError={(msg) => toast("error", humanizeError(msg))}
       />
 
       <EditProviderDialog
         provider={editingProvider}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean) => {
           if (!open) setEditingProvider(null);
         }}
-        onSaved={() => void refresh(activeApp)}
-        onError={setErr}
+        onSaved={async (saved) => {
+          toast("success", `已保存 ${saved.name}`);
+          await refresh(activeApp);
+          focusProvider(saved.id);
+        }}
+        onError={(msg) => toast("error", humanizeError(msg))}
       />
 
       <ConfirmDialog

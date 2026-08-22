@@ -16,7 +16,9 @@ mod types;
 
 use core::proxy::{server, PROXY_ADDR};
 use services::keychain;
-use tauri::Manager;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{Manager, WindowEvent};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -29,6 +31,14 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        // 关闭窗口 = 隐藏到托盘(代理继续运行,CLI 不断流);
+        // 真正退出走托盘菜单「退出」
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                let _ = window.hide();
+                api.prevent_close();
+            }
+        })
         .setup(|app| {
             // 1. 主密钥(必要时首次生成)
             let master_key = keychain::get_or_create_master_key().map_err(|e| {
@@ -52,6 +62,42 @@ pub fn run() {
                     tracing::error!("代理服务退出: {e}");
                 }
             });
+
+            // 4. 系统托盘:显示主界面 / 退出
+            let show_item = MenuItem::with_id(app, "show", "显示主界面", true, None::<&str>)?;
+            let quit_item = MenuItem::with_id(app, "quit", "退出 Conduit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+            TrayIconBuilder::with_id("main")
+                .icon(app.default_window_icon().expect("缺少应用图标").clone())
+                .tooltip("Conduit — 本地代理运行中")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "show" => {
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                        }
+                    }
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    // 左键单击:显示主窗口
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
 
             app.manage(state);
             Ok(())

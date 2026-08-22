@@ -1,4 +1,3 @@
-import { GripVertical } from "lucide-react";
 import type { Provider } from "@/types";
 import { cn } from "@/lib/utils";
 import { ProviderIcon } from "@/components/ProviderIcon";
@@ -7,6 +6,8 @@ import { ProviderActions } from "@/components/providers/ProviderActions";
 interface ProviderCardProps {
   provider: Provider;
   isCurrent: boolean;
+  /** 新建/更新后短暂高亮(P2-15) */
+  highlight?: boolean;
   onSwitch: (provider: Provider) => void;
   onEdit: (provider: Provider) => void;
   onDuplicate: (provider: Provider) => void;
@@ -14,10 +15,12 @@ interface ProviderCardProps {
 }
 
 // 视觉结构复刻 CC Switch 的 ProviderCard:
-// rounded-xl 卡片 + 当前项蓝色边框/渐变 + 左侧拖拽把手与图标 + hover 显示操作组
+// rounded-xl 卡片 + 当前项蓝色边框/渐变 + hover 显示操作组。
+// 与原版的差异:当前项常显"当前"徽章(不依赖 hover);拖拽把手待 M1 排序功能一起加。
 export function ProviderCard({
   provider,
   isCurrent,
+  highlight = false,
   onSwitch,
   onEdit,
   onDuplicate,
@@ -28,13 +31,14 @@ export function ProviderCard({
 
   return (
     <div
+      id={`provider-${provider.id}`}
       className={cn(
         "relative overflow-hidden rounded-xl border border-border p-4 transition-all duration-300",
         "bg-card text-card-foreground group",
         "hover:border-border-active",
-        shouldUseBlue &&
-          "border-blue-500/60 shadow-sm shadow-blue-500/10",
+        shouldUseBlue && "border-blue-500/60 shadow-sm shadow-blue-500/10",
         !isCurrent && "hover:shadow-sm",
+        highlight && "highlight-flash",
       )}
     >
       {/* 当前项左侧渐变高亮层 */}
@@ -47,17 +51,6 @@ export function ProviderCard({
       />
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 items-center gap-2">
-          {/* 拖拽把手(M0 装饰,排序功能 M1) */}
-          <div
-            className={cn(
-              "-ml-1.5 flex-shrink-0 p-1.5",
-              "text-muted-foreground/50 hover:text-muted-foreground transition-colors",
-            )}
-            aria-label="拖拽排序"
-          >
-            <GripVertical className="h-4 w-4" />
-          </div>
-
           {/* 供应商图标 */}
           <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center border border-border group-hover:scale-105 transition-transform duration-300">
             <ProviderIcon
@@ -72,6 +65,12 @@ export function ProviderCard({
               <h3 className="text-base font-semibold leading-none">
                 {provider.name}
               </h3>
+              {/* 当前项常显徽章:不依赖 hover,一眼可辨 */}
+              {isCurrent && (
+                <span className="inline-flex items-center rounded-md bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                  当前
+                </span>
+              )}
               {!provider.has_key && (
                 <span className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                   无 API Key

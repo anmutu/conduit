@@ -2,7 +2,7 @@ import { ProviderIcon } from "@/components/ProviderIcon";
 import { cn } from "@/lib/utils";
 import type { AppType } from "@/types";
 
-// 布局与交互复刻 CC Switch 的 AppSwitcher
+// 布局与交互复刻 CC Switch 的 AppSwitcher;空间不足时收起文字(compact)
 const ALL_APPS: AppType[] = ["claude", "codex", "gemini", "opencode", "openclaw"];
 const STORAGE_KEY = "conduit-last-app";
 
@@ -25,9 +25,12 @@ const appDisplayName: Record<AppType, string> = {
 export function AppSwitcher({
   activeApp,
   onSwitch,
+  compact = false,
 }: {
   activeApp: AppType;
   onSwitch: (app: AppType) => void;
+  /** 窗口较窄时只显示图标 */
+  compact?: boolean;
 }) {
   const handleSwitch = (app: AppType) => {
     if (app === activeApp) return;
@@ -55,7 +58,14 @@ export function AppSwitcher({
             name={appDisplayName[app]}
             size={iconSize}
           />
-          <span className="transition-all duration-200 whitespace-nowrap overflow-hidden max-w-[80px] opacity-100 ml-2">
+          <span
+            className={cn(
+              "transition-all duration-200 whitespace-nowrap overflow-hidden",
+              compact
+                ? "max-w-0 opacity-0 ml-0"
+                : "max-w-[80px] opacity-100 ml-2",
+            )}
+          >
             {appDisplayName[app]}
           </span>
         </button>
