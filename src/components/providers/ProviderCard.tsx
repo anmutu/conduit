@@ -1,4 +1,4 @@
-import type { Provider } from "@/types";
+import type { Provider, UsageSummary } from "@/types";
 import { cn } from "@/lib/utils";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { ProviderActions } from "@/components/providers/ProviderActions";
@@ -14,6 +14,8 @@ interface ProviderCardProps {
   onDelete: (provider: Provider) => void;
   /** 点击接口地址复制 */
   onCopyUrl: (url: string) => void;
+  /** 累计用量(有数据才显示) */
+  usage?: UsageSummary;
 }
 
 // 视觉结构复刻 CC Switch 的 ProviderCard:
@@ -28,6 +30,7 @@ export function ProviderCard({
   onDuplicate,
   onDelete,
   onCopyUrl,
+  usage,
 }: ProviderCardProps) {
   const displayUrl = provider.base_url || "未配置接口地址";
   const shouldUseBlue = isCurrent;
@@ -94,6 +97,15 @@ export function ProviderCard({
 
         {/* hover 显示操作组 */}
         <div className="flex items-center ml-auto min-w-0 gap-3">
+          {/* 累计用量(常显,有数据才出现) */}
+          {usage && usage.requests > 0 && (
+            <div className="hidden sm:flex flex-col items-end text-xs text-muted-foreground leading-tight">
+              <span className="font-medium text-foreground">{usage.requests} 次请求</span>
+              <span>
+                ↓ {fmtTokens(usage.input_tokens)} · ↑ {fmtTokens(usage.output_tokens)}
+              </span>
+            </div>
+          )}
           <div className="ml-auto">
             <div className="flex items-center gap-1" />
           </div>
@@ -111,4 +123,10 @@ export function ProviderCard({
       </div>
     </div>
   );
+}
+
+function fmtTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
 }

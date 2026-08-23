@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ArrowLeft, Boxes, Download, Plus, Settings } from "lucide-react";
-import type { AppType, Provider, ProxyStatus } from "@/types";
+import type { AppType, Provider, ProxyStatus, UsageSummary } from "@/types";
 import { AppSwitcher } from "@/components/AppSwitcher";
 import { ProviderCard } from "@/components/providers/ProviderCard";
 import { AddProviderDialog } from "@/components/providers/AddProviderDialog";
@@ -103,6 +103,7 @@ const DEMO_PROVIDERS: Provider[] = [
 function App() {
   const [activeApp, setActiveApp] = useState<AppType>(getInitialApp);
   const [providers, setProviders] = useState<Provider[]>([]);
+  const [usageMap, setUsageMap] = useState<Record<string, UsageSummary>>({});
   const [hasCache, setHasCache] = useState(false); // 当前 app 是否已有可展示数据
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
@@ -146,6 +147,10 @@ function App() {
     if (IS_DEMO) {
       setProviders(DEMO_PROVIDERS);
       setHasCache(true);
+      setUsageMap({
+        "demo-1": { requests: 128, input_tokens: 412_000, output_tokens: 1_260_000 },
+        "demo-2": { requests: 36, input_tokens: 98_000, output_tokens: 210_000 },
+      });
       return;
     }
     const cached = cacheRef.current[app];
@@ -163,6 +168,9 @@ function App() {
       if (activeAppRef.current === app) {
         setProviders(list);
         setHasCache(true);
+        invoke<Record<string, UsageSummary>>("get_usage_map", { appType: app })
+          .then(setUsageMap)
+          .catch(() => setUsageMap({}));
       }
     } catch (e) {
       toast("error", humanizeError(String(e)));
@@ -486,6 +494,7 @@ function App() {
                   onEdit={(provider) => setEditingProvider(provider)}
                   onDuplicate={(provider) => void duplicateProvider(provider)}
                   onDelete={(provider) => setConfirmDelete(provider)}
+                  usage={usageMap[p.id]}
                   onCopyUrl={(url) => {
                     navigator.clipboard
                       .writeText(url)
