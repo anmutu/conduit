@@ -1,3 +1,4 @@
+pub mod meter;
 pub mod server;
 
 /// 代理默认监听地址。

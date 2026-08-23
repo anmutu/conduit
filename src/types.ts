@@ -30,3 +30,9 @@ export interface ProxyStatus {
   running: boolean;
   supported_apps: string[];
 }
+
+export interface UsageSummary {
+  requests: number;
+  input_tokens: number;
+  output_tokens: number;
+}

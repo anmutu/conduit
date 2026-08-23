@@ -21,6 +21,7 @@ use axum::{
 use futures::TryStreamExt;
 use tracing::{debug, warn};
 
+use crate::core::proxy::meter::{MeteredStream, UsageCtx, UsageMeter};
 use crate::core::proxy::HOP_BY_HOP;
 use crate::db::provider_dao;
 use crate::services::keychain;
@@ -117,6 +118,21 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         }
     };
 
+    // 计量:从请求体提取 model(仅三家支持计量的 app;解析失败静默跳过)
+    let meter_ctx = if matches!(app, AppType::Claude | AppType::Codex | AppType::Gemini) {
+        let model = serde_json::from_slice::<serde_json::Value>(&bytes)
+            .ok()
+            .and_then(|v| v.get("model").and_then(|m| m.as_str()).map(str::to_string));
+        Some(UsageCtx {
+            pool: state.db.clone(),
+            app_type: app.as_str().to_string(),
+            provider_id: provider.id.clone(),
+            model,
+        })
+    } else {
+        None
+    };
+
     // 5. 构造上游 header:复制客户端原始 header(剔除 hop-by-hop 与凭证类,
     //    凭证由我们统一注入,避免泄露客户端本地残留 key)
     let mut req_headers = HeaderMap::new();
@@ -177,7 +193,12 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
     let stream = resp
         .bytes_stream()
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
-    let mut out = Response::new(Body::from_stream(stream));
+    // 用量计量:透传的同时扫描 usage(失败不影响转发)
+    let metered = match meter_ctx {
+        Some(ctx) => MeteredStream::new(stream, UsageMeter::new(ctx)),
+        None => MeteredStream::new(stream, UsageMeter::disabled()),
+    };
+    let mut out = Response::new(Body::from_stream(metered));
     *out.status_mut() = status;
     *out.headers_mut() = out_headers;
     out

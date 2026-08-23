@@ -37,6 +37,18 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             key   TEXT PRIMARY KEY,
             value TEXT NOT NULL
         );
+
+        -- M2:代理层用量计量(每次请求一行,流结束落库)
+        CREATE TABLE IF NOT EXISTS usage_log (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            app_type      TEXT NOT NULL,
+            provider_id   TEXT NOT NULL,
+            model         TEXT,
+            input_tokens  INTEGER NOT NULL DEFAULT 0,
+            output_tokens INTEGER NOT NULL DEFAULT 0,
+            created_at    INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_usage_provider ON usage_log(provider_id);
         "#,
     )?;
     Ok(())

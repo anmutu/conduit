@@ -102,6 +102,7 @@ pub fn run() {
             commands::settings::set_autostart,
             commands::proxy::proxy_status,
             commands::keychain::keychain_health,
+            commands::usage::get_usage_map,
             commands::tray::refresh_tray,
             commands::import::import_existing,
             commands::takeover::takeover_status,
