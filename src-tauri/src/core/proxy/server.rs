@@ -93,7 +93,15 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
 
     // 3. 组装上游 URL
     let base = provider.base_url.trim_end_matches('/');
+    // 去重路径前缀:base_url 含 /v1(或 /v1beta)且 path 也带时只保留一个
     let mut upstream = format!("{base}{path}");
+    for prefix in ["/v1", "/v1beta"] {
+        let doubled = format!("{prefix}{prefix}/");
+        if upstream.contains(&doubled) {
+            upstream = upstream.replace(&doubled, &format!("{prefix}/"));
+            break;
+        }
+    }
     let mut query_pairs: Vec<String> = Vec::new();
     if let Some(q) = &query {
         query_pairs.push(q.clone());

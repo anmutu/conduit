@@ -47,8 +47,14 @@ impl AppType {
         match self {
             // Anthropic Messages API
             AppType::Claude => &["/v1/messages"],
-            // OpenAI 兼容(Codex CLI 走 chat completions / responses)
-            AppType::Codex => &["/v1/chat/completions", "/v1/responses"],
+            // OpenAI 兼容(Codex CLI 走 chat completions / responses);
+            // 兼容把代理地址配成不带 /v1 的变体
+            AppType::Codex => &[
+                "/v1/chat/completions",
+                "/v1/responses",
+                "/chat/completions",
+                "/responses",
+            ],
             // Google Gemini API
             AppType::Gemini => &["/v1beta/"],
             // OpenCode / OpenClaw 复用 Anthropic 端点(M1 先透传)
