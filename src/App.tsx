@@ -52,6 +52,50 @@ function SkeletonCard() {
 
 let toastSeq = 0;
 
+/** 浏览器演示模式(?demo=1):mock 数据渲染 UI,便于截图与样式开发 */
+const IS_DEMO = new URLSearchParams(location.search).has("demo");
+const DEMO_PROVIDERS: Provider[] = [
+  {
+    id: "demo-1",
+    app_type: "claude",
+    name: "CoderPlan",
+    base_url: "https://api.coderplan.ai",
+    keychain_id: "demo-1",
+    models: [],
+    is_current: true,
+    is_healthy: true,
+    sort_index: 0,
+    created_at: 0,
+    has_key: true,
+  },
+  {
+    id: "demo-2",
+    app_type: "claude",
+    name: "PackyCode",
+    base_url: "https://api.packyapi.com",
+    keychain_id: "demo-2",
+    models: [],
+    is_current: false,
+    is_healthy: true,
+    sort_index: 1,
+    created_at: 0,
+    has_key: true,
+  },
+  {
+    id: "demo-3",
+    app_type: "claude",
+    name: "官方登录",
+    base_url: "https://api.anthropic.com",
+    keychain_id: null,
+    models: [],
+    is_current: false,
+    is_healthy: true,
+    sort_index: 2,
+    created_at: 0,
+    has_key: false,
+  },
+];
+
 function App() {
   const [activeApp, setActiveApp] = useState<AppType>(getInitialApp);
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -91,6 +135,12 @@ function App() {
   }, []);
 
   const refresh = useCallback(async (app: AppType) => {
+    // 演示模式:不走 IPC,直接展示 mock 数据
+    if (IS_DEMO) {
+      setProviders(DEMO_PROVIDERS);
+      setHasCache(true);
+      return;
+    }
     const cached = cacheRef.current[app];
     if (cached) {
       // 已有缓存:先展示旧数据,静默刷新
@@ -118,6 +168,11 @@ function App() {
 
   // 代理状态:常显于 header(卖点可见性)
   useEffect(() => {
+    if (IS_DEMO) {
+      setProxyOk(true);
+      setProxyAddr("127.0.0.1:9527");
+      return;
+    }
     invoke<ProxyStatus>("proxy_status")
       .then((s) => {
         setProxyOk(s.running);
