@@ -75,8 +75,8 @@ const DEMO_PROVIDERS: Provider[] = [
   {
     id: "demo-2",
     app_type: "claude",
-    name: "PackyCode",
-    base_url: "https://api.packyapi.com",
+    name: "DeepSeek",
+    base_url: "https://api.deepseek.com",
     keychain_id: "demo-2",
     models: [],
     is_current: false,
