@@ -175,8 +175,8 @@
 
     <section class="features container" id="features">
       <h2 class="section-title">为什么选 Conduit</h2>
-      <p class="section-sub">三条核心差异,每一条都肉眼可感</p>
-      <div class="grid">
+      <p class="section-sub">四条核心差异,每一条都肉眼可感</p>
+      <div class="grid" style="grid-template-columns: repeat(2, 1fr);">
         <div class="card">
           <div class="icon">⚡</div>
           <h3>切换即生效,零重启</h3>
@@ -191,6 +191,11 @@
           <div class="icon">🛰️</div>
           <h3>代理优先架构</h3>
           <p>代理不是高级选项,而是默认体验。关闭窗口驻留托盘常驻服务,你的 CLI 永不断流。</p>
+        </div>
+        <div class="card">
+          <div class="icon">📊</div>
+          <h3>转发即计量</h3>
+          <p>代理转发的同时原生统计 token 用量,卡片上一眼看清每个供应商的消耗,零额外请求。</p>
         </div>
       </div>
     </section>
@@ -208,6 +213,7 @@
             <tr><td>API Key 存储</td><td class="yes">系统钥匙串 + 整库加密</td><td class="no">明文数据库</td></tr>
             <tr><td>本地代理</td><td class="yes">默认开启</td><td class="no">可选开启</td></tr>
             <tr><td>关闭窗口后服务存活</td><td class="yes">驻留托盘</td><td class="no">—</td></tr>
+            <tr><td>用量统计</td><td class="yes">转发即计量(原生)</td><td class="no">Lua 脚本二次请求</td></tr>
             <tr><td>多 CLI 支持</td><td class="yes">5 个</td><td class="yes">6 个</td></tr>
           </tbody>
         </table>
