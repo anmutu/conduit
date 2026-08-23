@@ -8,4 +8,5 @@ pub mod provider;
 pub mod proxy;
 pub mod import;
 pub mod takeover;
+pub mod settings;
 pub mod tray;

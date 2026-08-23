@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Boxes, Download, Plus, Settings } from "lucide-react";
+import { ArrowLeft, Boxes, Download, Plus, Settings } from "lucide-react";
 import type { AppType, Provider, ProxyStatus } from "@/types";
 import { AppSwitcher } from "@/components/AppSwitcher";
 import { ProviderCard } from "@/components/providers/ProviderCard";
@@ -12,6 +12,7 @@ import { ToastStack, type ToastItem, type ToastType } from "@/components/Toast";
 import { ModeToggle } from "@/components/mode-toggle";
 import { AboutDialog } from "@/components/AboutDialog";
 import { TakeoverDialog } from "@/components/TakeoverDialog";
+import { SettingsPage } from "@/components/settings/SettingsPage";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -107,6 +108,7 @@ function App() {
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Provider | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<"providers" | "settings">("providers");
   const [takeoverOpen, setTakeoverOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [proxyOk, setProxyOk] = useState<boolean | null>(null);
@@ -196,6 +198,11 @@ function App() {
   // 快捷键:Cmd/Ctrl+N 新建,Cmd/Ctrl+1..5 切换应用
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Escape:从设置页返回主界面
+      if (e.key === "Escape") {
+        setCurrentView("providers");
+        return;
+      }
       const mod = e.metaKey || e.ctrlKey;
       if (!mod) return;
       if (e.key.toLowerCase() === "n") {
@@ -331,6 +338,21 @@ function App() {
           )}
         >
           <div className="flex items-center gap-2" data-tauri-no-drag>
+            {currentView === "settings" && (
+              <>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="mr-1 rounded-lg"
+                  title="返回(Esc)"
+                  onClick={() => setCurrentView("providers")}
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+                <h1 className="text-lg font-semibold">设置</h1>
+              </>
+            )}
+            {currentView === "providers" && (
             <button
               type="button"
               onClick={() => setAboutOpen(true)}
@@ -339,6 +361,7 @@ function App() {
             >
               Conduit
             </button>
+            )}
             {/* 代理状态常显:产品核心卖点的可见性 */}
             {proxyOk !== null && (
               <button
@@ -367,32 +390,45 @@ function App() {
               size="icon"
               title="设置"
               className="hover:bg-black/5 dark:hover:bg-white/5"
-              onClick={() => toast("error", "设置页即将在 M1 上线")}
+              onClick={() => setCurrentView("settings")}
             >
               <Settings className="w-4 h-4" />
             </Button>
           </div>
 
           <div className="flex flex-1 min-w-0 items-center justify-end gap-1.5">
-            <AppSwitcher
-              activeApp={activeApp}
-              onSwitch={setActiveApp}
-              compact={winWidth < COMPACT_BREAKPOINT}
-            />
-            <Button
-              onClick={() => setIsAddOpen(true)}
-              size="icon"
-              className="ml-2"
-              title="添加供应商 (⌘N)"
-            >
-              <Plus className="w-5 h-5" />
-            </Button>
+            {currentView === "providers" && (
+              <>
+                <AppSwitcher
+                  activeApp={activeApp}
+                  onSwitch={setActiveApp}
+                  compact={winWidth < COMPACT_BREAKPOINT}
+                />
+                <Button
+                  onClick={() => setIsAddOpen(true)}
+                  size="icon"
+                  className="ml-2"
+                  title="添加供应商 (⌘N)"
+                >
+                  <Plus className="w-5 h-5" />
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
 
       {/* 主内容区:供应商卡片列表 */}
       <main className="flex-1 min-h-0 flex flex-col overflow-y-auto">
+        {currentView === "settings" && (
+          <div className="px-6 py-6 animate-fade-in">
+            <SettingsPage
+              onError={(m) => toast("error", humanizeError(m))}
+              onSuccess={(m) => toast("success", m)}
+            />
+          </div>
+        )}
+        {currentView === "providers" && (
         <div className="px-6 flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="flex-1 overflow-y-auto overflow-x-hidden pb-12 px-1">
             <div className="space-y-4 animate-fade-in" key={activeApp}>
@@ -461,6 +497,7 @@ function App() {
             </div>
           </div>
         </div>
+        )}
       </main>
 
       <ToastStack items={toasts} onDismiss={dismissToast} />

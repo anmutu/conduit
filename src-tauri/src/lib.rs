@@ -26,6 +26,10 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         // 关闭窗口 = 隐藏到托盘(代理继续运行);真正退出走托盘菜单
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -94,6 +98,8 @@ pub fn run() {
             commands::provider::delete_provider,
             commands::provider::update_provider,
             commands::provider::set_provider_key,
+            commands::settings::get_app_settings,
+            commands::settings::set_autostart,
             commands::proxy::proxy_status,
             commands::keychain::keychain_health,
             commands::tray::refresh_tray,
