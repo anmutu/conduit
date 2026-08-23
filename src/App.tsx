@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { Boxes, Plus, Settings } from "lucide-react";
 import type { AppType, Provider, ProxyStatus } from "@/types";
 import { AppSwitcher } from "@/components/AppSwitcher";
@@ -9,6 +10,7 @@ import { EditProviderDialog } from "@/components/providers/EditProviderDialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ToastStack, type ToastItem, type ToastType } from "@/components/Toast";
 import { ModeToggle } from "@/components/mode-toggle";
+import { AboutDialog } from "@/components/AboutDialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -103,6 +105,7 @@ function App() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Provider | null>(null);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [proxyOk, setProxyOk] = useState<boolean | null>(null);
   const [proxyAddr, setProxyAddr] = useState("");
@@ -208,6 +211,26 @@ function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // 托盘快速切换后:同步刷新 + toast(与主界面操作同一反馈通道)
+  useEffect(() => {
+    if (IS_DEMO) return;
+    let un: (() => void) | undefined;
+    void listen<{ appType: AppType; providerId: string; name: string }>(
+      "provider-switched",
+      (e) => {
+        toast("success", `已切换到 ${e.payload.name}(托盘)`);
+        cacheRef.current = {};
+        void refresh(e.payload.appType);
+      },
+    ).then((fn) => (un = fn));
+    return () => un?.();
+  }, [refresh, toast]);
+
+  /** 供应商变更后同步托盘菜单(演示模式无后端,跳过) */
+  const syncTray = useCallback(() => {
+    if (!IS_DEMO) void invoke("refresh_tray").catch(() => {});
+  }, []);
+
   /** 新建/更新后:滚动到该卡片并短暂高亮 */
   const focusProvider = useCallback((id: string) => {
     setHighlightId(id);
@@ -226,6 +249,7 @@ function App() {
         appType: provider.app_type,
       });
       toast("success", `已切换到 ${provider.name}`);
+      syncTray();
       await refresh(activeApp);
     } catch (e) {
       toast("error", humanizeError(String(e)));
@@ -243,6 +267,7 @@ function App() {
         },
       });
       toast("success", `已复制为「${created.name}」`);
+      syncTray();
       await refresh(activeApp);
       focusProvider(created.id);
     } catch (e) {
@@ -257,6 +282,7 @@ function App() {
       await invoke("delete_provider", { id: target.id });
       setConfirmDelete(null);
       toast("success", `已删除 ${target.name}`);
+      syncTray();
       await refresh(activeApp);
     } catch (e) {
       toast("error", humanizeError(String(e)));
@@ -278,9 +304,14 @@ function App() {
           )}
         >
           <div className="flex items-center gap-2" data-tauri-no-drag>
-            <span className="text-xl font-semibold transition-colors text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 select-none">
+            <button
+              type="button"
+              onClick={() => setAboutOpen(true)}
+              title="关于 Conduit"
+              className="text-xl font-semibold transition-colors text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 select-none cursor-pointer"
+            >
               Conduit
-            </span>
+            </button>
             {/* 代理状态常显:产品核心卖点的可见性 */}
             {proxyOk !== null && (
               <span
@@ -396,12 +427,15 @@ function App() {
 
       <ToastStack items={toasts} onDismiss={dismissToast} />
 
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+
       <AddProviderDialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         appId={activeApp}
         onCreated={async (created) => {
           toast("success", `已添加 ${created.name}`);
+          syncTray();
           await refresh(activeApp);
           focusProvider(created.id);
         }}
@@ -415,6 +449,7 @@ function App() {
         }}
         onSaved={async (saved) => {
           toast("success", `已保存 ${saved.name}`);
+          syncTray();
           await refresh(activeApp);
           focusProvider(saved.id);
         }}
