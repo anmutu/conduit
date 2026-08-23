@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/i18n";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,7 @@ interface ConfirmDialogProps {
   title: string;
   message: string;
   confirmText?: string;
+  cancelText?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -22,10 +24,12 @@ export function ConfirmDialog({
   isOpen,
   title,
   message,
-  confirmText = "删除",
+  confirmText,
+  cancelText,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useI18n();
   return (
     <Dialog open={isOpen} onOpenChange={(open: boolean) => !open && onCancel()}>
       <DialogContent className="sm:max-w-[400px]">
@@ -35,10 +39,10 @@ export function ConfirmDialog({
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={onCancel}>
-            取消
+            {cancelText ?? t("common.cancel")}
           </Button>
           <Button variant="destructive" onClick={onConfirm}>
-            {confirmText}
+            {confirmText ?? t("common.delete")}
           </Button>
         </DialogFooter>
       </DialogContent>

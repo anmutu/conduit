@@ -2,6 +2,7 @@ import type { Provider, UsageSummary } from "@/types";
 import { cn } from "@/lib/utils";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { ProviderActions } from "@/components/providers/ProviderActions";
+import { useI18n } from "@/i18n";
 
 interface ProviderCardProps {
   provider: Provider;
@@ -32,7 +33,8 @@ export function ProviderCard({
   onCopyUrl,
   usage,
 }: ProviderCardProps) {
-  const displayUrl = provider.base_url || "未配置接口地址";
+  const { t } = useI18n();
+  const displayUrl = provider.base_url || t("provider.notConfigured");
   const shouldUseBlue = isCurrent;
 
   return (
@@ -88,7 +90,7 @@ export function ProviderCard({
               type="button"
               onClick={() => onCopyUrl(displayUrl)}
               className="inline-flex items-center text-sm max-w-[280px] text-muted-foreground hover:text-blue-500 dark:hover:text-blue-400 transition-colors cursor-pointer"
-              title="点击复制接口地址"
+              title={t("provider.copyUrl")}
             >
               <span className="truncate">{displayUrl}</span>
             </button>
@@ -100,7 +102,7 @@ export function ProviderCard({
           {/* 累计用量(常显,有数据才出现) */}
           {usage && usage.requests > 0 && (
             <div className="hidden sm:flex flex-col items-end text-xs text-muted-foreground leading-tight">
-              <span className="font-medium text-foreground">{usage.requests} 次请求</span>
+              <span className="font-medium text-foreground">{t("provider.requests", { n: usage.requests })}</span>
               <span>
                 ↓ {fmtTokens(usage.input_tokens)} · ↑ {fmtTokens(usage.output_tokens)}
               </span>

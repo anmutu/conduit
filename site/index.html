@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" id="htmlRoot">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -134,23 +134,24 @@
           Conduit
         </div>
         <div class="nav-links">
-          <a href="#features">特性</a>
-          <a href="#compare">对比</a>
-          <a class="cta btn btn-primary" style="padding: 7px 16px; font-size: 13px;" href="#download">下载</a>
+          <a href="#features" data-i18n="navFeatures">特性</a>
+          <a href="#compare" data-i18n="navCompare">对比</a>
+          <a class="cta btn btn-primary" style="padding: 7px 16px; font-size: 13px;" href="#download" data-i18n="dl">下载</a>
+          <a href="#" id="langToggle" style="font-size:12px; margin-left:4px; border:1px solid var(--border); border-radius:8px; padding:7px 10px; color:var(--muted);">EN</a>
         </div>
       </div>
     </nav>
 
     <section class="hero container">
-      <h1>AI CLI 的<br /><span class="accent">本地供应中心</span></h1>
+      <h1><span data-i18n="hero1">AI CLI 的</span><br /><span class="accent" data-i18n="hero2">本地供应中心</span></h1>
       <p class="sub">
-        一个应用管理 Claude Code、Codex、Gemini CLI、OpenCode、OpenClaw 的全部供应商。
-        切换即生效、免重启;API Key 加密存储、永不落盘明文。
+        <span data-i18n="heroSub1">一个应用管理 Claude Code、Codex、Gemini CLI、OpenCode、OpenClaw 的全部供应商。</span>
+        <span data-i18n="heroSub2">切换即生效、免重启;API Key 加密存储、永不落盘明文。</span>
       </p>
       <div class="hero-actions" id="download">
-        <a class="btn btn-primary" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer">⬇ 下载 macOS 版</a>
-        <a class="btn btn-primary" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer">⬇ 下载 Windows 版</a>
-        <a class="btn btn-primary" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer">⬇ 下载 Linux 版</a>
+        <a class="btn btn-primary" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer">⬇ <span data-i18n="dlMac">下载 macOS 版</span></a>
+        <a class="btn btn-primary" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer">⬇ <span data-i18n="dlWin">下载 Windows 版</span></a>
+        <a class="btn btn-primary" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer">⬇ <span data-i18n="dlLinux">下载 Linux 版</span></a>
       </div>
       <p class="hero-note">v0.1 即将发布 · <a href="https://github.com/anmutu/conduit" target="_blank" rel="noreferrer" style="color:inherit;">GitHub</a> · MIT 开源</p>
       <div class="apps-line">
@@ -159,62 +160,62 @@
     </section>
 
     <section class="preview container">
-      <h2 class="section-title">一眼看懂</h2>
-      <p class="section-sub">浅色与深色,同一个应用</p>
+      <h2 class="section-title" data-i18n="previewTitle">一眼看懂</h2>
+      <p class="section-sub" data-i18n="previewSub">浅色与深色,同一个应用</p>
       <div class="preview-grid">
         <figure class="shot">
           <img src="./app-light.png" alt="Conduit 浅色模式" loading="lazy" />
-          <figcaption>浅色模式</figcaption>
+          <figcaption data-i18n="lightMode">浅色模式</figcaption>
         </figure>
         <figure class="shot">
           <img src="./app-dark.png" alt="Conduit 深色模式" loading="lazy" />
-          <figcaption>深色模式</figcaption>
+          <figcaption data-i18n="darkMode">深色模式</figcaption>
         </figure>
       </div>
     </section>
 
     <section class="features container" id="features">
-      <h2 class="section-title">为什么选 Conduit</h2>
-      <p class="section-sub">四条核心差异,每一条都肉眼可感</p>
+      <h2 class="section-title" data-i18n="whyTitle">为什么选 Conduit</h2>
+      <p class="section-sub" data-i18n="whySub">四条核心差异,每一条都肉眼可感</p>
       <div class="grid" style="grid-template-columns: repeat(2, 1fr);">
         <div class="card">
           <div class="icon">⚡</div>
-          <h3>切换即生效,零重启</h3>
-          <p>本地代理接管全部 CLI 流量,切换供应商只改一个指针。Codex / Gemini 与 Claude 一致,告别重启终端。</p>
+          <h3 data-i18n="f1t">切换即生效,零重启</h3>
+          <p data-i18n="f1d">本地代理接管全部 CLI 流量,切换供应商只改一个指针。Codex / Gemini 与 Claude 一致,告别重启终端。</p>
         </div>
         <div class="card">
           <div class="icon">🔐</div>
-          <h3>Key 永不落盘明文</h3>
-          <p>API Key 存系统钥匙串(Keychain / DPAPI / Secret Service),配置库整库 SQLCipher 加密,文件泄露也读不出凭证。</p>
+          <h3 data-i18n="f2t">Key 永不落盘明文</h3>
+          <p data-i18n="f2d">API Key 存系统钥匙串(Keychain / DPAPI / Secret Service),配置库整库 SQLCipher 加密,文件泄露也读不出凭证。</p>
         </div>
         <div class="card">
           <div class="icon">🛰️</div>
-          <h3>代理优先架构</h3>
-          <p>代理不是高级选项,而是默认体验。关闭窗口驻留托盘常驻服务,你的 CLI 永不断流。</p>
+          <h3 data-i18n="f3t">代理优先架构</h3>
+          <p data-i18n="f3d">代理不是高级选项,而是默认体验。关闭窗口驻留托盘常驻服务,你的 CLI 永不断流。</p>
         </div>
         <div class="card">
           <div class="icon">📊</div>
-          <h3>转发即计量</h3>
-          <p>代理转发的同时原生统计 token 用量,卡片上一眼看清每个供应商的消耗,零额外请求。</p>
+          <h3 data-i18n="f4t">转发即计量</h3>
+          <p data-i18n="f4d">代理转发的同时原生统计 token 用量,卡片上一眼看清每个供应商的消耗,零额外请求。</p>
         </div>
       </div>
     </section>
 
     <section class="compare container" id="compare">
-      <h2 class="section-title">与 CC Switch 对比</h2>
-      <p class="section-sub">尊重先行者,做不一样的选择</p>
+      <h2 class="section-title" data-i18n="cmpTitle">与 CC Switch 对比</h2>
+      <p class="section-sub" data-i18n="cmpSub">尊重先行者,做不一样的选择</p>
       <div class="tbl-wrap">
         <table>
           <thead>
-            <tr><th>能力</th><th>Conduit</th><th>CC Switch</th></tr>
+            <tr><th data-i18n="thCap">能力</th><th>Conduit</th><th>CC Switch</th></tr>
           </thead>
           <tbody>
-            <tr><td>Codex / Gemini 切换免重启</td><td class="yes">默认支持</td><td class="no">需重启 / 手动开代理</td></tr>
-            <tr><td>API Key 存储</td><td class="yes">系统钥匙串 + 整库加密</td><td class="no">明文数据库</td></tr>
-            <tr><td>本地代理</td><td class="yes">默认开启</td><td class="no">可选开启</td></tr>
-            <tr><td>关闭窗口后服务存活</td><td class="yes">驻留托盘</td><td class="no">—</td></tr>
-            <tr><td>用量统计</td><td class="yes">转发即计量(原生)</td><td class="no">Lua 脚本二次请求</td></tr>
-            <tr><td>多 CLI 支持</td><td class="yes">5 个</td><td class="yes">6 个</td></tr>
+            <tr><td data-i18n="r1c">Codex / Gemini 切换免重启</td><td class="yes" data-i18n="r1a">默认支持</td><td class="no" data-i18n="r1b">需重启 / 手动开代理</td></tr>
+            <tr><td data-i18n="r2c">API Key 存储</td><td class="yes" data-i18n="r2a">系统钥匙串 + 整库加密</td><td class="no" data-i18n="r2b">明文数据库</td></tr>
+            <tr><td data-i18n="r3c">本地代理</td><td class="yes">默认开启</td><td class="no" data-i18n="r3b">可选开启</td></tr>
+            <tr><td data-i18n="r4c">关闭窗口后服务存活</td><td class="yes">驻留托盘</td><td class="no">—</td></tr>
+            <tr><td data-i18n="r5c">用量统计</td><td class="yes" data-i18n="r5a">转发即计量(原生)</td><td class="no" data-i18n="r5b">Lua 脚本二次请求</td></tr>
+            <tr><td data-i18n="r6c">多 CLI 支持</td><td class="yes">5 个</td><td class="yes">6 个</td></tr>
           </tbody>
         </table>
       </div>
@@ -223,10 +224,65 @@
     <footer>
       <div class="container">
         <span>© 2026 Conduit · MIT License</span>
-        <span><a href="https://github.com/anmutu/conduit" target="_blank" rel="noreferrer">GitHub</a> · <a href="#features">特性</a> · <a href="#compare">对比</a></span>
+        <span><a href="https://github.com/anmutu/conduit" target="_blank" rel="noreferrer">GitHub</a> · <a href="#features" data-i18n="navFeatures">特性</a> · <a href="#compare" data-i18n="navCompare">对比</a></span>
       </div>
     </footer>
 
+
+    <script>
+      var I18N = {
+        en: {
+          navFeatures: "Features", navCompare: "Compare", dl: "Download",
+          hero1: "The local supply hub", hero2: "for AI CLIs",
+          heroSub1: "One app to manage every provider for Claude Code, Codex, Gemini CLI, OpenCode and OpenClaw.",
+          heroSub2: "Switching is instant with no restarts; API keys stay encrypted and never touch disk.",
+          dlMac: "Download for macOS", dlWin: "Download for Windows", dlLinux: "Download for Linux",
+          previewTitle: "See It Yourself", previewSub: "Light and dark, one app",
+          lightMode: "Light", darkMode: "Dark",
+          whyTitle: "Why Conduit", whySub: "Four differences you can see",
+          f1t: "Instant switching, zero restarts",
+          f1d: "The local proxy takes over all CLI traffic; switching a provider just moves a pointer. Codex and Gemini behave exactly like Claude — no more terminal restarts.",
+          f2t: "Keys never touch disk in plain text",
+          f2d: "API keys live in the system keychain (Keychain / DPAPI / Secret Service) with full-database SQLCipher encryption — a leaked file reveals nothing.",
+          f3t: "Proxy-first architecture",
+          f3d: "The proxy is the default experience, not an advanced option. Closing the window keeps it alive in the tray — your CLIs never drop.",
+          f4t: "Metering as it forwards",
+          f4d: "Token usage is counted natively while forwarding — every provider's consumption is visible on its card, zero extra requests.",
+          cmpTitle: "Conduit vs CC Switch", cmpSub: "Respect the pioneer, make different choices",
+          thCap: "Capability",
+          r1c: "Codex / Gemini switch without restart", r1a: "By default", r1b: "Restart / manual proxy",
+          r2c: "API key storage", r2a: "Keychain + full encryption", r2b: "Plain-text database",
+          r3c: "Local proxy", r3b: "Optional",
+          r4c: "Service survives window close",
+          r5c: "Usage metering", r5a: "Native, as it forwards", r5b: "Lua-script re-query",
+          r6c: "CLI support"
+        },
+        zh: {}
+      };
+      (function () {
+        var root = document.documentElement;
+        var toggle = document.getElementById("langToggle");
+        function apply(lang) {
+          var dict = I18N[lang] || {};
+          document.querySelectorAll("[data-i18n]").forEach(function (el) {
+            var k = el.getAttribute("data-i18n");
+            if (dict[k]) el.textContent = dict[k];
+          });
+          root.setAttribute("lang", lang === "en" ? "en" : "zh-CN");
+          document.title = lang === "en" ? "Conduit — The local supply hub for AI CLIs" : "Conduit — AI CLI 的本地供应中心";
+          toggle.textContent = lang === "en" ? "中文" : "EN";
+          try { localStorage.setItem("site-lang", lang); } catch (e) {}
+        }
+        var saved = null;
+        try { saved = localStorage.getItem("site-lang"); } catch (e) {}
+        if (!saved) saved = /^en/i.test(navigator.language) ? "en" : "zh";
+        apply(saved);
+        toggle.addEventListener("click", function (e) {
+          e.preventDefault();
+          apply(root.getAttribute("lang") === "en" ? "zh" : "en");
+        });
+      })();
+    </script>
     <script>
       // 支持三种主题来源:URL 参数(演示用)> localStorage > 跟随系统
       (function () {

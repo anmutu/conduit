@@ -15,6 +15,7 @@ import { TakeoverDialog } from "@/components/TakeoverDialog";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 const STORAGE_KEY = "conduit-last-app";
 const VALID_APPS: AppType[] = ["claude", "codex", "gemini", "opencode", "openclaw"];
@@ -29,14 +30,13 @@ function getInitialApp(): AppType {
 }
 
 /** 把底层错误串转成人话 */
-function humanizeError(raw: string): string {
+type TFunc = ReturnType<typeof useI18n>["t"];
+function humanizeError(raw: string, t: TFunc): string {
   const msg = raw.replace(/^Error:\s*/i, "");
-  if (msg.includes("keychain")) return "系统钥匙串访问失败,请检查授权";
-  if (msg.includes("数据库") || msg.includes("database"))
-    return "本地数据库读写失败";
-  if (msg.includes("invoke") || msg.includes("ipc"))
-    return "无法连接本地服务(浏览器预览模式下属正常)";
-  return msg.length > 120 ? `${msg.slice(0, 120)}…` : msg;
+  if (msg.includes("keychain")) return t("err.keychain");
+  if (msg.includes("数据库") || msg.includes("database")) return t("err.db");
+  if (msg.includes("invoke") || msg.includes("ipc")) return t("err.ipc");
+  return t("err.fallback", { msg: msg.length > 120 ? `${msg.slice(0, 120)}…` : msg });
 }
 
 /** 骨架卡片:列表加载时占位,避免布局抖动 */
@@ -101,6 +101,7 @@ const DEMO_PROVIDERS: Provider[] = [
 ];
 
 function App() {
+  const { t, locale } = useI18n();
   const [activeApp, setActiveApp] = useState<AppType>(getInitialApp);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [usageMap, setUsageMap] = useState<Record<string, UsageSummary>>({});
@@ -173,7 +174,7 @@ function App() {
           .catch(() => setUsageMap({}));
       }
     } catch (e) {
-      toast("error", humanizeError(String(e)));
+      toast("error", humanizeError(String(e), t));
     }
   }, [toast]);
 
@@ -235,7 +236,7 @@ function App() {
     void listen<{ appType: AppType; providerId: string; name: string }>(
       "provider-switched",
       (e) => {
-        toast("success", `已切换到 ${e.payload.name}(托盘)`);
+        toast("success", t("toast.switchedTray", { name: e.payload.name }));
         cacheRef.current = {};
         void refresh(e.payload.appType);
       },
@@ -252,17 +253,17 @@ function App() {
         "import_existing",
       );
       if (list.length === 0) {
-        toast("error", "未发现可导入的配置(无第三方 base_url 或已导入过)");
+        toast("error", t("import.none"));
       } else {
         toast(
           "success",
-          `已导入 ${list.length} 个:${list.map((x) => x.name.replace("导入的 ", "")).join("、")}`,
+          t("import.done", { n: list.length, names: list.map((x) => x.name.replace("导入的 ", "").replace("Imported ", "")).join(list.length > 1 && locale === "zh" ? "、" : ", ") }),
         );
         syncTray();
         await refresh(activeApp);
       }
     } catch (e) {
-      toast("error", humanizeError(String(e)));
+      toast("error", humanizeError(String(e), t));
     } finally {
       setImporting(false);
     }
@@ -290,11 +291,11 @@ function App() {
         id: provider.id,
         appType: provider.app_type,
       });
-      toast("success", `已切换到 ${provider.name}`);
+      toast("success", t("toast.switched", { name: provider.name }));
       syncTray();
       await refresh(activeApp);
     } catch (e) {
-      toast("error", humanizeError(String(e)));
+      toast("error", humanizeError(String(e), t));
     }
   };
 
@@ -308,12 +309,12 @@ function App() {
           models: provider.models,
         },
       });
-      toast("success", `已复制为「${created.name}」`);
+      toast("success", t("toast.duplicated", { name: created.name }));
       syncTray();
       await refresh(activeApp);
       focusProvider(created.id);
     } catch (e) {
-      toast("error", humanizeError(String(e)));
+      toast("error", humanizeError(String(e), t));
     }
   };
 
@@ -323,11 +324,11 @@ function App() {
     try {
       await invoke("delete_provider", { id: target.id });
       setConfirmDelete(null);
-      toast("success", `已删除 ${target.name}`);
+      toast("success", t("toast.deleted", { name: target.name }));
       syncTray();
       await refresh(activeApp);
     } catch (e) {
-      toast("error", humanizeError(String(e)));
+      toast("error", humanizeError(String(e), t));
     }
   };
 
@@ -352,19 +353,19 @@ function App() {
                   variant="outline"
                   size="icon"
                   className="mr-1 rounded-lg"
-                  title="返回(Esc)"
+                  title={t("common.back")}
                   onClick={() => setCurrentView("providers")}
                 >
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
-                <h1 className="text-lg font-semibold">设置</h1>
+                <h1 className="text-lg font-semibold">{t("common.settings")}</h1>
               </>
             )}
             {currentView === "providers" && (
             <button
               type="button"
               onClick={() => setAboutOpen(true)}
-              title="关于 Conduit"
+              title={t("common.about")}
               className="text-xl font-semibold transition-colors text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 select-none cursor-pointer"
             >
               Conduit
@@ -381,7 +382,7 @@ function App() {
                     ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
                     : "text-red-600 dark:text-red-400 bg-red-500/10",
                 )}
-                title={proxyOk ? `本地代理 ${proxyAddr},点击管理接管` : "代理未运行,点击查看"}
+                title={proxyOk ? t("takeover.proxyTipOn", { addr: proxyAddr }) : t("takeover.proxyTipOff")}
               >
                 <span
                   className={cn(
@@ -389,14 +390,14 @@ function App() {
                     proxyOk ? "bg-emerald-500" : "bg-red-500",
                   )}
                 />
-                {proxyOk ? "代理运行中" : "代理离线"}
+                {proxyOk ? t("takeover.proxyOn") : t("takeover.proxyOff")}
               </button>
             )}
             <ModeToggle />
             <Button
               variant="ghost"
               size="icon"
-              title="设置"
+              title={t("common.settings")}
               className="hover:bg-black/5 dark:hover:bg-white/5"
               onClick={() => setCurrentView("settings")}
             >
@@ -431,7 +432,7 @@ function App() {
         {currentView === "settings" && (
           <div className="px-6 py-6 animate-fade-in">
             <SettingsPage
-              onError={(m) => toast("error", humanizeError(m))}
+              onError={(m) => toast("error", humanizeError(m, t))}
               onSuccess={(m) => toast("success", m)}
             />
           </div>
@@ -455,14 +456,14 @@ function App() {
                   <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center border border-border">
                     <Boxes className="h-6 w-6 text-muted-foreground" />
                   </div>
-                  <p className="text-base font-medium">还没有{activeApp} 供应商</p>
+                  <p className="text-base font-medium">{t("empty.title", { app: activeApp })}</p>
                   <p className="text-sm text-muted-foreground -mt-2">
-                    添加一个开始使用;切换即生效,无需重启终端
+                    {t("empty.desc")}
                   </p>
                   <div className="flex items-center gap-2 mt-2">
                     <Button onClick={() => setIsAddOpen(true)}>
                       <Plus className="w-4 h-4 mr-1" />
-                      添加供应商
+                      {t("empty.cta")}
                     </Button>
                     {!IS_DEMO && (
                       <Button
@@ -471,12 +472,12 @@ function App() {
                         onClick={() => void runImport()}
                       >
                         <Download className="w-4 h-4 mr-1" />
-                        {importing ? "导入中…" : "从现有 CLI 配置导入"}
+                        {importing ? t("empty.importing") : t("empty.import")}
                       </Button>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    或按{" "}
+                    {t("empty.kbd")}{" "}
                     <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted font-mono text-[10px]">
                       ⌘N
                     </kbd>
@@ -498,8 +499,8 @@ function App() {
                   onCopyUrl={(url) => {
                     navigator.clipboard
                       .writeText(url)
-                      .then(() => toast("success", "接口地址已复制"))
-                      .catch(() => toast("error", "复制失败"));
+                      .then(() => toast("success", t("toast.copied")))
+                      .catch(() => toast("error", t("toast.copyFailed")));
                   }}
                 />
               ))}
@@ -516,7 +517,7 @@ function App() {
       <TakeoverDialog
         open={takeoverOpen}
         onOpenChange={setTakeoverOpen}
-        onError={(m) => toast("error", humanizeError(m))}
+        onError={(m) => toast("error", humanizeError(m, t))}
         onSuccess={(m) => toast("success", m)}
       />
 
@@ -525,12 +526,12 @@ function App() {
         onOpenChange={setIsAddOpen}
         appId={activeApp}
         onCreated={async (created) => {
-          toast("success", `已添加 ${created.name}`);
+          toast("success", t("toast.added", { name: created.name }));
           syncTray();
           await refresh(activeApp);
           focusProvider(created.id);
         }}
-        onError={(msg) => toast("error", humanizeError(msg))}
+        onError={(msg) => toast("error", humanizeError(msg, t))}
       />
 
       <EditProviderDialog
@@ -539,18 +540,18 @@ function App() {
           if (!open) setEditingProvider(null);
         }}
         onSaved={async (saved) => {
-          toast("success", `已保存 ${saved.name}`);
+          toast("success", t("toast.saved", { name: saved.name }));
           syncTray();
           await refresh(activeApp);
           focusProvider(saved.id);
         }}
-        onError={(msg) => toast("error", humanizeError(msg))}
+        onError={(msg) => toast("error", humanizeError(msg, t))}
       />
 
       <ConfirmDialog
         isOpen={Boolean(confirmDelete)}
-        title="删除供应商"
-        message={`确定要删除「${confirmDelete?.name ?? ""}」吗?系统钥匙串中的 API Key 也会一并清除。`}
+        title={t("confirm.deleteTitle")}
+        message={t("confirm.deleteMsg", { name: confirmDelete?.name ?? "" })}
         onConfirm={() => void deleteProvider()}
         onCancel={() => setConfirmDelete(null)}
       />

@@ -5,6 +5,7 @@
 
 pub mod import;
 pub mod keychain;
+pub mod locale;
 pub mod provider;
 pub mod proxy;
 pub mod settings;

@@ -7,6 +7,7 @@
 //!   争锁而阻塞;WAL 提升并发读写。
 //! - **per-app 锁**:切换等需要串行的操作用更细粒度的锁(见 services),不全局串行。
 
+pub mod kv;
 pub mod provider_dao;
 mod schema;
 pub mod usage_dao;
