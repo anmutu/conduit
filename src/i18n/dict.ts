@@ -85,6 +85,17 @@ export const zh = {
   "settings.langZh": "中文",
   "settings.langEn": "English",
   "settings.langSystem": "自动",
+  // 用量仪表盘
+  "dash.title": "用量",
+  "dash.requests": "总请求",
+  "dash.input": "输入 tokens",
+  "dash.output": "输出 tokens",
+  "dash.trend": "近 7 日趋势",
+  "dash.byProvider": "按供应商",
+  "dash.byModel": "按模型",
+  "dash.empty": "暂无数据",
+  "dash.reqUnit": "次",
+  "dash.note": "转发即计量,零额外请求;数据仅存本机加密库。",
   // 关于
   "about.desc": "AI CLI 的本地供应中心:切换即生效、免重启,API Key 加密不落盘。视觉体系致敬 CC Switch(MIT)。",
   "about.openSource": "MIT 开源",
@@ -205,6 +216,18 @@ export const en: Dict = {
   "err.db": "Local database read/write failed",
   "err.ipc": "Cannot reach the local service (normal in browser preview)",
   "err.fallback": "{msg}",
+  // Usage dashboard
+  "dash.title": "Usage",
+  "dash.requests": "Requests",
+  "dash.input": "Input tokens",
+  "dash.output": "Output tokens",
+  "dash.trend": "Last 7 Days",
+  "dash.byProvider": "By Provider",
+  "dash.byModel": "By Model",
+  "dash.empty": "No data yet",
+  "dash.reqUnit": "reqs",
+  "dash.note": "Metered as it forwards, zero extra requests; data stays in your local encrypted store.",
   "github.repo": "GitHub · MIT",
   "err.generic": "Something went wrong",
 };
+

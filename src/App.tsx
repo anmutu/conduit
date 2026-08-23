@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { ArrowLeft, Boxes, Download, Plus, Settings } from "lucide-react";
+import { ArrowLeft, BarChart3, Boxes, Download, Plus, Settings } from "lucide-react";
 import type { AppType, Provider, ProxyStatus, UsageSummary } from "@/types";
 import { AppSwitcher } from "@/components/AppSwitcher";
 import { ProviderCard } from "@/components/providers/ProviderCard";
@@ -13,6 +13,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { AboutDialog } from "@/components/AboutDialog";
 import { TakeoverDialog } from "@/components/TakeoverDialog";
 import { SettingsPage } from "@/components/settings/SettingsPage";
+import { UsagePage } from "@/components/usage/UsagePage";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
@@ -110,7 +111,7 @@ function App() {
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Provider | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<"providers" | "settings">("providers");
+  const [currentView, setCurrentView] = useState<"providers" | "settings" | "usage">("providers");
   const [takeoverOpen, setTakeoverOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [proxyOk, setProxyOk] = useState<boolean | null>(null);
@@ -347,7 +348,7 @@ function App() {
           )}
         >
           <div className="flex items-center gap-2" data-tauri-no-drag>
-            {currentView === "settings" && (
+            {currentView !== "providers" && (
               <>
                 <Button
                   variant="outline"
@@ -358,7 +359,9 @@ function App() {
                 >
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
-                <h1 className="text-lg font-semibold">{t("common.settings")}</h1>
+                <h1 className="text-lg font-semibold">
+                  {currentView === "settings" ? t("common.settings") : t("dash.title")}
+                </h1>
               </>
             )}
             {currentView === "providers" && (
@@ -408,6 +411,15 @@ function App() {
           <div className="flex flex-1 min-w-0 items-center justify-end gap-1.5">
             {currentView === "providers" && (
               <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title={t("dash.title")}
+                  className="hover:bg-black/5 dark:hover:bg-white/5 mr-1"
+                  onClick={() => setCurrentView("usage")}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                </Button>
                 <AppSwitcher
                   activeApp={activeApp}
                   onSwitch={setActiveApp}
@@ -434,6 +446,15 @@ function App() {
             <SettingsPage
               onError={(m) => toast("error", humanizeError(m, t))}
               onSuccess={(m) => toast("success", m)}
+            />
+          </div>
+        )}
+        {currentView === "usage" && (
+          <div className="px-6 py-6 animate-fade-in">
+            <UsagePage
+              app={activeApp}
+              providers={providers}
+              onError={(m) => toast("error", humanizeError(m, t))}
             />
           </div>
         )}

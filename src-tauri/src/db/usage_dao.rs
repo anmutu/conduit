@@ -65,3 +65,93 @@ pub fn summarize_map(
     }
     Ok(map)
 }
+
+// ---------- 仪表盘聚合 ----------
+
+#[derive(Debug, Serialize, Clone)]
+pub struct NamedUsage {
+    pub key: String,
+    #[serde(flatten)]
+    pub summary: UsageSummary,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DayUsage {
+    pub date: String,
+    pub requests: i64,
+    pub tokens: i64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UsageDashboard {
+    pub total: UsageSummary,
+    pub by_provider: Vec<NamedUsage>,
+    pub by_model: Vec<NamedUsage>,
+    pub by_day: Vec<DayUsage>,
+}
+
+fn app_total(pool: &Pool, app_type: &str) -> Result<UsageSummary> {
+    let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
+    conn.query_row(
+        "SELECT COUNT(*), COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0)
+         FROM usage_log WHERE app_type = ?1",
+        rusqlite::params![app_type],
+        |r| {
+            Ok(UsageSummary {
+                requests: r.get(0)?,
+                input_tokens: r.get(1)?,
+                output_tokens: r.get(2)?,
+            })
+        },
+    )
+    .map_err(|e| anyhow!("{e}").into())
+}
+
+fn group_by(pool: &Pool, app_type: &str, column: &str, limit: i64) -> Result<Vec<NamedUsage>> {
+    let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
+    let sql = format!(
+        "SELECT {column} AS k, COUNT(*), COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0)
+         FROM usage_log WHERE app_type = ?1 AND {column} IS NOT NULL AND {column} != ''
+         GROUP BY k ORDER BY (SUM(input_tokens)+SUM(output_tokens)) DESC LIMIT {limit}"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(rusqlite::params![app_type], |r| {
+        Ok(NamedUsage {
+            key: r.get(0)?,
+            summary: UsageSummary {
+                requests: r.get(1)?,
+                input_tokens: r.get(2)?,
+                output_tokens: r.get(3)?,
+            },
+        })
+    })?;
+    Ok(rows.flatten().collect())
+}
+
+pub fn dashboard(pool: &Pool, app_type: &str) -> Result<UsageDashboard> {
+    let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
+    let week_ago = chrono::Utc::now().timestamp() - 7 * 86400;
+    let mut stmt = conn.prepare(
+        "SELECT date(created_at,'unixepoch','localtime') AS d, COUNT(*),
+                COALESCE(SUM(input_tokens)+SUM(output_tokens),0)
+         FROM usage_log WHERE app_type = ?1 AND created_at >= ?2
+         GROUP BY d ORDER BY d",
+    )?;
+    let by_day = stmt
+        .query_map(rusqlite::params![app_type, week_ago], |r| {
+            Ok(DayUsage {
+                date: r.get(0)?,
+                requests: r.get(1)?,
+                tokens: r.get(2)?,
+            })
+        })?
+        .flatten()
+        .collect();
+
+    Ok(UsageDashboard {
+        total: app_total(pool, app_type)?,
+        by_provider: group_by(pool, app_type, "provider_id", 10)?,
+        by_model: group_by(pool, app_type, "model", 8)?,
+        by_day,
+    })
+}
