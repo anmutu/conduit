@@ -78,6 +78,17 @@
         background: var(--soft); border: 1px solid var(--border); color: var(--muted);
       }
 
+      /* 应用截图预览 */
+      .preview { padding: 8px 0 64px; }
+      .preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      @media (max-width: 720px) { .preview-grid { grid-template-columns: 1fr; } }
+      .shot {
+        border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,.08);
+      }
+      .shot img { display: block; width: 100%; }
+      .shot figcaption { text-align: center; font-size: 12px; color: var(--muted); padding: 8px 0 10px; background: var(--soft); }
+
       /* Features */
       .features { padding: 40px 0 64px; }
       .section-title { text-align: center; font-size: 26px; font-weight: 700; margin-bottom: 8px; }
@@ -144,6 +155,21 @@
       <p class="hero-note">v0.1 即将发布 · <a href="https://github.com/anmutu/conduit" target="_blank" rel="noreferrer" style="color:inherit;">GitHub</a> · MIT 开源</p>
       <div class="apps-line">
         <span>Claude Code</span><span>Codex</span><span>Gemini CLI</span><span>OpenCode</span><span>OpenClaw</span>
+      </div>
+    </section>
+
+    <section class="preview container">
+      <h2 class="section-title">一眼看懂</h2>
+      <p class="section-sub">浅色与深色,同一个应用</p>
+      <div class="preview-grid">
+        <figure class="shot">
+          <img src="./app-light.png" alt="Conduit 浅色模式" loading="lazy" />
+          <figcaption>浅色模式</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="./app-dark.png" alt="Conduit 深色模式" loading="lazy" />
+          <figcaption>深色模式</figcaption>
+        </figure>
       </div>
     </section>
 
