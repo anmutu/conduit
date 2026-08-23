@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Boxes, Plus, Settings } from "lucide-react";
+import { Boxes, Download, Plus, Settings } from "lucide-react";
 import type { AppType, Provider, ProxyStatus } from "@/types";
 import { AppSwitcher } from "@/components/AppSwitcher";
 import { ProviderCard } from "@/components/providers/ProviderCard";
@@ -228,6 +228,31 @@ function App() {
     return () => un?.();
   }, [refresh, toast]);
 
+  /** 首启导入:扫描现有 CLI 配置建供应商 */
+  const [importing, setImporting] = useState(false);
+  const runImport = async () => {
+    setImporting(true);
+    try {
+      const list = await invoke<{ app: string; name: string; has_key: boolean }[]>(
+        "import_existing",
+      );
+      if (list.length === 0) {
+        toast("error", "未发现可导入的配置(无第三方 base_url 或已导入过)");
+      } else {
+        toast(
+          "success",
+          `已导入 ${list.length} 个:${list.map((x) => x.name.replace("导入的 ", "")).join("、")}`,
+        );
+        syncTray();
+        await refresh(activeApp);
+      }
+    } catch (e) {
+      toast("error", humanizeError(String(e)));
+    } finally {
+      setImporting(false);
+    }
+  };
+
   /** 供应商变更后同步托盘菜单(演示模式无后端,跳过) */
   const syncTray = useCallback(() => {
     if (!IS_DEMO) void invoke("refresh_tray").catch(() => {});
@@ -390,13 +415,22 @@ function App() {
                   <p className="text-sm text-muted-foreground -mt-2">
                     添加一个开始使用;切换即生效,无需重启终端
                   </p>
-                  <Button
-                    className="mt-2"
-                    onClick={() => setIsAddOpen(true)}
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    添加供应商
-                  </Button>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Button onClick={() => setIsAddOpen(true)}>
+                      <Plus className="w-4 h-4 mr-1" />
+                      添加供应商
+                    </Button>
+                    {!IS_DEMO && (
+                      <Button
+                        variant="outline"
+                        disabled={importing}
+                        onClick={() => void runImport()}
+                      >
+                        <Download className="w-4 h-4 mr-1" />
+                        {importing ? "导入中…" : "从现有 CLI 配置导入"}
+                      </Button>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     或按{" "}
                     <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted font-mono text-[10px]">
