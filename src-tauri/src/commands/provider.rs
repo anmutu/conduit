@@ -50,6 +50,16 @@ pub fn delete_provider(state: State<'_, AppState>, id: String) -> Result<(), Str
 }
 
 #[tauri::command]
+pub fn update_provider(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+    base_url: String,
+) -> Result<(), String> {
+    svc::update(&state.db, &id, &name, &base_url).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn set_provider_key(
     state: State<'_, AppState>,
     id: String,

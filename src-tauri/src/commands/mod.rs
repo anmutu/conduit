@@ -6,3 +6,4 @@
 pub mod keychain;
 pub mod provider;
 pub mod proxy;
+pub mod tray;

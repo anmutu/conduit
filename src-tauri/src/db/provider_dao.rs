@@ -113,6 +113,19 @@ pub fn delete(pool: &Pool, id: &str) -> Result<()> {
     Ok(())
 }
 
+/// 更新供应商基础字段(name / base_url)。
+pub fn update(pool: &Pool, id: &str, name: &str, base_url: &str) -> Result<()> {
+    let conn = get_conn(pool)?;
+    let affected = conn.execute(
+        "UPDATE providers SET name = ?2, base_url = ?3 WHERE id = ?1",
+        params![id, name, base_url],
+    )?;
+    if affected == 0 {
+        return Err(anyhow!("供应商不存在: {id}"));
+    }
+    Ok(())
+}
+
 /// 读取指定 app_type 的当前供应商(代理转发时使用)。
 pub fn get_current(pool: &Pool, app: AppType) -> Result<Option<Provider>> {
     let conn = get_conn(pool)?;

@@ -103,6 +103,11 @@ pub fn delete(pool: &Pool, id: &str) -> Result<()> {
     provider_dao::delete(pool, id)
 }
 
+/// 更新供应商基础字段。
+pub fn update(pool: &Pool, id: &str, name: &str, base_url: &str) -> Result<()> {
+    provider_dao::update(pool, id, name, base_url)
+}
+
 fn now_ts() -> i64 {
     chrono::Utc::now().timestamp()
 }
