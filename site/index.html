@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Conduit — AI CLI 的本地供应中心</title>
+    <meta
+      name="description"
+      content="Conduit 是面向个人开发者的本地 AI 代理与多 CLI 供应商管理器:切换即生效、免重启,API Key 加密不落盘。支持 Claude Code、Codex、Gemini CLI、OpenCode、OpenClaw。"
+    />
+    <link rel="icon" type="image/svg+xml" href="./logo.svg" />
+    <style>
+      /* 与桌面应用同款视觉体系(Tailwind token 的静态版) */
+      :root {
+        --blue-500: #0a84ff;
+        --blue-600: #0060df;
+        --emerald-500: #10b981;
+        --bg: #ffffff;
+        --fg: #1c1c1e;
+        --muted: #71717a;
+        --card: #ffffff;
+        --border: #e4e4e7;
+        --soft: #f4f4f5;
+      }
+      .dark {
+        --bg: #1c1c1e;
+        --fg: #f4f4f5;
+        --muted: #a1a1aa;
+        --card: #2c2c2e;
+        --border: #48484a;
+        --soft: #2c2c2e;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html { scroll-behavior: smooth; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
+        background: var(--bg); color: var(--fg);
+        line-height: 1.6; font-size: 16px;
+        -webkit-font-smoothing: antialiased;
+      }
+      .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+      /* Nav */
+      nav {
+        position: sticky; top: 0; z-index: 10;
+        backdrop-filter: blur(10px);
+        background: color-mix(in srgb, var(--bg) 80%, transparent);
+        border-bottom: 1px solid var(--border);
+      }
+      .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+      .nav-links { display: flex; align-items: center; gap: 20px; font-size: 14px; }
+      .nav-links a { color: var(--muted); text-decoration: none; }
+      .nav-links a:hover { color: var(--fg); }
+      .nav-links a.cta { color: #fff; }
+
+      /* Hero */
+      .hero { padding: 96px 0 72px; text-align: center; }
+      .hero h1 { font-size: 44px; font-weight: 800; letter-spacing: -1px; line-height: 1.15; }
+      .hero h1 .accent { color: var(--blue-500); }
+      .hero p.sub { color: var(--muted); font-size: 18px; max-width: 560px; margin: 18px auto 0; }
+      .hero-actions { display: flex; gap: 12px; justify-content: center; margin-top: 32px; flex-wrap: wrap; }
+      .btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 11px 22px; border-radius: 10px; font-size: 15px; font-weight: 600;
+        text-decoration: none; transition: all .2s; border: 1px solid transparent;
+      }
+      .btn-primary { background: var(--blue-500); color: #fff; }
+      .btn-primary:hover { background: var(--blue-600); }
+      .btn-ghost { border-color: var(--border); color: var(--fg); background: var(--card); }
+      .btn-ghost:hover { border-color: var(--blue-500); }
+      .hero-note { margin-top: 14px; font-size: 12px; color: var(--muted); }
+
+      .apps-line { display: flex; gap: 8px; justify-content: center; margin-top: 28px; flex-wrap: wrap; }
+      .apps-line span {
+        font-size: 13px; padding: 5px 12px; border-radius: 999px;
+        background: var(--soft); border: 1px solid var(--border); color: var(--muted);
+      }
+
+      /* Features */
+      .features { padding: 40px 0 64px; }
+      .section-title { text-align: center; font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+      .section-sub { text-align: center; color: var(--muted); font-size: 14px; margin-bottom: 40px; }
+      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+      @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } .hero h1 { font-size: 32px; } }
+      .card {
+        background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+        padding: 24px; transition: border-color .2s;
+      }
+      .card:hover { border-color: var(--blue-500); }
+      .card .icon {
+        width: 40px; height: 40px; border-radius: 10px; background: var(--soft);
+        display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
+        font-size: 20px;
+      }
+      .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+      .card p { color: var(--muted); font-size: 13.5px; }
+
+      /* Compare */
+      .compare { padding: 24px 0 72px; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+      th { color: var(--muted); font-weight: 600; font-size: 13px; }
+      td.yes { color: var(--emerald-500); font-weight: 600; }
+      td.no { color: var(--muted); }
+      .tbl-wrap { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--card); }
+
+      footer { border-top: 1px solid var(--border); padding: 28px 0; color: var(--muted); font-size: 13px; }
+      footer .container { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+      footer a { color: var(--muted); text-decoration: none; }
+      footer a:hover { color: var(--fg); }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="container nav-inner">
+        <div class="brand">
+          <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <rect width="32" height="32" rx="8" fill="#0A84FF"/>
+            <path d="M8 16h5l2.5-6 3 12 2.5-6h3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Conduit
+        </div>
+        <div class="nav-links">
+          <a href="#features">特性</a>
+          <a href="#compare">对比</a>
+          <a class="cta btn btn-primary" style="padding: 7px 16px; font-size: 13px;" href="#download">下载</a>
+        </div>
+      </div>
+    </nav>
+
+    <section class="hero container">
+      <h1>AI CLI 的<br /><span class="accent">本地供应中心</span></h1>
+      <p class="sub">
+        一个应用管理 Claude Code、Codex、Gemini CLI、OpenCode、OpenClaw 的全部供应商。
+        切换即生效、免重启;API Key 加密存储、永不落盘明文。
+      </p>
+      <div class="hero-actions" id="download">
+        <a class="btn btn-primary" href="#">⬇ 即将发布 v0.1</a>
+        <a class="btn btn-ghost" href="https://github.com/anmutu/conduit" target="_blank" rel="noreferrer">GitHub</a>
+      </div>
+      <p class="hero-note">macOS · Windows · Linux(MIT 开源)</p>
+      <div class="apps-line">
+        <span>Claude Code</span><span>Codex</span><span>Gemini CLI</span><span>OpenCode</span><span>OpenClaw</span>
+      </div>
+    </section>
+
+    <section class="features container" id="features">
+      <h2 class="section-title">为什么选 Conduit</h2>
+      <p class="section-sub">三条核心差异,每一条都肉眼可感</p>
+      <div class="grid">
+        <div class="card">
+          <div class="icon">⚡</div>
+          <h3>切换即生效,零重启</h3>
+          <p>本地代理接管全部 CLI 流量,切换供应商只改一个指针。Codex / Gemini 与 Claude 一致,告别重启终端。</p>
+        </div>
+        <div class="card">
+          <div class="icon">🔐</div>
+          <h3>Key 永不落盘明文</h3>
+          <p>API Key 存系统钥匙串(Keychain / DPAPI / Secret Service),配置库整库 SQLCipher 加密,文件泄露也读不出凭证。</p>
+        </div>
+        <div class="card">
+          <div class="icon">🛰️</div>
+          <h3>代理优先架构</h3>
+          <p>代理不是高级选项,而是默认体验。关闭窗口驻留托盘常驻服务,你的 CLI 永不断流。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="compare container" id="compare">
+      <h2 class="section-title">与 CC Switch 对比</h2>
+      <p class="section-sub">尊重先行者,做不一样的选择</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th>能力</th><th>Conduit</th><th>CC Switch</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Codex / Gemini 切换免重启</td><td class="yes">默认支持</td><td class="no">需重启 / 手动开代理</td></tr>
+            <tr><td>API Key 存储</td><td class="yes">系统钥匙串 + 整库加密</td><td class="no">明文数据库</td></tr>
+            <tr><td>本地代理</td><td class="yes">默认开启</td><td class="no">可选开启</td></tr>
+            <tr><td>关闭窗口后服务存活</td><td class="yes">驻留托盘</td><td class="no">—</td></tr>
+            <tr><td>多 CLI 支持</td><td class="yes">5 个</td><td class="yes">6 个</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>
+      <div class="container">
+        <span>© 2026 Conduit · MIT License</span>
+        <span><a href="https://github.com/anmutu/conduit" target="_blank" rel="noreferrer">GitHub</a> · <a href="#features">特性</a> · <a href="#compare">对比</a></span>
+      </div>
+    </footer>
+
+    <script>
+      // 支持三种主题来源:URL 参数(演示用)> localStorage > 跟随系统
+      (function () {
+        var q = new URLSearchParams(location.search).get("theme");
+        var saved = localStorage.getItem("conduit-theme");
+        var dark =
+          q === "dark" || q === "light"
+            ? q === "dark"
+            : saved === "dark" || saved === "light"
+              ? saved === "dark"
+              : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.classList.toggle("dark", dark);
+      })();
+    </script>
+  </body>
+</html>
