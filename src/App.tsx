@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Boxes, Plus, Settings } from "lucide-react";
+import { Boxes, Download, Plus, Settings } from "lucide-react";
 import type { AppType, Provider, ProxyStatus } from "@/types";
 import { AppSwitcher } from "@/components/AppSwitcher";
 import { ProviderCard } from "@/components/providers/ProviderCard";
@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ToastStack, type ToastItem, type ToastType } from "@/components/Toast";
 import { ModeToggle } from "@/components/mode-toggle";
 import { AboutDialog } from "@/components/AboutDialog";
+import { TakeoverDialog } from "@/components/TakeoverDialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -106,6 +107,7 @@ function App() {
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Provider | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [takeoverOpen, setTakeoverOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [proxyOk, setProxyOk] = useState<boolean | null>(null);
   const [proxyAddr, setProxyAddr] = useState("");
@@ -226,6 +228,31 @@ function App() {
     return () => un?.();
   }, [refresh, toast]);
 
+  /** 首启导入:扫描现有 CLI 配置建供应商 */
+  const [importing, setImporting] = useState(false);
+  const runImport = async () => {
+    setImporting(true);
+    try {
+      const list = await invoke<{ app: string; name: string; has_key: boolean }[]>(
+        "import_existing",
+      );
+      if (list.length === 0) {
+        toast("error", "未发现可导入的配置(无第三方 base_url 或已导入过)");
+      } else {
+        toast(
+          "success",
+          `已导入 ${list.length} 个:${list.map((x) => x.name.replace("导入的 ", "")).join("、")}`,
+        );
+        syncTray();
+        await refresh(activeApp);
+      }
+    } catch (e) {
+      toast("error", humanizeError(String(e)));
+    } finally {
+      setImporting(false);
+    }
+  };
+
   /** 供应商变更后同步托盘菜单(演示模式无后端,跳过) */
   const syncTray = useCallback(() => {
     if (!IS_DEMO) void invoke("refresh_tray").catch(() => {});
@@ -314,14 +341,16 @@ function App() {
             </button>
             {/* 代理状态常显:产品核心卖点的可见性 */}
             {proxyOk !== null && (
-              <span
+              <button
+                type="button"
+                onClick={() => setTakeoverOpen(true)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium select-none",
+                  "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium select-none cursor-pointer transition-opacity hover:opacity-80",
                   proxyOk
                     ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
                     : "text-red-600 dark:text-red-400 bg-red-500/10",
                 )}
-                title={proxyOk ? `本地代理 ${proxyAddr}` : "代理未运行"}
+                title={proxyOk ? `本地代理 ${proxyAddr},点击管理接管` : "代理未运行,点击查看"}
               >
                 <span
                   className={cn(
@@ -330,7 +359,7 @@ function App() {
                   )}
                 />
                 {proxyOk ? "代理运行中" : "代理离线"}
-              </span>
+              </button>
             )}
             <ModeToggle />
             <Button
@@ -386,13 +415,22 @@ function App() {
                   <p className="text-sm text-muted-foreground -mt-2">
                     添加一个开始使用;切换即生效,无需重启终端
                   </p>
-                  <Button
-                    className="mt-2"
-                    onClick={() => setIsAddOpen(true)}
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    添加供应商
-                  </Button>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Button onClick={() => setIsAddOpen(true)}>
+                      <Plus className="w-4 h-4 mr-1" />
+                      添加供应商
+                    </Button>
+                    {!IS_DEMO && (
+                      <Button
+                        variant="outline"
+                        disabled={importing}
+                        onClick={() => void runImport()}
+                      >
+                        <Download className="w-4 h-4 mr-1" />
+                        {importing ? "导入中…" : "从现有 CLI 配置导入"}
+                      </Button>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     或按{" "}
                     <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted font-mono text-[10px]">
@@ -428,6 +466,13 @@ function App() {
       <ToastStack items={toasts} onDismiss={dismissToast} />
 
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+
+      <TakeoverDialog
+        open={takeoverOpen}
+        onOpenChange={setTakeoverOpen}
+        onError={(m) => toast("error", humanizeError(m))}
+        onSuccess={(m) => toast("success", m)}
+      />
 
       <AddProviderDialog
         open={isAddOpen}

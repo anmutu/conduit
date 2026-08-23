@@ -2,12 +2,12 @@
 //!
 //! 启动顺序:日志 → keychain 主密钥 → 加密 DB → 代理 → 托盘(含供应商快速切换)。
 
-mod commands;
-mod core;
-mod db;
-mod services;
-mod state;
-mod types;
+pub mod commands;
+pub mod core;
+pub mod db;
+pub mod services;
+pub mod state;
+pub mod types;
 
 use core::proxy::{server, PROXY_ADDR};
 use services::keychain;
@@ -97,6 +97,10 @@ pub fn run() {
             commands::proxy::proxy_status,
             commands::keychain::keychain_health,
             commands::tray::refresh_tray,
+            commands::import::import_existing,
+            commands::takeover::takeover_status,
+            commands::takeover::apply_takeover,
+            commands::takeover::restore_takeover,
         ])
         .run(tauri::generate_context!())
         .expect("运行 Conduit 时出错");

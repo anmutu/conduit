@@ -4,4 +4,6 @@
 //! 保持命令层"薄":只做参数校验和调用编排。
 
 pub mod keychain;
+pub mod import;
 pub mod provider;
+pub mod takeover;
