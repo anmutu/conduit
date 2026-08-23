@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Conduit — AI CLI 的本地供应中心</title>
+    <meta
+      name="description"
+      content="Conduit:一个应用,管好你的每一个 AI CLI。切换即生效、免重启,API Key 加密不落盘。"
+    />
+    <link rel="icon" type="image/svg+xml" href="./logo.svg" />
+    <style>
+      /* ============ Apple.cn 风格:极简、留白、超大标题、亮色 ============ */
+      :root {
+        --fg: #1d1d1f;
+        --fg-2: #6e6e73;
+        --fg-3: #86868b;
+        --blue: #0066cc;
+        --bg: #ffffff;
+        --bg-alt: #f5f5f7;
+        --nav-bg: rgba(22, 22, 23, 0.8);
+        --hair: #d2d2d7;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html { scroll-behavior: smooth; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+          "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg); color: var(--fg);
+        font-size: 17px; line-height: 1.47;
+        -webkit-font-smoothing: antialiased;
+        letter-spacing: .011em;
+      }
+      .container { max-width: 980px; margin: 0 auto; padding: 0 22px; }
+
+      /* 导航:深灰半透明细条(Apple global nav) */
+      nav {
+        position: sticky; top: 0; z-index: 50;
+        background: var(--nav-bg); backdrop-filter: saturate(180%) blur(20px);
+        height: 44px;
+      }
+      .nav-inner { max-width: 980px; margin: 0 auto; padding: 0 22px; height: 100%;
+        display: flex; align-items: center; justify-content: space-between; }
+      .nav-inner a {
+        color: rgba(255,255,255,.8); text-decoration: none;
+        font-size: 12px; transition: color .15s;
+      }
+      .nav-inner a:hover { color: #fff; }
+      .nav-links { display: flex; gap: 26px; align-items: center; }
+
+      /* 章节通用 */
+      section { padding: 100px 0 84px; text-align: center; }
+      section.alt { background: var(--bg-alt); }
+      h2 { font-size: 48px; font-weight: 600; letter-spacing: -.015em; line-height: 1.08; }
+      .sub { font-size: 21px; color: var(--fg-2); margin-top: 12px; font-weight: 400; }
+      .links { margin-top: 18px; display: flex; gap: 28px; justify-content: center; flex-wrap: wrap; }
+      .alink {
+        color: var(--blue); text-decoration: none; font-size: 19px;
+      }
+      .alink:hover { text-decoration: underline; }
+      .alink::after { content: " ›"; font-size: 17px; }
+
+      /* Hero */
+      .hero { padding: 96px 0 64px; }
+      .hero h1 { font-size: 56px; font-weight: 600; letter-spacing: -.02em; line-height: 1.05; }
+      .hero h1 .dot { color: var(--fg-3); }
+      .hero .tagline { font-size: 28px; font-weight: 600; margin-top: 6px; letter-spacing: -.01em; }
+      .hero .sub { font-size: 19px; max-width: 640px; margin: 14px auto 0; }
+      .hero-shot {
+        max-width: 860px; margin: 52px auto 0; border-radius: 18px; overflow: hidden;
+        box-shadow: 0 30px 80px rgba(0,0,0,.18); border: 1px solid var(--hair);
+      }
+      .hero-shot img { display: block; width: 100%; }
+
+      /* 三特性(Apple 排版式,无卡片) */
+      .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 56px; text-align: center; }
+      @media (max-width: 760px) { .trio { grid-template-columns: 1fr; gap: 44px; } }
+      .trio h3 { font-size: 32px; font-weight: 600; letter-spacing: -.01em; }
+      .trio p { font-size: 15.5px; color: var(--fg-2); margin-top: 8px; line-height: 1.55; }
+
+      /* 终端大图(Apple 产品图式) */
+      .terminal {
+        max-width: 760px; margin: 56px auto 0; background: #1d1d20;
+        border-radius: 14px; overflow: hidden; text-align: left;
+        box-shadow: 0 24px 70px rgba(0,0,0,.28);
+      }
+      .term-bar { display: flex; gap: 7px; align-items: center; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
+      .term-bar i { width: 11px; height: 11px; border-radius: 50%; }
+      .term-bar span { margin-left: 10px; color: #86868b; font-size: 11.5px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+      .term-body { padding: 20px 22px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; line-height: 1.9; color: #d5d5da; }
+      .dim { color: #6e6e73; } .blue { color: #5ac8fa; } .green { color: #30d158; } .violet { color: #bf5af2; }
+      .cursor { display: inline-block; width: 7px; height: 14px; background: #5ac8fa; vertical-align: -2px; animation: blink 1.1s steps(1) infinite; }
+      @keyframes blink { 50% { opacity: 0; } }
+
+      /* 三步:超大浅灰数字 */
+      .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; margin-top: 56px; }
+      @media (max-width: 760px) { .steps { grid-template-columns: 1fr; gap: 36px; } }
+      .step .n { font-size: 56px; font-weight: 700; color: var(--hair); line-height: 1; }
+      .step h3 { font-size: 21px; font-weight: 600; margin-top: 10px; }
+      .step p { font-size: 15px; color: var(--fg-2); margin-top: 6px; }
+
+      /* 截图双联 */
+      .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 52px; }
+      @media (max-width: 720px) { .shots { grid-template-columns: 1fr; } }
+      .shot { border-radius: 14px; overflow: hidden; border: 1px solid var(--hair); background: var(--bg-alt); }
+      .shot img { display: block; width: 100%; }
+      .shot figcaption { font-size: 13px; color: var(--fg-3); padding: 10px 0 12px; }
+
+      /* 对比:Apple spec 风格线表 */
+      table { width: 100%; border-collapse: collapse; margin-top: 48px; font-size: 15px; }
+      th, td { padding: 16px 14px; text-align: left; border-bottom: 1px solid var(--hair); }
+      th { font-size: 12px; color: var(--fg-3); font-weight: 500; text-transform: none; }
+      td:first-child { font-weight: 600; }
+      td.yes { color: var(--fg); } td.no { color: var(--fg-3); }
+      td.yes::before { content: "✓ "; color: #30a74a; font-weight: 600; }
+
+      /* footnote + footer(Apple 风格) */
+      .footnotes { background: var(--bg-alt); padding: 34px 0 30px; }
+      .footnotes .container { text-align: left; }
+      .footnotes p { font-size: 12px; color: var(--fg-3); line-height: 1.6; margin-bottom: 8px; }
+      .footnotes .divider { height: 1px; background: var(--hair); margin: 18px 0; }
+      footer { background: var(--bg-alt); padding: 0 0 34px; }
+      footer .container { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--fg-3); }
+      footer a { color: #424245; text-decoration: none; }
+      footer a:hover { color: var(--blue); text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="nav-inner">
+        <a href="#" style="display:flex;align-items:center;gap:7px;">
+          <svg width="16" height="16" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="#0A84FF"/><path d="M8 16h5l2.5-6 3 12 2.5-6h3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span style="font-weight:600;color:#fff;">Conduit</span>
+        </a>
+        <div class="nav-links">
+          <a href="#features" data-i18n="navF">功能</a>
+          <a href="#quickstart" data-i18n="navQ">上手</a>
+          <a href="#compare" data-i18n="navC">对比</a>
+          <a href="#" id="langToggle">EN</a>
+          <a href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer" data-i18n="navD">下载</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero container">
+      <h1>Conduit<span class="dot">。</span></h1>
+      <div class="tagline" data-i18n="tagline">切换,从未如此轻盈。</div>
+      <p class="sub" data-i18n="heroSub">一个应用,管好你的每一个 AI CLI。供应商、密钥、用量,尽在掌握。</p>
+      <div class="links">
+        <a class="alink" href="#features" data-i18n="learnMore">进一步了解</a>
+        <a class="alink" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer" data-i18n="freeDl">免费下载</a>
+      </div>
+      <div class="hero-shot">
+        <img src="./app-dark.png" alt="Conduit" />
+      </div>
+    </section>
+
+    <!-- 三特性 -->
+    <section class="alt" id="features">
+      <div class="container">
+        <h2 data-i18n="fTitle">轻,而且安全。</h2>
+        <p class="sub" data-i18n="fSub">每一项能力,都为你的日常而生。</p>
+        <div class="trio">
+          <div>
+            <h3 data-i18n="f1t">零重启。</h3>
+            <p data-i18n="f1d">切换供应商,下一个请求立即生效。Codex、Gemini 与 Claude 一致体验,终端不必重开。</p>
+          </div>
+          <div>
+            <h3 data-i18n="f2t">更私密。</h3>
+            <p data-i18n="f2d">API Key 存入系统钥匙串,配置整库加密。不落盘、不上传,数据只属于你。</p>
+          </div>
+          <div>
+            <h3 data-i18n="f3t">看得清。</h3>
+            <p data-i18n="f3d">每一次转发都在计量。每个供应商用了多少 token,一眼看清。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 终端 -->
+    <section>
+      <div class="container">
+        <h2 data-i18n="tTitle">行云流水,一气呵成。</h2>
+        <p class="sub" data-i18n="tSub">接管、转发、切换,一气呵成。</p>
+        <div class="terminal">
+          <div class="term-bar">
+            <i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>
+            <span>conduit — proxy 127.0.0.1:9527</span>
+          </div>
+          <div class="term-body">
+            <div><span class="dim">»</span> <span class="blue">conduit</span> takeover codex</div>
+            <div><span class="green">✓</span> <span data-i18n="t1">已接管 ~/.codex/config.toml(已备份)</span></div>
+            <div><span class="dim">»</span> codex "refactor this module"</div>
+            <div><span class="dim">POST</span> /v1/chat/completions <span class="dim">→</span> <span class="violet">GLM Coding Plan</span> <span class="green">200 · 1.8s</span></div>
+            <div><span class="dim">»</span> <span class="blue">conduit</span> use kimi</div>
+            <div><span class="green">✓</span> <span data-i18n="t2">已切换 → Kimi(免重启,下个请求生效)</span></div>
+            <div><span class="dim">»</span> <span class="cursor"></span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 三步 -->
+    <section class="alt" id="quickstart">
+      <div class="container">
+        <h2 data-i18n="qsTitle">上手,只需三步。</h2>
+        <div class="steps">
+          <div class="step">
+            <div class="n">1</div>
+            <h3 data-i18n="s1t">添加供应商。</h3>
+            <p data-i18n="s1d">或从现有 CLI 配置一键导入。GLM、Kimi、官方、任意中转,皆可。</p>
+          </div>
+          <div class="step">
+            <div class="n">2</div>
+            <h3 data-i18n="s2t">一键接管。</h3>
+            <p data-i18n="s2d">原配置自动备份,随时还原,进退自如。</p>
+          </div>
+          <div class="step">
+            <div class="n">3</div>
+            <h3 data-i18n="s3t">秒切。</h3>
+            <p data-i18n="s3d">正在运行的 claude / codex 会话,下一个请求即生效。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 截图 -->
+    <section>
+      <div class="container">
+        <h2 data-i18n="pvTitle">两种面貌,同一种出色。</h2>
+        <div class="shots">
+          <figure class="shot">
+            <img src="./app-light.png" alt="light" loading="lazy" />
+            <figcaption data-i18n="lightMode">浅色模式</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="./app-dark.png" alt="dark" loading="lazy" />
+            <figcaption data-i18n="darkMode">深色模式</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- 对比 -->
+    <section class="alt" id="compare">
+      <div class="container">
+        <h2 data-i18n="cmpTitle">和 CC Switch 相比。</h2>
+        <table>
+          <thead><tr><th></th><th>Conduit</th><th>CC Switch</th></tr></thead>
+          <tbody>
+            <tr><td data-i18n="r1c">Codex / Gemini 切换免重启</td><td class="yes" data-i18n="r1a">默认支持</td><td class="no" data-i18n="r1b">需重启 / 手动开代理</td></tr>
+            <tr><td data-i18n="r2c">API Key 存储</td><td class="yes" data-i18n="r2a">钥匙串 + 整库加密</td><td class="no" data-i18n="r2b">明文数据库</td></tr>
+            <tr><td data-i18n="r3c">本地代理</td><td class="yes" data-i18n="r3a">默认开启</td><td class="no" data-i18n="r3b">可选</td></tr>
+            <tr><td data-i18n="r5c">用量统计</td><td class="yes" data-i18n="r5a">转发即计量</td><td class="no" data-i18n="r5b">脚本二次请求</td></tr>
+          </tbody>
+        </table>
+        <div class="links" style="margin-top:34px;">
+          <a class="alink" href="https://github.com/anmutu/conduit" target="_blank" rel="noreferrer">GitHub</a>
+          <a class="alink" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer" data-i18n="freeDl2">免费下载</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footnotes + Footer -->
+    <div class="footnotes">
+      <div class="container">
+        <p data-i18n="fn1">* 所有数据(供应商配置、密钥引用、用量记录)仅存储于本机加密数据库,不上传任何服务器。</p>
+        <p data-i18n="fn2">** Claude Code、Codex、Gemini CLI、OpenCode、OpenClaw 分别为各自所有者的产品;Conduit 与 Anthropic、OpenAI、Google 无关联。</p>
+        <div class="divider"></div>
+      </div>
+    </div>
+    <footer>
+      <div class="container">
+        <span>Copyright © 2026 Conduit. MIT License.</span>
+        <span><a href="https://github.com/anmutu/conduit" target="_blank" rel="noreferrer">GitHub</a> · <a href="index.html" data-i18n="darkVer">暗色版本</a></span>
+      </div>
+    </footer>
+
+    <script>
+      var I18N = {
+        en: {
+          navF: "Features", navQ: "Start", navC: "Compare", navD: "Download",
+          tagline: "Switching, weightless.",
+          heroSub: "One app for every AI CLI you use. Providers, keys and usage — all in hand.",
+          learnMore: "Learn more", freeDl: "Download free", freeDl2: "Download free",
+          fTitle: "Light. And secure.", fSub: "Every capability, made for your daily flow.",
+          f1t: "Zero restarts.", f1d: "Switch providers and the very next request follows. Codex and Gemini feel just like Claude.",
+          f2t: "More private.", f2d: "API keys live in the system keychain with a fully encrypted store. Never on disk, never uploaded.",
+          f3t: "Clearly visible.", f3d: "Every forward is metered. Each provider's token usage, at a glance.",
+          tTitle: "Fluid, end to end.", tSub: "Takeover, forwarding, switching — in one flow.",
+          t1: "Took over ~/.codex/config.toml (backed up)",
+          t2: "Switched → Kimi (no restart, next request)",
+          qsTitle: "Up and running in three steps.",
+          s1t: "Add a provider.", s1d: "Or import from existing CLI configs. GLM, Kimi, official, any relay.",
+          s2t: "One-click takeover.", s2d: "Originals backed up, restorable anytime.",
+          s3t: "Switch in a tap.", s3d: "Running claude / codex sessions pick up the next request instantly.",
+          pvTitle: "Two looks. Same excellence.",
+          lightMode: "Light", darkMode: "Dark",
+          cmpTitle: "Compared with CC Switch.",
+          r1c: "Codex / Gemini switch without restart", r1a: "By default", r1b: "Restart / manual proxy",
+          r2c: "API key storage", r2a: "Keychain + full encryption", r2b: "Plain-text database",
+          r3c: "Local proxy", r3a: "Always on", r3b: "Optional",
+          r5c: "Usage metering", r5a: "Metered as it forwards", r5b: "Script re-query",
+          fn1: "* All data (provider configs, key references, usage records) is stored only in an encrypted local database. Nothing is uploaded.",
+          fn2: "** Claude Code, Codex, Gemini CLI, OpenCode and OpenClaw are products of their respective owners; Conduit is not affiliated with Anthropic, OpenAI or Google.",
+          darkVer: "Dark version"
+        },
+        zh: { darkVer: "暗色版本" }
+      };
+      (function () {
+        var root = document.documentElement;
+        var toggle = document.getElementById("langToggle");
+        function apply(lang) {
+          var dict = I18N[lang] || {};
+          document.querySelectorAll("[data-i18n]").forEach(function (el) {
+            var k = el.getAttribute("data-i18n");
+            if (dict[k]) el.textContent = dict[k];
+          });
+          root.setAttribute("lang", lang === "en" ? "en" : "zh-CN");
+          document.title = lang === "en" ? "Conduit — The local supply hub for AI CLIs" : "Conduit — AI CLI 的本地供应中心";
+          toggle.textContent = lang === "en" ? "中文" : "EN";
+          try { localStorage.setItem("site-lang-apple", lang); } catch (e) {}
+        }
+        var saved = null;
+        try { saved = localStorage.getItem("site-lang-apple"); } catch (e) {}
+        if (!saved) saved = /^en/i.test(navigator.language) ? "en" : "zh";
+        apply(saved);
+        toggle.addEventListener("click", function (e) {
+          e.preventDefault();
+          apply(root.getAttribute("lang") === "en" ? "zh" : "en");
+        });
+      })();
+    </script>
+  </body>
+</html>
