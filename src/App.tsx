@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ToastStack, type ToastItem, type ToastType } from "@/components/Toast";
 import { ModeToggle } from "@/components/mode-toggle";
 import { AboutDialog } from "@/components/AboutDialog";
+import { TakeoverDialog } from "@/components/TakeoverDialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -106,6 +107,7 @@ function App() {
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Provider | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [takeoverOpen, setTakeoverOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [proxyOk, setProxyOk] = useState<boolean | null>(null);
   const [proxyAddr, setProxyAddr] = useState("");
@@ -314,14 +316,16 @@ function App() {
             </button>
             {/* 代理状态常显:产品核心卖点的可见性 */}
             {proxyOk !== null && (
-              <span
+              <button
+                type="button"
+                onClick={() => setTakeoverOpen(true)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium select-none",
+                  "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium select-none cursor-pointer transition-opacity hover:opacity-80",
                   proxyOk
                     ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
                     : "text-red-600 dark:text-red-400 bg-red-500/10",
                 )}
-                title={proxyOk ? `本地代理 ${proxyAddr}` : "代理未运行"}
+                title={proxyOk ? `本地代理 ${proxyAddr},点击管理接管` : "代理未运行,点击查看"}
               >
                 <span
                   className={cn(
@@ -330,7 +334,7 @@ function App() {
                   )}
                 />
                 {proxyOk ? "代理运行中" : "代理离线"}
-              </span>
+              </button>
             )}
             <ModeToggle />
             <Button
@@ -428,6 +432,13 @@ function App() {
       <ToastStack items={toasts} onDismiss={dismissToast} />
 
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+
+      <TakeoverDialog
+        open={takeoverOpen}
+        onOpenChange={setTakeoverOpen}
+        onError={(m) => toast("error", humanizeError(m))}
+        onSuccess={(m) => toast("success", m)}
+      />
 
       <AddProviderDialog
         open={isAddOpen}

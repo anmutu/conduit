@@ -97,6 +97,9 @@ pub fn run() {
             commands::proxy::proxy_status,
             commands::keychain::keychain_health,
             commands::tray::refresh_tray,
+            commands::takeover::takeover_status,
+            commands::takeover::apply_takeover,
+            commands::takeover::restore_takeover,
         ])
         .run(tauri::generate_context!())
         .expect("运行 Conduit 时出错");
