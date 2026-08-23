@@ -8,8 +8,8 @@
 //! - **per-app 锁**:切换等需要串行的操作用更细粒度的锁(见 services),不全局串行。
 
 pub mod provider_dao;
-pub mod usage_dao;
 mod schema;
+pub mod usage_dao;
 
 use anyhow::{anyhow, Result};
 use r2d2::CustomizeConnection;

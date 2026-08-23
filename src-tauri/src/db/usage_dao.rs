@@ -37,7 +37,10 @@ pub fn insert(
 }
 
 /// 按供应商聚合。key = provider_id
-pub fn summarize_map(pool: &Pool, app_type: &str) -> Result<std::collections::HashMap<String, UsageSummary>> {
+pub fn summarize_map(
+    pool: &Pool,
+    app_type: &str,
+) -> Result<std::collections::HashMap<String, UsageSummary>> {
     let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
     let mut stmt = conn.prepare(
         "SELECT provider_id,

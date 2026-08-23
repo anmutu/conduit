@@ -32,12 +32,8 @@ pub fn get_app_settings(app: AppHandle) -> Result<AppSettings, String> {
 #[tauri::command]
 pub fn set_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
     if enabled {
-        app.autolaunch()
-            .enable()
-            .map_err(|e| e.to_string())
+        app.autolaunch().enable().map_err(|e| e.to_string())
     } else {
-        app.autolaunch()
-            .disable()
-            .map_err(|e| e.to_string())
+        app.autolaunch().disable().map_err(|e| e.to_string())
     }
 }

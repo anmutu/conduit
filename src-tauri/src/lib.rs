@@ -122,8 +122,7 @@ fn build_tray_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let mut builder = MenuBuilder::new(app).item(&show);
 
     for app_type in types::AppType::all() {
-        let providers = db::provider_dao::list_by_app(&state.db, app_type)
-            .unwrap_or_default();
+        let providers = db::provider_dao::list_by_app(&state.db, app_type).unwrap_or_default();
         if providers.is_empty() {
             continue;
         }
@@ -135,8 +134,13 @@ fn build_tray_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
                 p.name.clone()
             };
             // id 格式:switch:{app_type}:{provider_id}
-            let item =
-                MenuItem::with_id(app, format!("switch:{}:{}", app_type.as_str(), p.id), label, true, None::<&str>)?;
+            let item = MenuItem::with_id(
+                app,
+                format!("switch:{}:{}", app_type.as_str(), p.id),
+                label,
+                true,
+                None::<&str>,
+            )?;
             sub = sub.item(&item);
         }
         builder = builder.item(&sub.build()?);
@@ -193,4 +197,3 @@ fn on_tray_menu_event<R: Runtime>(app: &AppHandle<R>, event: tauri::menu::MenuEv
         }
     }
 }
-

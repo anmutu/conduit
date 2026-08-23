@@ -32,12 +32,20 @@ pub struct UsageMeter {
 
 impl UsageMeter {
     pub fn new(ctx: UsageCtx) -> Self {
-        Self { ctx: Some(ctx), line_buf: String::new(), last: None }
+        Self {
+            ctx: Some(ctx),
+            line_buf: String::new(),
+            last: None,
+        }
     }
 
     /// 沉默模式(测试/不想落库)
     pub fn disabled() -> Self {
-        Self { ctx: None, line_buf: String::new(), last: None }
+        Self {
+            ctx: None,
+            line_buf: String::new(),
+            last: None,
+        }
     }
 
     pub fn observe(&mut self, bytes: &[u8]) {
@@ -74,7 +82,9 @@ impl UsageMeter {
     /// 流结束:落库(一次性)
     pub fn finish(&mut self) {
         let Some(ctx) = self.ctx.take() else { return };
-        let Some((input, output)) = self.last else { return };
+        let Some((input, output)) = self.last else {
+            return;
+        };
         if input <= 0 && output <= 0 {
             return;
         }
@@ -93,7 +103,9 @@ impl UsageMeter {
 
 /// 从 JSON 提取 usage:兼容 anthropic(input/output_tokens)与 openai(prompt/completion_tokens)
 pub fn extract_usage(v: &serde_json::Value) -> Option<(i64, i64)> {
-    let usage = v.get("usage").or_else(|| v.get("message").and_then(|m| m.get("usage")))?;
+    let usage = v
+        .get("usage")
+        .or_else(|| v.get("message").and_then(|m| m.get("usage")))?;
     let input = usage
         .get("input_tokens")
         .or_else(|| usage.get("prompt_tokens"))
@@ -116,7 +128,11 @@ pub struct MeteredStream<S> {
 
 impl<S> MeteredStream<S> {
     pub fn new(inner: S, meter: UsageMeter) -> Self {
-        Self { inner, meter, finished: false }
+        Self {
+            inner,
+            meter,
+            finished: false,
+        }
     }
 }
 

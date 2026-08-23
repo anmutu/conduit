@@ -29,9 +29,7 @@ async fn spawn_mock_upstream(tag: &'static str) -> String {
     let addr = listener.local_addr().unwrap();
     let app = Router::new().route(
         "/v1/messages",
-        post(move || async move {
-            axum::Json(serde_json::json!({ "via": tag }))
-        }),
+        post(move || async move { axum::Json(serde_json::json!({ "via": tag })) }),
     );
     tokio::spawn(async move { axum::serve(listener, app).await });
     format!("http://{addr}")
@@ -56,7 +54,10 @@ async fn proxy_forwards_to_current_provider_and_switches_without_restart() {
     // 3. 随机端口起代理
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let proxy_addr = listener.local_addr().unwrap();
-    tokio::spawn(proxy::server::run_listener(AppState::new(pool.clone()), listener));
+    tokio::spawn(proxy::server::run_listener(
+        AppState::new(pool.clone()),
+        listener,
+    ));
 
     let client = reqwest::Client::new();
     let url = format!("http://{proxy_addr}/v1/messages");
@@ -84,7 +85,10 @@ async fn proxy_forwards_to_current_provider_and_switches_without_restart() {
         .json()
         .await
         .unwrap();
-    assert_eq!(resp["via"], "mock-b", "切换 is_current 后应立即命中 B(免重启)");
+    assert_eq!(
+        resp["via"], "mock-b",
+        "切换 is_current 后应立即命中 B(免重启)"
+    );
 
     // 6. 未知路径 → 404(路由分流兜底)
     let resp = client

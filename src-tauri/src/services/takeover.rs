@@ -53,7 +53,10 @@ fn settings_set(pool: &Pool, key: &str, value: &str) -> Result<()> {
 
 fn settings_del(pool: &Pool, key: &str) -> Result<()> {
     let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
-    conn.execute("DELETE FROM settings WHERE key = ?1", rusqlite::params![key])?;
+    conn.execute(
+        "DELETE FROM settings WHERE key = ?1",
+        rusqlite::params![key],
+    )?;
     Ok(())
 }
 
@@ -124,9 +127,8 @@ pub fn restore_claude_at(path: &Path, backup: &str) -> Result<()> {
     let b: serde_json::Value = serde_json::from_str(backup)?;
     let old = b.get("base_url").and_then(|v| v.as_str());
     let mut root: serde_json::Value = if path.exists() {
-        serde_json::from_str(&std::fs::read_to_string(path)?).unwrap_or_else(|_| {
-            serde_json::json!({})
-        })
+        serde_json::from_str(&std::fs::read_to_string(path)?)
+            .unwrap_or_else(|_| serde_json::json!({}))
     } else {
         serde_json::json!({})
     };
@@ -256,7 +258,9 @@ pub fn apply_gemini_at(path: &Path) -> Result<String> {
     let mut lines: Vec<String> = original
         .lines()
         .map(|l| {
-            if l.trim_start().starts_with(&format!("{GEMINI_VAR}=")) || l.trim_start().starts_with(&format!("{GEMINI_VAR} =")) {
+            if l.trim_start().starts_with(&format!("{GEMINI_VAR}="))
+                || l.trim_start().starts_with(&format!("{GEMINI_VAR} ="))
+            {
                 found = true;
                 target_line.clone()
             } else {
@@ -288,7 +292,8 @@ fn gemini_effective(path: &Path) -> bool {
         .map(|raw| {
             raw.lines().any(|l| {
                 let t = l.trim_start();
-                t.starts_with(&format!("{GEMINI_VAR}=")) && t == &format!("{GEMINI_VAR}={PROXY_URL}")
+                t.starts_with(&format!("{GEMINI_VAR}="))
+                    && t == &format!("{GEMINI_VAR}={PROXY_URL}")
             })
         })
         .unwrap_or(false)
@@ -303,12 +308,15 @@ pub fn status(pool: &Pool) -> Vec<TakeoverStatus> {
             let supported = matches!(app, AppType::Claude | AppType::Codex | AppType::Gemini);
             let (exists, effective) = if supported {
                 match live_path(app) {
-                    Ok(p) => (p.exists(), match app {
-                        AppType::Claude => claude_effective(&p),
-                        AppType::Codex => codex_effective(&p),
-                        AppType::Gemini => gemini_effective(&p),
-                        _ => false,
-                    }),
+                    Ok(p) => (
+                        p.exists(),
+                        match app {
+                            AppType::Claude => claude_effective(&p),
+                            AppType::Codex => codex_effective(&p),
+                            AppType::Gemini => gemini_effective(&p),
+                            _ => false,
+                        },
+                    ),
                     Err(_) => (false, false),
                 }
             } else {
@@ -379,7 +387,10 @@ mod tests {
     use super::*;
 
     fn tmp(tag: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("conduit_takeover_test_{tag}_{}", uuid::Uuid::new_v4()));
+        let d = std::env::temp_dir().join(format!(
+            "conduit_takeover_test_{tag}_{}",
+            uuid::Uuid::new_v4()
+        ));
         std::fs::create_dir_all(&d).unwrap();
         d
     }
@@ -387,7 +398,11 @@ mod tests {
     #[test]
     fn claude_apply_restore_roundtrip() {
         let p = tmp("claude").join("settings.json");
-        std::fs::write(&p, r#"{"env":{"ANTHROPIC_BASE_URL":"https://origin.example"},"other":true}"#).unwrap();
+        std::fs::write(
+            &p,
+            r#"{"env":{"ANTHROPIC_BASE_URL":"https://origin.example"},"other":true}"#,
+        )
+        .unwrap();
 
         let backup = apply_claude_at(&p).unwrap();
         let raw = std::fs::read_to_string(&p).unwrap();
@@ -439,7 +454,11 @@ mod tests {
     #[test]
     fn gemini_env_roundtrip() {
         let p = tmp("gemini").join(".env");
-        std::fs::write(&p, "GEMINI_API_KEY=xxx\nGOOGLE_GEMINI_BASE_URL=https://g.example\n").unwrap();
+        std::fs::write(
+            &p,
+            "GEMINI_API_KEY=xxx\nGOOGLE_GEMINI_BASE_URL=https://g.example\n",
+        )
+        .unwrap();
 
         let backup = apply_gemini_at(&p).unwrap();
         let raw = std::fs::read_to_string(&p).unwrap();
@@ -448,7 +467,9 @@ mod tests {
         assert!(gemini_effective(&p));
 
         restore_gemini_at(&p, &backup).unwrap();
-        assert!(std::fs::read_to_string(&p).unwrap().contains("https://g.example"));
+        assert!(std::fs::read_to_string(&p)
+            .unwrap()
+            .contains("https://g.example"));
     }
 
     #[test]

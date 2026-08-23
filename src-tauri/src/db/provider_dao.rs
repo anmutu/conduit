@@ -6,14 +6,13 @@
 use anyhow::{anyhow, Result};
 use rusqlite::{params, Row};
 
-use crate::db::{PooledConn, Pool};
+use crate::db::{Pool, PooledConn};
 use crate::types::{AppType, Provider};
 
 fn row_to_provider(row: &Row<'_>) -> rusqlite::Result<Provider> {
     let app_type_str: String = row.get("app_type")?;
     let models_json: String = row.get("models")?;
-    let models: Vec<String> =
-        serde_json::from_str(&models_json).unwrap_or_default();
+    let models: Vec<String> = serde_json::from_str(&models_json).unwrap_or_default();
     Ok(Provider {
         id: row.get("id")?,
         app_type: AppType::from_str(&app_type_str).unwrap_or(AppType::Claude),

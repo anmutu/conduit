@@ -70,7 +70,11 @@ pub fn create(pool: &Pool, input: ProviderInput) -> Result<Provider> {
         is_healthy: true,
         sort_index: 0,
         created_at: now_ts(),
-        has_key: input.api_key.as_ref().map(|k| !k.is_empty()).unwrap_or(false),
+        has_key: input
+            .api_key
+            .as_ref()
+            .map(|k| !k.is_empty())
+            .unwrap_or(false),
     };
     provider_dao::insert(pool, &provider)?;
     Ok(provider)
@@ -86,8 +90,8 @@ pub fn switch(pool: &Pool, id: &str, app: AppType) -> Result<()> {
 
 /// 更新某供应商的 API Key(写入 keychain)。
 pub fn set_api_key(pool: &Pool, id: &str, key: &str) -> Result<()> {
-    let provider = provider_dao::get_by_id(pool, id)?
-        .ok_or_else(|| anyhow::anyhow!("供应商不存在: {id}"))?;
+    let provider =
+        provider_dao::get_by_id(pool, id)?.ok_or_else(|| anyhow::anyhow!("供应商不存在: {id}"))?;
     let kid = provider.keychain_id.as_deref().unwrap_or(id);
     keychain::store_provider_key(kid, key)?;
     Ok(())
