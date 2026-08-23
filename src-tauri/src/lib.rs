@@ -102,6 +102,7 @@ pub fn run() {
             commands::settings::set_autostart,
             commands::proxy::proxy_status,
             commands::keychain::keychain_health,
+            commands::locale::set_locale,
             commands::usage::get_usage_map,
             commands::tray::refresh_tray,
             commands::import::import_existing,
@@ -117,8 +118,15 @@ pub fn run() {
 /// 当前项以 "●" 标注。供应商增删改后调用 [`rebuild_tray_menu`] 刷新。
 fn build_tray_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let state = app.state::<state::AppState>();
-    let show = MenuItem::with_id(app, "show", "显示主界面", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "退出 Conduit", true, None::<&str>)?;
+    // 托盘文案随语言(默认中文;en 由前端设置页切换写入)
+    let zh = db::kv::get(&state.db, "locale").ok().flatten().as_deref() != Some("en");
+    let (show_text, quit_text) = if zh {
+        ("显示主界面", "退出 Conduit")
+    } else {
+        ("Show Main Window", "Quit Conduit")
+    };
+    let show = MenuItem::with_id(app, "show", show_text, true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", quit_text, true, None::<&str>)?;
     let mut builder = MenuBuilder::new(app).item(&show);
 
     for app_type in types::AppType::all() {

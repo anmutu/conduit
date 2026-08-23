@@ -1,3 +1,4 @@
+import { useI18n } from "@/i18n";
 import { Pencil, Trash2, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Provider } from "@/types";
@@ -19,6 +20,7 @@ export function ProviderActions({
   onDuplicate,
   onDelete,
 }: ProviderActionsProps) {
+  const { t } = useI18n();
   const iconButtonClass = "h-8 w-8 p-1";
 
   return (
@@ -28,16 +30,16 @@ export function ProviderActions({
         variant={isCurrent ? "secondary" : "default"}
         disabled={isCurrent}
         onClick={() => onSwitch(provider)}
-        title="切换到此供应商"
+        title={t("provider.switch")}
       >
-        {isCurrent ? "当前使用中" : "切换"}
+        {isCurrent ? t("provider.current") : t("provider.switchBtn")}
       </Button>
       <Button
         size="icon"
         variant="ghost"
         className={iconButtonClass}
         onClick={() => onDuplicate(provider)}
-        title="复制供应商"
+        title={t("provider.duplicate")}
       >
         <Copy className="h-4 w-4" />
       </Button>
@@ -46,7 +48,7 @@ export function ProviderActions({
         variant="ghost"
         className={iconButtonClass}
         onClick={() => onEdit(provider)}
-        title="编辑供应商"
+        title={t("provider.edit")}
       >
         <Pencil className="h-4 w-4" />
       </Button>
@@ -55,7 +57,7 @@ export function ProviderActions({
         variant="ghost"
         className={`${iconButtonClass} hover:bg-red-500/15 hover:text-red-500`}
         onClick={() => onDelete(provider)}
-        title="删除供应商"
+        title={t("provider.delete")}
       >
         <Trash2 className="h-4 w-4" />
       </Button>

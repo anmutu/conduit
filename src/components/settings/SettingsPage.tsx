@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
-import { Database, Monitor, Moon, Power, Sun } from "lucide-react";
+import { Database, Languages, Monitor, Moon, Power, Sun } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { useTheme, type Theme } from "@/components/theme-provider";
+import { useI18n, type LocaleSetting } from "@/i18n";
 import { cn } from "@/lib/utils";
 
 interface AppSettings {
@@ -48,6 +49,7 @@ export function SettingsPage({
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [version, setVersion] = useState("…");
   const { theme, setTheme } = useTheme();
+  const { t, setting: localeSetting, setSetting: setLocale } = useI18n();
 
   useEffect(() => {
     invoke<AppSettings>("get_app_settings")
@@ -55,7 +57,7 @@ export function SettingsPage({
       .catch((e) => onError(String(e)));
     getVersion()
       .then(setVersion)
-      .catch(() => setVersion("0.1.0(浏览器演示)"));
+      .catch(() => setVersion(t("about.demoVersion")));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -63,24 +65,24 @@ export function SettingsPage({
     try {
       await invoke("set_autostart", { enabled });
       setSettings((s) => (s ? { ...s, autostart: enabled } : s));
-      onSuccess(enabled ? "已开启开机自启" : "已关闭开机自启");
+      onSuccess(enabled ? t("settings.autostartOn") : t("settings.autostartOff"));
     } catch (e) {
       onError(String(e));
     }
   };
 
   const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
-    { value: "light", label: "浅色", icon: Sun },
-    { value: "dark", label: "深色", icon: Moon },
-    { value: "system", label: "系统", icon: Monitor },
+    { value: "light", label: t("settings.themeLight"), icon: Sun },
+    { value: "dark", label: t("settings.themeDark"), icon: Moon },
+    { value: "system", label: t("settings.themeSystem"), icon: Monitor },
   ];
 
   return (
     <div className="space-y-4 max-w-2xl">
       <Row
         icon={<Power className="w-4 h-4" />}
-        title="开机自启动"
-        desc="登录后自动在后台运行,CLI 代理随时可用"
+        title={t("settings.autostart")}
+        desc={t("settings.autostartDesc")}
       >
         <Switch
           checked={settings?.autostart ?? false}
@@ -91,8 +93,8 @@ export function SettingsPage({
 
       <Row
         icon={<Sun className="w-4 h-4" />}
-        title="外观"
-        desc="浅色 / 深色 / 跟随系统"
+        title={t("settings.appearance")}
+        desc={t("settings.appearanceDesc")}
       >
         <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
           {themeOptions.map(({ value, label, icon: Icon }) => (
@@ -115,9 +117,37 @@ export function SettingsPage({
       </Row>
 
       <Row
+        icon={<Languages className="w-4 h-4" />}
+        title={t("settings.language")}
+        desc={t("settings.languageDesc")}
+      >
+        <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
+          {([
+            { value: "zh", label: t("settings.langZh") },
+            { value: "en", label: t("settings.langEn") },
+            { value: "system", label: t("settings.langSystem") },
+          ] as { value: LocaleSetting; label: string }[]).map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setLocale(value)}
+              className={cn(
+                "px-2.5 h-7 rounded-md text-xs font-medium transition-all",
+                localeSetting === value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </Row>
+
+      <Row
         icon={<Database className="w-4 h-4" />}
-        title="数据位置"
-        desc={settings ? `${settings.db_path}（SQLCipher 整库加密）` : "…"}
+        title={t("settings.data")}
+        desc={settings ? t("settings.dataDesc", { path: settings.db_path }) : "…"}
       >
         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium text-emerald-600 bg-emerald-500/10 dark:text-emerald-400">
           已加密
@@ -126,8 +156,8 @@ export function SettingsPage({
 
       <Row
         icon={<Monitor className="w-4 h-4" />}
-        title="本地代理"
-        desc={settings ? `http://${settings.proxy_addr}（接管后 CLI 流量经此转发）` : "…"}
+        title={t("settings.proxyRow")}
+        desc={settings ? t("settings.proxyRowDesc", { addr: settings.proxy_addr }) : "…"}
       >
         <span className="text-xs text-muted-foreground">v{version}</span>
       </Row>
@@ -140,7 +170,7 @@ export function SettingsPage({
             window.open("https://github.com/anmutu/conduit", "_blank")
           }
         >
-          GitHub 仓库 · MIT
+          {t("github.repo")}
         </Button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/i18n";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/PasswordInput";
@@ -21,16 +22,16 @@ interface EditProviderDialogProps {
   onError: (msg: string) => void;
 }
 
-function validateUrl(v: string): string | null {
+function validateUrl(v: string, t: ReturnType<typeof useI18n>["t"]): string | null {
   if (!v.trim()) return null;
   try {
     const u = new URL(v.trim());
     if (u.protocol !== "http:" && u.protocol !== "https:") {
-      return "地址需以 http:// 或 https:// 开头";
+      return t("url.scheme");
     }
     return null;
   } catch {
-    return "地址格式不正确,例如 https://api.example.com";
+    return t("url.invalid");
   }
 }
 
@@ -41,6 +42,7 @@ export function EditProviderDialog({
   onSaved,
   onError,
 }: EditProviderDialogProps) {
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -91,14 +93,14 @@ export function EditProviderDialog({
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit} className="grid gap-4">
           <DialogHeader>
-            <DialogTitle>编辑供应商</DialogTitle>
+            <DialogTitle>{t("dialog.editTitle")}</DialogTitle>
             <DialogDescription>
-              API Key 留空表示保持不变;填写则更新到系统钥匙串。
+              {t("dialog.editDesc")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-2">
-            <Label htmlFor="edit-name">名称</Label>
+            <Label htmlFor="edit-name">{t("dialog.name")}</Label>
             <Input
               id="edit-name"
               value={name}
@@ -107,15 +109,15 @@ export function EditProviderDialog({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="edit-url">接口地址</Label>
+            <Label htmlFor="edit-url">{t("dialog.url")}</Label>
             <Input
               id="edit-url"
               value={baseUrl}
               onChange={(e) => {
                 setBaseUrl(e.target.value);
-                if (urlError) setUrlError(validateUrl(e.target.value));
+                if (urlError) setUrlError(validateUrl(e.target.value, t));
               }}
-              onBlur={() => setUrlError(validateUrl(baseUrl))}
+              onBlur={() => setUrlError(validateUrl(baseUrl, t))}
               aria-invalid={!urlValid}
               className={!urlValid ? "border-red-500 focus-visible:ring-red-500" : ""}
             />
@@ -123,12 +125,12 @@ export function EditProviderDialog({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="edit-key">API Key(留空不变)</Label>
+            <Label htmlFor="edit-key">{t("dialog.editKey")}</Label>
             <PasswordInput
               id="edit-key"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-..."
+              placeholder={t("dialog.keyPh")}
             />
           </div>
 
@@ -141,7 +143,7 @@ export function EditProviderDialog({
               取消
             </Button>
             <Button type="submit" disabled={!canSubmit || submitting}>
-              {submitting ? "保存中…" : "保存"}
+              {submitting ? t("dialog.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </form>

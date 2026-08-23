@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/i18n";
 
 /** 关于弹窗:品牌名点击打开 */
 export function AboutDialog({
@@ -20,6 +21,7 @@ export function AboutDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useI18n();
   const [version, setVersion] = useState("…");
   const [canOpenExternal, setCanOpenExternal] = useState(true);
 
@@ -27,7 +29,7 @@ export function AboutDialog({
     if (!open) return;
     getVersion()
       .then(setVersion)
-      .catch(() => setVersion("0.1.0(浏览器演示)"));
+      .catch(() => setVersion(t("about.demoVersion")));
   }, [open]);
 
   const github = "https://github.com/anmutu/conduit";
@@ -61,13 +63,12 @@ export function AboutDialog({
             </svg>
             <div>
               <DialogTitle>Conduit</DialogTitle>
-              <DialogDescription>v{version} · MIT 开源</DialogDescription>
+              <DialogDescription>v{version} · {t("about.openSource")}</DialogDescription>
             </div>
           </div>
         </DialogHeader>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          AI CLI 的本地供应中心:切换即生效、免重启,API Key 加密不落盘。
-          视觉体系致敬 CC Switch(MIT)。
+          {t("about.desc")}
         </p>
         <DialogFooter>
           <Button variant="outline" onClick={() => void openGithub()}>
@@ -75,7 +76,7 @@ export function AboutDialog({
             GitHub
           </Button>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            关闭
+            {t("common.close")}
           </Button>
         </DialogFooter>
       </DialogContent>

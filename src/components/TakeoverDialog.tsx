@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ProviderIcon } from "@/components/ProviderIcon";
+import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 
 interface TakeoverStatus {
@@ -40,6 +41,7 @@ export function TakeoverDialog({
 }) {
   const [list, setList] = useState<TakeoverStatus[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const { t } = useI18n();
 
   const refresh = () => {
     invoke<TakeoverStatus[]>("takeover_status")
@@ -58,12 +60,10 @@ export function TakeoverDialog({
       const appEnum = app as "claude" | "codex" | "gemini";
       if (restore) {
         await invoke("restore_takeover", { appType: appEnum });
-        onSuccess(`已还原 ${APP_LABEL[app]} 的原始配置`);
+        onSuccess(t("takeover.restored", { name: APP_LABEL[app] }));
       } else {
         await invoke("apply_takeover", { appType: appEnum });
-        onSuccess(
-          `${APP_LABEL[app]} 已接管,请求将经 Conduit 代理转发(免重启)`,
-        );
+        onSuccess(t("takeover.applied", { name: APP_LABEL[app] }));
       }
       refresh();
     } catch (e) {
@@ -77,10 +77,9 @@ export function TakeoverDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
-          <DialogTitle>代理接管</DialogTitle>
+          <DialogTitle>{t("takeover.title")}</DialogTitle>
           <DialogDescription>
-            接管会把 CLI 的配置指向本地代理(127.0.0.1:9527),切换供应商立即生效、
-            无需重启终端。原始配置自动备份,可随时还原。
+            {t("takeover.desc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -108,19 +107,19 @@ export function TakeoverDialog({
                   >
                     {s.active && s.effective && (
                       <>
-                        <ShieldCheck className="w-3 h-3" /> 已接管,流量走代理
+                        <ShieldCheck className="w-3 h-3" /> {t("takeover.active")}
                       </>
                     )}
                     {s.active && !s.effective && (
                       <>
                         <TriangleAlert className="w-3 h-3" />
-                        配置被外部修改,建议重新接管
+                        {t("takeover.overridden")}
                       </>
                     )}
                     {!s.active && (
                       <>
                         <ShieldOff className="w-3 h-3" />
-                        {s.config_exists ? "未接管" : "未检测到配置(接管时将创建)"}
+                        {s.config_exists ? t("takeover.inactive") : t("takeover.noConfig")}
                       </>
                     )}
                   </div>
@@ -133,7 +132,7 @@ export function TakeoverDialog({
                   disabled={busy === s.app}
                   onClick={() => void act(s.app, true)}
                 >
-                  {busy === s.app ? "…" : "还原"}
+                  {busy === s.app ? "…" : t("takeover.restore")}
                 </Button>
               ) : (
                 <Button
@@ -141,14 +140,14 @@ export function TakeoverDialog({
                   disabled={busy === s.app}
                   onClick={() => void act(s.app, false)}
                 >
-                  {busy === s.app ? "…" : "接管"}
+                  {busy === s.app ? "…" : t("takeover.apply")}
                 </Button>
               )}
             </div>
           ))}
           {list.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-4">
-              加载中…
+              {t("common.loading")}
             </p>
           )}
         </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Plus } from "lucide-react";
+import { useI18n } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,16 +25,16 @@ interface AddProviderDialogProps {
 }
 
 /** 校验接口地址:必须是合法 http(s) URL */
-function validateUrl(v: string): string | null {
+function validateUrl(v: string, t: ReturnType<typeof useI18n>["t"]): string | null {
   if (!v.trim()) return null; // 空值交给必填校验
   try {
     const u = new URL(v.trim());
     if (u.protocol !== "http:" && u.protocol !== "https:") {
-      return "地址需以 http:// 或 https:// 开头";
+      return t("url.scheme");
     }
     return null;
   } catch {
-    return "地址格式不正确,例如 https://api.example.com";
+    return t("url.invalid");
   }
 }
 
@@ -46,6 +47,7 @@ export function AddProviderDialog({
   onCreated,
   onError,
 }: AddProviderDialogProps) {
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -65,7 +67,7 @@ export function AddProviderDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const err = validateUrl(baseUrl);
+    const err = validateUrl(baseUrl, t);
     setUrlError(err);
     if (name.trim() === "" || baseUrl.trim() === "" || err) return;
     if (submitting) return;
@@ -94,34 +96,34 @@ export function AddProviderDialog({
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit} className="grid gap-4">
           <DialogHeader>
-            <DialogTitle>添加供应商</DialogTitle>
+            <DialogTitle>{t("dialog.addTitle")}</DialogTitle>
             <DialogDescription>
-              API Key 将存入系统钥匙串(Keychain),不落盘、不入库。
+              {t("dialog.addDesc")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-2">
-            <Label htmlFor="provider-name">名称</Label>
+            <Label htmlFor="provider-name">{t("dialog.name")}</Label>
             <Input
               id="provider-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如 CoderPlan"
+              placeholder={t("dialog.namePh")}
               autoFocus
             />
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="provider-url">接口地址</Label>
+            <Label htmlFor="provider-url">{t("dialog.url")}</Label>
             <Input
               id="provider-url"
               value={baseUrl}
               onChange={(e) => {
                 setBaseUrl(e.target.value);
-                if (urlError) setUrlError(validateUrl(e.target.value));
+                if (urlError) setUrlError(validateUrl(e.target.value, t));
               }}
-              onBlur={() => setUrlError(validateUrl(baseUrl))}
-              placeholder="https://api.example.com"
+              onBlur={() => setUrlError(validateUrl(baseUrl, t))}
+              placeholder={t("dialog.urlPh")}
               aria-invalid={!urlValid}
               className={!urlValid ? "border-red-500 focus-visible:ring-red-500" : ""}
             />
@@ -131,12 +133,12 @@ export function AddProviderDialog({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="provider-key">API Key(可选)</Label>
+            <Label htmlFor="provider-key">{t("dialog.key")}</Label>
             <PasswordInput
               id="provider-key"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-..."
+              placeholder={t("dialog.keyPh")}
             />
           </div>
 
@@ -155,7 +157,7 @@ export function AddProviderDialog({
               }
             >
               <Plus className="w-4 h-4 mr-1" />
-              {submitting ? "添加中…" : "添加"}
+              {submitting ? t("dialog.adding") : t("common.add")}
             </Button>
           </DialogFooter>
         </form>
