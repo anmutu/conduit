@@ -12,6 +12,8 @@ interface ProviderCardProps {
   onEdit: (provider: Provider) => void;
   onDuplicate: (provider: Provider) => void;
   onDelete: (provider: Provider) => void;
+  /** 点击接口地址复制 */
+  onCopyUrl: (url: string) => void;
 }
 
 // 视觉结构复刻 CC Switch 的 ProviderCard:
@@ -25,6 +27,7 @@ export function ProviderCard({
   onEdit,
   onDuplicate,
   onDelete,
+  onCopyUrl,
 }: ProviderCardProps) {
   const displayUrl = provider.base_url || "未配置接口地址";
   const shouldUseBlue = isCurrent;
@@ -78,12 +81,14 @@ export function ProviderCard({
               )}
             </div>
 
-            <div
-              className="inline-flex items-center text-sm max-w-[280px] text-muted-foreground cursor-default"
-              title={displayUrl}
+            <button
+              type="button"
+              onClick={() => onCopyUrl(displayUrl)}
+              className="inline-flex items-center text-sm max-w-[280px] text-muted-foreground hover:text-blue-500 dark:hover:text-blue-400 transition-colors cursor-pointer"
+              title="点击复制接口地址"
             >
               <span className="truncate">{displayUrl}</span>
-            </div>
+            </button>
           </div>
         </div>
 

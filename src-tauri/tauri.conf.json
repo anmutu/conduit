@@ -13,6 +13,8 @@
     "windows": [
       {
         "title": "Conduit",
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
         "width": 1000,
         "height": 680,
         "minWidth": 900,

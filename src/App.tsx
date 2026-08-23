@@ -8,6 +8,7 @@ import { AddProviderDialog } from "@/components/providers/AddProviderDialog";
 import { EditProviderDialog } from "@/components/providers/EditProviderDialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ToastStack, type ToastItem, type ToastType } from "@/components/Toast";
+import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +64,12 @@ function App() {
   const [proxyAddr, setProxyAddr] = useState("");
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [winWidth, setWinWidth] = useState(() => window.innerWidth);
+  // macOS 融合标题栏(Overlay):红绿灯占据左上角,header 内容需左侧避让
+  const [isMac, setIsMac] = useState(false);
+  useEffect(() => {
+    const p = (window as any).__TAURI_INTERNALS__?.platform;
+    setIsMac(p ? p === "darwin" : /Mac/i.test(navigator.userAgent));
+  }, []);
 
   // 按 app 缓存列表数据:切换时先显示缓存,后台刷新(stale-while-revalidate)
   const cacheRef = useRef<Partial<Record<AppType, Provider[]>>>({});
@@ -209,7 +216,12 @@ function App() {
         style={{ height: HEADER_HEIGHT }}
         data-tauri-drag-region
       >
-        <div className="flex h-full items-center justify-between gap-2 px-6">
+        <div
+          className={cn(
+            "flex h-full items-center justify-between gap-2 px-6",
+            isMac && "pl-[84px]",
+          )}
+        >
           <div className="flex items-center gap-2" data-tauri-no-drag>
             <span className="text-xl font-semibold transition-colors text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 select-none">
               Conduit
@@ -234,6 +246,7 @@ function App() {
                 {proxyOk ? "代理运行中" : "代理离线"}
               </span>
             )}
+            <ModeToggle />
             <Button
               variant="ghost"
               size="icon"
@@ -294,6 +307,12 @@ function App() {
                     <Plus className="w-4 h-4 mr-1" />
                     添加供应商
                   </Button>
+                  <p className="text-xs text-muted-foreground">
+                    或按{" "}
+                    <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted font-mono text-[10px]">
+                      ⌘N
+                    </kbd>
+                  </p>
                 </div>
               )}
 
@@ -307,6 +326,12 @@ function App() {
                   onEdit={(provider) => setEditingProvider(provider)}
                   onDuplicate={(provider) => void duplicateProvider(provider)}
                   onDelete={(provider) => setConfirmDelete(provider)}
+                  onCopyUrl={(url) => {
+                    navigator.clipboard
+                      .writeText(url)
+                      .then(() => toast("success", "接口地址已复制"))
+                      .catch(() => toast("error", "复制失败"));
+                  }}
                 />
               ))}
             </div>

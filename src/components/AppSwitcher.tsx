@@ -46,6 +46,7 @@ export function AppSwitcher({
           key={app}
           type="button"
           onClick={() => handleSwitch(app)}
+          title={appDisplayName[app]}
           className={cn(
             "group inline-flex items-center px-3 h-8 rounded-md text-sm font-medium transition-all duration-200",
             activeApp === app
