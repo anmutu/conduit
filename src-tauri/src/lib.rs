@@ -104,6 +104,7 @@ pub fn run() {
             commands::keychain::keychain_health,
             commands::locale::set_locale,
             commands::usage::get_usage_map,
+            commands::usage_dash::get_usage_dashboard,
             commands::tray::refresh_tray,
             commands::import::import_existing,
             commands::takeover::takeover_status,
