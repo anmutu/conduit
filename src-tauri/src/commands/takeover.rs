@@ -21,3 +21,18 @@ pub fn apply_takeover(state: State<'_, AppState>, app_type: AppType) -> Result<(
 pub fn restore_takeover(state: State<'_, AppState>, app_type: AppType) -> Result<(), String> {
     svc::restore(&state.db, app_type).map_err(|e| e.to_string())
 }
+
+/// 设置某 app 的故障转移开关
+#[tauri::command]
+pub fn set_failover(
+    state: State<'_, AppState>,
+    app_type: AppType,
+    enabled: bool,
+) -> Result<(), String> {
+    crate::db::kv::set(
+        &state.db,
+        &format!("failover:{}", app_type.as_str()),
+        if enabled { "1" } else { "0" },
+    )
+    .map_err(|e| e.to_string())
+}

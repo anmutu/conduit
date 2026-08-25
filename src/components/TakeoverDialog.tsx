@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ interface TakeoverStatus {
   config_exists: boolean;
   active: boolean;
   effective: boolean;
+  failover: boolean;
 }
 
 const APP_LABEL: Record<string, string> = {
@@ -53,6 +55,19 @@ export function TakeoverDialog({
     if (open) refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const toggleFailover = async (app: string, enabled: boolean) => {
+    try {
+      await invoke("set_failover", {
+        appType: app as "claude" | "codex" | "gemini",
+        enabled,
+      });
+      onSuccess(t("fo.toast", { name: APP_LABEL[app], state: enabled ? "✓" : "✕" }));
+      refresh();
+    } catch (e) {
+      onError(String(e));
+    }
+  };
 
   const act = async (app: string, restore: boolean) => {
     setBusy(app);
@@ -125,24 +140,33 @@ export function TakeoverDialog({
                   </div>
                 </div>
               </div>
-              {s.active ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy === s.app}
-                  onClick={() => void act(s.app, true)}
-                >
-                  {busy === s.app ? "…" : t("takeover.restore")}
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  disabled={busy === s.app}
-                  onClick={() => void act(s.app, false)}
-                >
-                  {busy === s.app ? "…" : t("takeover.apply")}
-                </Button>
-              )}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5" title={t("fo.label")}>
+                  <span className="text-xs text-muted-foreground hidden sm:inline">{t("fo.label")}</span>
+                  <Switch
+                    checked={s.failover}
+                    onCheckedChange={(v) => void toggleFailover(s.app, v)}
+                  />
+                </div>
+                {s.active ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy === s.app}
+                    onClick={() => void act(s.app, true)}
+                  >
+                    {busy === s.app ? "…" : t("takeover.restore")}
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    disabled={busy === s.app}
+                    onClick={() => void act(s.app, false)}
+                  >
+                    {busy === s.app ? "…" : t("takeover.apply")}
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
           {list.length === 0 && (

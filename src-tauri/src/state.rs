@@ -12,15 +12,21 @@ use crate::db::Pool;
 pub struct AppState {
     pub db: Pool,
     pub http: reqwest::Client,
+    /// Tauri 应用句柄(emit 事件用);测试环境为 None
+    pub app: Option<tauri::AppHandle>,
 }
 
 impl AppState {
     pub fn new(db: Pool) -> Self {
+        Self::with_handle(db, None)
+    }
+
+    pub fn with_handle(db: Pool, app: Option<tauri::AppHandle>) -> Self {
         let http = reqwest::Client::builder()
             // LLM 流式响应可能很久,放宽超时;代理不主动断流
             .timeout(std::time::Duration::from_secs(600))
             .build()
             .expect("reqwest client 构建失败");
-        Self { db, http }
+        Self { db, http, app }
     }
 }
