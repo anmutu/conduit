@@ -52,7 +52,7 @@ pub fn run() {
             let pool = db::init_pool(&db_path, &master_key)?;
 
             // 3. 共享状态 + 启动代理
-            let state = state::AppState::new(pool);
+            let state = state::AppState::with_handle(pool, Some(app.handle().clone()));
             let proxy_state = state.clone();
             let addr = PROXY_ADDR.to_string();
             tauri::async_runtime::spawn(async move {
@@ -110,6 +110,7 @@ pub fn run() {
             commands::takeover::takeover_status,
             commands::takeover::apply_takeover,
             commands::takeover::restore_takeover,
+            commands::takeover::set_failover,
         ])
         .run(tauri::generate_context!())
         .expect("运行 Conduit 时出错");

@@ -122,3 +122,85 @@ async fn proxy_returns_502_when_no_current_provider() {
     assert_eq!(resp.status(), 502, "无当前供应商应返回 502 与可读错误");
     let _ = std::fs::remove_dir_all(&db_dir);
 }
+
+#[tokio::test]
+async fn failover_switches_to_backup_on_5xx() {
+    // 上游 A 恒 500,B 正常
+    let a = {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let app = Router::new().route(
+            "/v1/messages",
+            post(|| async { (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "boom") }),
+        );
+        tokio::spawn(async move { axum::serve(listener, app).await });
+        format!("http://{addr}")
+    };
+    let b = spawn_mock_upstream("mock-b").await;
+
+    let key = "ef".repeat(32);
+    let db_dir = std::env::temp_dir().join(format!("conduit_fo_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&db_dir).unwrap();
+    let pool = db::init_pool(db_dir.join("t.db"), &key).unwrap();
+    provider_dao::insert(&pool, &test_provider("fa", "A", a)).unwrap();
+    let mut pb = test_provider("fb", "B", b);
+    pb.keychain_id = Some("fb".into()); // 候选链要求备用配置过 Key 引用
+    provider_dao::insert(&pool, &pb).unwrap();
+    provider_dao::set_current(&pool, "fa", AppType::Claude).unwrap();
+    db::kv::set(&pool, "failover:claude", "1").unwrap();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let proxy_addr = listener.local_addr().unwrap();
+    tokio::spawn(proxy::server::run_listener(
+        conduit_lib::state::AppState::new(pool),
+        listener,
+    ));
+
+    let resp: serde_json::Value = reqwest::Client::new()
+        .post(format!("http://{proxy_addr}/v1/messages"))
+        .json(&serde_json::json!({"x":1}))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(resp["via"], "mock-b", "主供应商 5xx 应自动回退到备用");
+    let _ = std::fs::remove_dir_all(&db_dir);
+}
+
+#[tokio::test]
+async fn no_failover_returns_upstream_error_as_is() {
+    let a = {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let app = Router::new().route(
+            "/v1/messages",
+            post(|| async { (axum::http::StatusCode::BAD_GATEWAY, "upstream down") }),
+        );
+        tokio::spawn(async move { axum::serve(listener, app).await });
+        format!("http://{addr}")
+    };
+    let key = "fe".repeat(32);
+    let db_dir = std::env::temp_dir().join(format!("conduit_fo2_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&db_dir).unwrap();
+    let pool = db::init_pool(db_dir.join("t.db"), &key).unwrap();
+    provider_dao::insert(&pool, &test_provider("na", "A", a)).unwrap();
+    provider_dao::set_current(&pool, "na", AppType::Claude).unwrap();
+    // failover 未开启:错误原样透传
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let proxy_addr = listener.local_addr().unwrap();
+    tokio::spawn(proxy::server::run_listener(
+        conduit_lib::state::AppState::new(pool),
+        listener,
+    ));
+
+    let resp = reqwest::Client::new()
+        .post(format!("http://{proxy_addr}/v1/messages"))
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 502, "未开故障转移时上游错误原样透传");
+    let _ = std::fs::remove_dir_all(&db_dir);
+}

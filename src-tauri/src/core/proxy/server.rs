@@ -70,10 +70,19 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         return text_resp(StatusCode::NOT_FOUND, &format!("无法识别的路径: {path}"));
     };
 
-    // 1. 取当前供应商
-    let provider = match provider_dao::get_current(&state.db, app) {
-        Ok(Some(p)) => p,
-        Ok(None) => {
+    // 1. 候选链:故障转移开启时 = 当前 + 备用(有 Key),否则仅当前
+    let failover_on = crate::db::kv::get(&state.db, &format!("failover:{}", app.as_str()))
+        .ok()
+        .flatten()
+        .map(|v| v == "1")
+        .unwrap_or(false);
+    let candidates: Vec<crate::types::Provider> = match if failover_on {
+        provider_dao::failover_candidates(&state.db, app)
+    } else {
+        provider_dao::get_current(&state.db, app).map(|p| p.into_iter().collect())
+    } {
+        Ok(list) if !list.is_empty() => list,
+        Ok(_) => {
             return text_resp(
                 StatusCode::BAD_GATEWAY,
                 &format!("未设置 {} 的当前供应商,请先在 Conduit 中切换", app.as_str()),
@@ -85,39 +94,9 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         }
     };
 
-    // 2. 取真实 Key
-    let api_key = provider
-        .keychain_id
-        .as_deref()
-        .and_then(|kid| keychain::load_provider_key(kid).ok().flatten());
+    // 2. 取真实 Key(循环内按候选注入)
 
-    // 3. 组装上游 URL
-    let base = provider.base_url.trim_end_matches('/');
-    // 去重路径前缀:base_url 含 /v1(或 /v1beta)且 path 也带时只保留一个
-    let mut upstream = format!("{base}{path}");
-    for prefix in ["/v1", "/v1beta"] {
-        let doubled = format!("{prefix}{prefix}/");
-        if upstream.contains(&doubled) {
-            upstream = upstream.replace(&doubled, &format!("{prefix}/"));
-            break;
-        }
-    }
-    let mut query_pairs: Vec<String> = Vec::new();
-    if let Some(q) = &query {
-        query_pairs.push(q.clone());
-    }
-    // Gemini 把凭证放 URL query
-    if matches!(app, AppType::Gemini) {
-        if let Some(key) = &api_key {
-            query_pairs.push(format!("key={key}"));
-        }
-    }
-    if !query_pairs.is_empty() {
-        upstream.push('?');
-        upstream.push_str(&query_pairs.join("&"));
-    }
-
-    // 4. 读请求体(LLM 请求体不大,64MB 上限足够覆盖图文混合)
+    // 3. 读请求体(先读一次,重试复用;Bytes 克隆廉价)
     let bytes = match axum::body::to_bytes(body, 64 * 1024 * 1024).await {
         Ok(b) => b,
         Err(e) => {
@@ -126,24 +105,13 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         }
     };
 
-    // 计量:从请求体提取 model(仅三家支持计量的 app;解析失败静默跳过)
-    let meter_ctx = if matches!(app, AppType::Claude | AppType::Codex | AppType::Gemini) {
-        let model = serde_json::from_slice::<serde_json::Value>(&bytes)
-            .ok()
-            .and_then(|v| v.get("model").and_then(|m| m.as_str()).map(str::to_string));
-        Some(UsageCtx {
-            pool: state.db.clone(),
-            app_type: app.as_str().to_string(),
-            provider_id: provider.id.clone(),
-            model,
-        })
-    } else {
-        None
-    };
+    // 计量 model(一次提取;usage 归属实际成功的供应商)
+    let model = serde_json::from_slice::<serde_json::Value>(&bytes)
+        .ok()
+        .and_then(|v| v.get("model").and_then(|m| m.as_str()).map(str::to_string));
 
-    // 5. 构造上游 header:复制客户端原始 header(剔除 hop-by-hop 与凭证类,
-    //    凭证由我们统一注入,避免泄露客户端本地残留 key)
-    let mut req_headers = HeaderMap::new();
+    // 客户端基础 header(剔除 hop-by-hop 与凭证类;凭证按供应商注入)
+    let mut base_headers = HeaderMap::new();
     const OVERRIDE: &[&str] = &[
         "authorization",
         "x-api-key",
@@ -155,61 +123,138 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         if HOP_BY_HOP.contains(&name) || OVERRIDE.contains(&name) {
             continue;
         }
-        req_headers.append(k.clone(), v.clone());
-    }
-    // 凭证注入(非 Gemini)
-    if let Some(key) = &api_key {
-        if !matches!(app, AppType::Gemini) {
-            if let Ok(val) = HeaderValue::from_str(&format!("Bearer {key}")) {
-                req_headers.insert(HeaderName::from_static("authorization"), val);
-            }
-            if let Ok(val) = HeaderValue::from_str(key) {
-                req_headers.insert(HeaderName::from_static("x-api-key"), val);
-            }
-        }
+        base_headers.append(k.clone(), v.clone());
     }
     if matches!(app, AppType::Claude | AppType::OpenCode | AppType::OpenClaw) {
-        req_headers.insert(
+        base_headers.insert(
             HeaderName::from_static("anthropic-version"),
             HeaderValue::from_static("2023-06-01"),
         );
     }
 
-    // 6. 发起上游请求
-    let upstream_req = state
-        .http
-        .request(method, &upstream)
-        .headers(req_headers)
-        .body(bytes);
-    let resp = match upstream_req.send().await {
-        Ok(r) => r,
-        Err(e) => {
-            warn!(upstream = %upstream, "上游请求失败: {e}");
-            return text_resp(StatusCode::BAD_GATEWAY, &format!("上游请求失败: {e}"));
-        }
-    };
+    // 4. 候选链逐个转发:连接失败 / 5xx / 429 视为故障,自动尝试下一个
+    let mut fallbacks: Vec<(String, String)> = Vec::new();
+    for (i, provider) in candidates.iter().enumerate() {
+        let api_key = provider
+            .keychain_id
+            .as_deref()
+            .and_then(|kid| keychain::load_provider_key(kid).ok().flatten());
 
-    // 7. 流式回传
-    let status = resp.status();
-    let mut out_headers = HeaderMap::new();
-    for (k, v) in resp.headers().iter() {
-        if HOP_BY_HOP.contains(&k.as_str()) {
-            continue;
+        // 组装上游 URL(前缀去重)
+        let base = provider.base_url.trim_end_matches('/');
+        let mut upstream = format!("{base}{path}");
+        for prefix in ["/v1", "/v1beta"] {
+            let doubled = format!("{prefix}{prefix}/");
+            if upstream.contains(&doubled) {
+                upstream = upstream.replace(&doubled, &format!("{prefix}/"));
+                break;
+            }
         }
-        out_headers.append(k.clone(), v.clone());
+        let mut query_pairs: Vec<String> = Vec::new();
+        if let Some(q) = &query {
+            query_pairs.push(q.clone());
+        }
+        if matches!(app, AppType::Gemini) {
+            if let Some(key) = &api_key {
+                query_pairs.push(format!("key={key}"));
+            }
+        }
+        if !query_pairs.is_empty() {
+            upstream.push('?');
+            upstream.push_str(&query_pairs.join("&"));
+        }
+
+        // 凭证注入
+        let mut req_headers = base_headers.clone();
+        if let Some(key) = &api_key {
+            if !matches!(app, AppType::Gemini) {
+                if let Ok(val) = HeaderValue::from_str(&format!("Bearer {key}")) {
+                    req_headers.insert(HeaderName::from_static("authorization"), val);
+                }
+                if let Ok(val) = HeaderValue::from_str(key) {
+                    req_headers.insert(HeaderName::from_static("x-api-key"), val);
+                }
+            }
+        }
+
+        let send_result = state
+            .http
+            .request(method.clone(), &upstream)
+            .headers(req_headers)
+            .body(bytes.clone())
+            .send()
+            .await;
+
+        let resp = match send_result {
+            Ok(r) => r,
+            Err(e) => {
+                warn!(upstream = %upstream, "上游连接失败: {e}");
+                if i + 1 < candidates.len() {
+                    fallbacks.push((provider.name.clone(), candidates[i + 1].name.clone()));
+                    continue;
+                }
+                notify_fallbacks(&state, &fallbacks);
+                return text_resp(StatusCode::BAD_GATEWAY, &format!("上游请求失败: {e}"));
+            }
+        };
+
+        let status = resp.status();
+        let retryable = status.as_u16() == 429 || status.is_server_error();
+        if retryable && i + 1 < candidates.len() {
+            warn!(upstream = %upstream, %status, "上游故障,切换候选");
+            fallbacks.push((provider.name.clone(), candidates[i + 1].name.clone()));
+            continue; // 响应体丢弃,试下一个
+        }
+
+        // 成功(或不可重试/最后一个):流式回传
+        notify_fallbacks(&state, &fallbacks);
+        let mut out_headers = HeaderMap::new();
+        for (k, v) in resp.headers().iter() {
+            if HOP_BY_HOP.contains(&k.as_str()) {
+                continue;
+            }
+            out_headers.append(k.clone(), v.clone());
+        }
+        let stream = resp
+            .bytes_stream()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+        // 用量计量:归属实际服务的供应商
+        let meter = if matches!(app, AppType::Claude | AppType::Codex | AppType::Gemini) {
+            UsageMeter::new(UsageCtx {
+                pool: state.db.clone(),
+                app_type: app.as_str().to_string(),
+                provider_id: provider.id.clone(),
+                model: model.clone(),
+            })
+        } else {
+            UsageMeter::disabled()
+        };
+        let mut out = Response::new(Body::from_stream(MeteredStream::new(stream, meter)));
+        *out.status_mut() = status;
+        *out.headers_mut() = out_headers;
+        return out;
     }
-    let stream = resp
-        .bytes_stream()
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
-    // 用量计量:透传的同时扫描 usage(失败不影响转发)
-    let metered = match meter_ctx {
-        Some(ctx) => MeteredStream::new(stream, UsageMeter::new(ctx)),
-        None => MeteredStream::new(stream, UsageMeter::disabled()),
-    };
-    let mut out = Response::new(Body::from_stream(metered));
-    *out.status_mut() = status;
-    *out.headers_mut() = out_headers;
-    out
+
+    // 候选为空(理论不可达)
+    text_resp(StatusCode::BAD_GATEWAY, "无可用供应商")
+}
+
+/// 批量通知前端:发生了自动回退
+fn notify_fallbacks(state: &AppState, fallbacks: &[(String, String)]) {
+    if fallbacks.is_empty() {
+        return;
+    }
+    if let Some(app_handle) = &state.app {
+        use tauri::Emitter;
+        let chain: Vec<String> = fallbacks
+            .iter()
+            .map(|(a, b)| format!("{a} → {b}"))
+            .collect();
+        let _ = app_handle.emit(
+            "provider-fallback",
+            serde_json::json!({ "chain": chain.join(", ") }),
+        );
+    }
 }
 
 fn text_resp(code: StatusCode, msg: &str) -> Response<Body> {

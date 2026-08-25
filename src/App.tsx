@@ -230,6 +230,16 @@ function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // 故障转移自动回退提示
+  useEffect(() => {
+    if (IS_DEMO) return;
+    let un: (() => void) | undefined;
+    void listen<{ chain: string }>("provider-fallback", (e) => {
+      toast("error", t("fo.fallback", { chain: e.payload.chain }));
+    }).then((fn) => (un = fn));
+    return () => un?.();
+  }, [toast, t]);
+
   // 托盘快速切换后:同步刷新 + toast(与主界面操作同一反馈通道)
   useEffect(() => {
     if (IS_DEMO) return;

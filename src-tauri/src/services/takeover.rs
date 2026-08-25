@@ -30,6 +30,8 @@ pub struct TakeoverStatus {
     pub active: bool,
     /// 配置当前确实指向代理(未被外部覆盖)
     pub effective: bool,
+    /// 故障转移开关
+    pub failover: bool,
 }
 
 // ---------- settings KV ----------
@@ -327,12 +329,18 @@ pub fn status(pool: &Pool) -> Vec<TakeoverStatus> {
                 .flatten()
                 .map(|v| v == "1")
                 .unwrap_or(false);
+            let failover = settings_get(pool, &format!("failover:{}", app.as_str()))
+                .ok()
+                .flatten()
+                .map(|v| v == "1")
+                .unwrap_or(false);
             TakeoverStatus {
                 app: app.as_str().to_string(),
                 supported,
                 config_exists: exists,
                 active,
                 effective,
+                failover,
             }
         })
         .collect()

@@ -85,6 +85,12 @@ export const zh = {
   "settings.langZh": "中文",
   "settings.langEn": "English",
   "settings.langSystem": "自动",
+  // 故障转移
+  "fo.label": "故障转移",
+  "fo.on": "已开启故障转移",
+  "fo.off": "已开启故障转移失败",
+  "fo.toast": "已{state} {name} 故障转移",
+  "fo.fallback": "自动回退:{chain}",
   // 用量仪表盘
   "dash.title": "用量",
   "dash.requests": "总请求",
@@ -216,6 +222,12 @@ export const en: Dict = {
   "err.db": "Local database read/write failed",
   "err.ipc": "Cannot reach the local service (normal in browser preview)",
   "err.fallback": "{msg}",
+  // Failover
+  "fo.label": "Failover",
+  "fo.on": "Failover on",
+  "fo.off": "Failover off",
+  "fo.toast": "Failover {state} for {name}",
+  "fo.fallback": "Auto fallback: {chain}",
   // Usage dashboard
   "dash.title": "Usage",
   "dash.requests": "Requests",

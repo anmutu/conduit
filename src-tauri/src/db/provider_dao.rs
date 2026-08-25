@@ -140,3 +140,18 @@ pub fn get_current(pool: &Pool, app: AppType) -> Result<Option<Provider>> {
 fn get_conn(pool: &Pool) -> Result<PooledConn> {
     pool.get().map_err(|e| anyhow!("获取数据库连接失败: {e}"))
 }
+
+/// 故障转移候选:当前供应商 + 其余已配置 Key 的供应商(按排序),上限 3。
+pub fn failover_candidates(pool: &Pool, app: AppType) -> Result<Vec<Provider>> {
+    let conn = get_conn(pool)?;
+    let mut stmt = conn.prepare(
+        "SELECT id, app_type, name, base_url, keychain_id, models, is_current,
+                is_healthy, sort_index, created_at
+         FROM providers
+         WHERE app_type = ?1 AND (is_current = 1 OR keychain_id IS NOT NULL)
+         ORDER BY is_current DESC, sort_index, created_at
+         LIMIT 3",
+    )?;
+    let rows = stmt.query_map(params![app.as_str()], row_to_provider)?;
+    Ok(rows.filter_map(|r| r.ok()).collect())
+}
