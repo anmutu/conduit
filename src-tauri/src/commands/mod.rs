@@ -9,6 +9,7 @@ pub mod keychain;
 pub mod locale;
 pub mod provider;
 pub mod route;
+pub mod profile;
 pub mod proxy;
 pub mod settings;
 pub mod takeover;

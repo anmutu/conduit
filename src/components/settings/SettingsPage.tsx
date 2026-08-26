@@ -15,9 +15,11 @@ import {
   PanelBottom,
   Power,
   Save,
+  Layers,
   Sun,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { useTheme, type Theme } from "@/components/theme-provider";
@@ -77,6 +79,13 @@ export function SettingsPage({
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [version, setVersion] = useState("…");
   const [backupBusy, setBackupBusy] = useState(false);
+  // Profile(供应商组合快照)
+  const [profileList, setProfileList] = useState<string[]>([]);
+  const [activeProfile, setActiveProfile] = useState("");
+  const [profileName, setProfileName] = useState("");
+  useEffect(() => {
+    invoke<string[]>("list_profiles").then(setProfileList).catch(() => {});
+  }, []);
   // 分组拖拽排序状态
   const [dragApp, setDragApp] = useState<AppType | null>(null);
   const [dragOver, setDragOver] = useState<AppType | null>(null);
@@ -322,6 +331,88 @@ export function SettingsPage({
         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium text-emerald-600 bg-emerald-500/10 dark:text-emerald-400">
           已加密
         </span>
+      </Row>
+
+      {/* Profile:供应商组合快照,一键切换工作/个人 */}
+      <Row
+        icon={<Layers className="w-4 h-4" />}
+        title={t("profile.row")}
+        desc={t("profile.rowDesc")}
+      >
+        <div className="flex items-center gap-2">
+          <select
+            value={activeProfile}
+            onChange={(e) => setActiveProfile(e.target.value)}
+            className="h-8 rounded-md border border-border bg-background px-2 text-xs max-w-[120px]"
+          >
+            <option value="">{t("profile.pick")}</option>
+            {profileList.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+          <Input
+            value={profileName}
+            onChange={(e) => setProfileName(e.target.value)}
+            placeholder={t("profile.namePh")}
+            className="h-8 w-24 text-xs"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8"
+            disabled={!profileName.trim()}
+            onClick={async () => {
+              try {
+                const n = await invoke<number>("save_profile", {
+                  name: profileName.trim(),
+                });
+                onSuccess(t("profile.saved", { n }));
+                setProfileName("");
+                setProfileList(await invoke<string[]>("list_profiles"));
+                setActiveProfile(profileName.trim());
+              } catch (e) {
+                onError(String(e));
+              }
+            }}
+          >
+            {t("profile.save")}
+          </Button>
+          <Button
+            size="sm"
+            className="h-8"
+            disabled={!activeProfile}
+            onClick={async () => {
+              try {
+                const n = await invoke<number>("apply_profile", {
+                  name: activeProfile,
+                });
+                onSuccess(t("profile.applied", { n }));
+              } catch (e) {
+                onError(String(e));
+              }
+            }}
+          >
+            {t("profile.apply")}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 hover:bg-red-500/15 hover:text-red-500"
+            disabled={!activeProfile}
+            onClick={async () => {
+              try {
+                await invoke("delete_profile", { name: activeProfile });
+                setProfileList(await invoke<string[]>("list_profiles"));
+                setActiveProfile("");
+                onSuccess(t("profile.deleted"));
+              } catch (e) {
+                onError(String(e));
+              }
+            }}
+          >
+            {t("common.delete")}
+          </Button>
+        </div>
       </Row>
 
       {/* 备份/恢复:供应商配置导出 JSON(Key 不导出),同名跳过导入 */}
