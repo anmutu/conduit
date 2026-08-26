@@ -9,6 +9,23 @@
     <meta property="og:title" content="Conduit 使用指南" />
     <meta property="og:description" content="从安装到进阶:接管、秒切、路由、故障转移、日志,5 分钟全部掌握。" />
     <link rel="icon" type="image/svg+xml" href="./logo.svg" />
+    <link rel="canonical" href="https://anmutu.github.io/conduit/guide.html" />
+    <meta property="og:image" content="https://anmutu.github.io/conduit/app-light.png" />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "HowTo",
+      "name": "Conduit 使用指南",
+      "description": "从安装到进阶:接管 AI CLI、免重启切换供应商、模型路由、故障转移与日志。",
+      "step": [
+        { "@type": "HowToStep", "name": "下载与安装", "text": "从 GitHub Releases 下载 dmg,拖入应用程序,首次打开在系统设置中允许。" },
+        { "@type": "HowToStep", "name": "添加供应商", "text": "预设直选、从现有 CLI 配置导入或自定义 Base URL 与 API Key。" },
+        { "@type": "HowToStep", "name": "一键接管 CLI", "text": "接管前自动备份原配置,代理 127.0.0.1:9527 开始转发。" },
+        { "@type": "HowToStep", "name": "切换秒生效", "text": "主界面或菜单栏切换供应商,下一个请求立即生效,会话无需重启。" },
+        { "@type": "HowToStep", "name": "进阶功能", "text": "模型路由规则、自动故障转移、请求日志与用量统计、配置档案与备份。" }
+      ]
+    }
+    </script>
     <style>
       :root {
         --fg: #1d1d1f; --fg-2: #6e6e73; --fg-3: #86868b;
@@ -46,7 +63,7 @@
       .toc a:hover { text-decoration: underline; }
 
       /* 章节 */
-      section.step { padding: 56px 0 8px; }
+      section.step { padding: 56px 0 8px; scroll-margin-top: 56px; }
       section.step .kicker { font-size: 13px; font-weight: 600; color: var(--blue); letter-spacing: .04em; }
       section.step h2 { font-size: 32px; font-weight: 600; letter-spacing: -.01em; margin-top: 6px; line-height: 1.15; }
       section.step p { font-size: 16.5px; color: var(--fg-2); margin-top: 14px; }
