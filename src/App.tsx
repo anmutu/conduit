@@ -12,6 +12,7 @@ import { EditProviderDialog } from "@/components/providers/EditProviderDialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ToastStack, type ToastItem, type ToastType } from "@/components/Toast";
 import { AboutDialog } from "@/components/AboutDialog";
+import { OnboardingDialog, ONBOARD_KEY } from "@/components/OnboardingDialog";
 import { TakeoverDialog } from "@/components/TakeoverDialog";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 import { UsagePage } from "@/components/usage/UsagePage";
@@ -133,6 +134,8 @@ function App() {
     saveApps(apps);
   };
   const [takeoverOpen, setTakeoverOpen] = useState(false);
+  // 首启向导:零供应商且未看过向导时触发
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [proxyOk, setProxyOk] = useState<boolean | null>(null);
   const [proxyAddr, setProxyAddr] = useState("");
@@ -201,6 +204,15 @@ function App() {
   useEffect(() => {
     void refresh(activeApp);
   }, [activeApp, refresh]);
+
+  // 首启向导:首次加载完成、无任何供应商、未看过 → 弹出 3 步向导
+  useEffect(() => {
+    if (IS_DEMO) return;
+    if (hasCache && providers.length === 0 && !localStorage.getItem(ONBOARD_KEY)) {
+      setOnboardingOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasCache]);
 
   // 代理状态:常显于 header(卖点可见性)
   useEffect(() => {
@@ -541,6 +553,17 @@ function App() {
       <ToastStack items={toasts} onDismiss={dismissToast} />
 
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+
+      <OnboardingDialog
+        open={onboardingOpen}
+        onOpenChange={setOnboardingOpen}
+        apps={appsOrder}
+        onAppsChange={updateApps}
+        onAdd={() => setIsAddOpen(true)}
+        onImport={() => void runImport()}
+        providersCount={providers.length}
+        onDone={() => void refresh(activeApp)}
+      />
 
       <TakeoverDialog
         open={takeoverOpen}
