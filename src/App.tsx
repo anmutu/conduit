@@ -501,6 +501,7 @@ function App() {
                   onDuplicate={(provider) => void duplicateProvider(provider)}
                   onDelete={(provider) => setConfirmDelete(provider)}
                   usage={usageMap[p.id]}
+                  onError={(m) => toast("error", humanizeError(m, t))}
                   onCopyUrl={(url) => {
                     navigator.clipboard
                       .writeText(url)

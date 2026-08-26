@@ -20,6 +20,8 @@ interface ProviderCardProps {
   onCopyUrl: (url: string) => void;
   /** 累计用量(有数据才显示) */
   usage?: UsageSummary;
+  /** 连通性测试失败等错误提示 */
+  onError?: (msg: string) => void;
 }
 
 // 视觉结构复刻 CC Switch 的 ProviderCard:
@@ -36,6 +38,7 @@ export function ProviderCard({
   onDelete,
   onCopyUrl,
   usage,
+  onError,
 }: ProviderCardProps) {
   const { t } = useI18n();
   // 该分组协议的端点;无端点 → 置灰(供应商实体仍在,只是未配置此协议)
@@ -129,10 +132,12 @@ export function ProviderCard({
               provider={provider}
               isCurrent={isCurrent}
               canSwitch={!!endpoint}
+              app={app}
               onSwitch={onSwitch}
               onEdit={onEdit}
               onDuplicate={onDuplicate}
               onDelete={onDelete}
+              onError={(m) => onError?.(m)}
             />
           </div>
         </div>

@@ -100,6 +100,8 @@ pub fn run() {
             commands::provider::upsert_provider_endpoint,
             commands::provider::remove_provider_endpoint,
             commands::provider::set_provider_key,
+            commands::provider::test_provider,
+            commands::provider::get_provider_balance,
             commands::settings::get_app_settings,
             commands::settings::set_autostart,
             commands::proxy::proxy_status,

@@ -87,3 +87,25 @@ pub fn set_provider_key(
 ) -> Result<(), String> {
     svc::set_api_key(&state.db, &id, &api_key).map_err(|e| e.to_string())
 }
+
+/// 连通性测试:向该供应商对应协议端点发一个最小请求,返回状态/延迟。
+#[tauri::command]
+pub async fn test_provider(
+    state: State<'_, AppState>,
+    id: String,
+    app_type: AppType,
+) -> Result<svc::TestResult, String> {
+    svc::test_provider(&state.db, &id, app_type)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// 查询供应商余额(骨架:接口未定,统一返回 None,前端不展示)。
+#[tauri::command]
+pub fn get_provider_balance(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<Option<String>, String> {
+    let _ = (&state.db, &id); // TODO: 接入 CoderPlan 余额接口后实现
+    Ok(None)
+}

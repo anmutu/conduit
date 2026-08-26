@@ -45,6 +45,8 @@ export const zh = {
   "provider.notConfigured": "未配置接口地址",
   "provider.requests": "{n} 次请求",
   "provider.noEndpoint": "未配置此协议端点",
+  "provider.test": "测试连通",
+  "provider.testFail": "测试失败",
   "common.remove": "移除",
   // 空状态 / 导入
   "empty.title": "还没有{app} 供应商",
@@ -225,6 +227,8 @@ export const en: Dict = {
   "provider.notConfigured": "No endpoint configured",
   "provider.requests": "{n} requests",
   "provider.noEndpoint": "No endpoint for this protocol",
+  "provider.test": "Test connection",
+  "provider.testFail": "Test failed",
   "common.remove": "Remove",
   "empty.title": "No {app} providers yet",
   "empty.desc": "Add one to get started — switching takes effect instantly, no restart needed",

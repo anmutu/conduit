@@ -174,3 +174,106 @@ pub fn remove_endpoint(pool: &Pool, id: &str, protocol: Protocol) -> Result<()> 
 fn now_ts() -> i64 {
     chrono::Utc::now().timestamp()
 }
+
+/// 连通性测试结果。
+#[derive(Debug, serde::Serialize)]
+pub struct TestResult {
+    pub ok: bool,
+    /// HTTP 状态码(网络失败为 None)
+    pub status: Option<u16>,
+    pub latency_ms: u64,
+    /// 失败时的简要说明
+    pub message: String,
+}
+
+/// 向供应商对应协议的端点发最小请求测连通。
+/// - openai:GET {base}/models(最便宜)
+/// - anthropic:POST {base}/v1/messages max_tokens=1(需要至少一个模型名)
+async fn test_provider_impl(pool: &Pool, id: &str, app: AppType) -> Result<TestResult> {
+    let p = provider_dao::get_by_id(pool, id)?
+        .ok_or_else(|| anyhow::anyhow!("供应商不存在: {id}"))?;
+    let protocol = app.protocol();
+    let base = p
+        .endpoint(protocol)
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| p.base_url.clone());
+    let base = base.trim_end_matches('/');
+    let key = p
+        .keychain_id
+        .as_deref()
+        .and_then(|kid| keychain::load_provider_key(kid).ok().flatten());
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()?;
+    let start = std::time::Instant::now();
+    let resp_result = match protocol {
+        Protocol::Openai => {
+            let mut req = client.get(format!("{base}/models"));
+            if let Some(k) = &key {
+                req = req.bearer_auth(k);
+            }
+            req.send().await
+        }
+        Protocol::Anthropic => {
+            let model = p
+                .models
+                .first()
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("未配置模型,无法测试 Anthropic 端点"))?;
+            let mut req = client
+                .post(format!("{base}/v1/messages"))
+                .header("anthropic-version", "2023-06-01")
+                .json(&serde_json::json!({
+                    "model": model,
+                    "max_tokens": 1,
+                    "messages": [{"role": "user", "content": "hi"}],
+                }));
+            if let Some(k) = &key {
+                req = req.header("x-api-key", k);
+            }
+            req.send().await
+        }
+        Protocol::Gemini => {
+            // Gemini:带 key 查模型列表即可
+            let url = if let Some(k) = &key {
+                format!("{base}/v1/models?key={k}")
+            } else {
+                format!("{base}/v1/models")
+            };
+            client.get(url).send().await
+        }
+    };
+    let latency = start.elapsed().as_millis() as u64;
+    match resp_result {
+        Ok(resp) => {
+            let status = resp.status().as_u16();
+            Ok(TestResult {
+                ok: status < 500, // 4xx 说明端点通了、多为鉴权/参数问题,仍算可达
+                status: Some(status),
+                latency_ms: latency,
+                message: if status < 400 {
+                    String::new()
+                } else {
+                    format!("HTTP {status}")
+                },
+            })
+        }
+        Err(e) => Ok(TestResult {
+            ok: false,
+            status: None,
+            latency_ms: latency,
+            message: if e.is_timeout() {
+                "超时(10s)".into()
+            } else if e.is_connect() {
+                "连接失败".into()
+            } else {
+                e.to_string()
+            },
+        }),
+    }
+}
+
+pub async fn test_provider(pool: &Pool, id: &str, app: AppType) -> Result<TestResult> {
+    test_provider_impl(pool, id, app).await
+}
