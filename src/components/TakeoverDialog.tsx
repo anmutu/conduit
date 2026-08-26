@@ -188,11 +188,11 @@ export function TakeoverDialog({
                 className="h-7 px-2 text-xs"
                 onClick={async () => {
                   const snippet = [
-                    "# Conduit 本地代理",
+                    "# Keyway 本地代理",
                     "export ANTHROPIC_BASE_URL=http://127.0.0.1:9527",
-                    "export ANTHROPIC_AUTH_TOKEN=conduit",
+                    "export ANTHROPIC_AUTH_TOKEN=keyway",
                     "export OPENAI_BASE_URL=http://127.0.0.1:9527/v1",
-                    "export OPENAI_API_KEY=conduit",
+                    "export OPENAI_API_KEY=keyway",
                     "export GEMINI_BASE_URL=http://127.0.0.1:9527",
                   ].join("\n");
                   try {
@@ -213,9 +213,9 @@ export function TakeoverDialog({
             </div>
             <pre className="text-[11px] leading-relaxed text-muted-foreground overflow-x-auto">
               <code>{`export ANTHROPIC_BASE_URL=http://127.0.0.1:9527
-export ANTHROPIC_AUTH_TOKEN=conduit
+export ANTHROPIC_AUTH_TOKEN=keyway
 export OPENAI_BASE_URL=http://127.0.0.1:9527/v1
-export OPENAI_API_KEY=conduit`}</code>
+export OPENAI_API_KEY=keyway`}</code>
             </pre>
           </div>
         </div>

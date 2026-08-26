@@ -1,4 +1,4 @@
-//! Conduit 应用入口。
+//! Keyway 应用入口。
 //!
 //! 启动顺序:日志 → keychain 主密钥 → 加密 DB → 代理 → 托盘(含供应商快速切换)。
 
@@ -90,7 +90,7 @@ pub fn run() {
             let menu = build_tray_menu(app.handle())?;
             TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().expect("缺少应用图标").clone())
-                .tooltip("Conduit — 本地代理运行中")
+                .tooltip("Keyway — 本地代理运行中")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(on_tray_menu_event)
@@ -151,7 +151,7 @@ pub fn run() {
             commands::takeover::set_failover,
         ])
         .run(tauri::generate_context!())
-        .expect("运行 Conduit 时出错");
+        .expect("运行 Keyway 时出错");
 }
 
 /// 构建托盘菜单:每个有供应商的应用一个子菜单,点击即切换。
@@ -161,9 +161,9 @@ fn build_tray_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     // 托盘文案随语言(默认中文;en 由前端设置页切换写入)
     let zh = db::kv::get(&state.db, "locale").ok().flatten().as_deref() != Some("en");
     let (show_text, quit_text) = if zh {
-        ("显示主界面", "退出 Conduit")
+        ("显示主界面", "退出 Keyway")
     } else {
-        ("Show Main Window", "Quit Conduit")
+        ("Show Main Window", "Quit Keyway")
     };
     let show = MenuItem::with_id(app, "show", show_text, true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", quit_text, true, None::<&str>)?;
