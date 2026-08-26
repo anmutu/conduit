@@ -219,6 +219,12 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             }
             out_headers.append(k.clone(), v.clone());
         }
+        // 错误响应附 actionable 提示(x-conduit-hint),CLI 侧可直接看到原因定位
+        if let Some(hint) = status_hint(status.as_u16()) {
+            if let Ok(val) = HeaderValue::from_str(hint) {
+                out_headers.insert(HeaderName::from_static("x-conduit-hint"), val);
+            }
+        }
         let stream = resp
             .bytes_stream()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
@@ -229,6 +235,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                 app_type: app.as_str().to_string(),
                 provider_id: provider.id.clone(),
                 model: model.clone(),
+                status: status.as_u16(),
             })
         } else {
             UsageMeter::disabled()
@@ -241,6 +248,16 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
 
     // 候选为空(理论不可达)
     text_resp(StatusCode::BAD_GATEWAY, "无可用供应商")
+}
+
+/// 常见错误的 actionable 提示(附在响应头 x-conduit-hint)。
+fn status_hint(code: u16) -> Option<&'static str> {
+    match code {
+        401 | 403 => Some("Conduit: 鉴权失败 — API Key 无效或过期,请在 Conduit 中编辑该供应商重新填写 Key"),
+        404 => Some("Conduit: 端点不存在 — 请检查该供应商的接口地址(如 anthropic 端点应填根地址、openai 端点带 /v1)"),
+        429 => Some("Conduit: 限流/额度不足 — 可在 Conduit 中切换其他供应商或开启故障转移"),
+        _ => None,
+    }
 }
 
 /// 批量通知前端:发生了自动回退

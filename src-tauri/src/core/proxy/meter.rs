@@ -21,6 +21,8 @@ pub struct UsageCtx {
     pub app_type: String,
     pub provider_id: String,
     pub model: Option<String>,
+    /// 上游 HTTP 状态码(用于成功/失败统计)
+    pub status: u16,
 }
 
 pub struct UsageMeter {
@@ -90,10 +92,11 @@ impl UsageMeter {
         // 无 usage 字段也记一次请求(tokens 计 0),保证"总请求"不失真
         let (input, output) = self.last.unwrap_or((0, 0));
         tracing::info!(
-            "计量完成: app={}, provider={}, model={:?}, in={}, out={}",
+            "计量完成: app={}, provider={}, model={:?}, status={}, in={}, out={}",
             ctx.app_type,
             ctx.provider_id,
             ctx.model,
+            ctx.status,
             input,
             output
         );
@@ -104,6 +107,7 @@ impl UsageMeter {
             ctx.model.as_deref(),
             input,
             output,
+            ctx.status,
         ) {
             tracing::warn!("usage 落库失败(不影响转发): {e}");
         }

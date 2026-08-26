@@ -10,6 +10,9 @@ pub struct UsageSummary {
     pub requests: i64,
     pub input_tokens: i64,
     pub output_tokens: i64,
+    /// 失败请求数(上游 HTTP >= 400)
+    #[serde(default)]
+    pub errors: i64,
 }
 
 pub fn insert(
@@ -19,17 +22,19 @@ pub fn insert(
     model: Option<&str>,
     input_tokens: i64,
     output_tokens: i64,
+    status: u16,
 ) -> Result<()> {
     let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
     conn.execute(
-        "INSERT INTO usage_log(app_type, provider_id, model, input_tokens, output_tokens, created_at)
-         VALUES(?1,?2,?3,?4,?5,?6)",
+        "INSERT INTO usage_log(app_type, provider_id, model, input_tokens, output_tokens, status, created_at)
+         VALUES(?1,?2,?3,?4,?5,?6,?7)",
         rusqlite::params![
             app_type,
             provider_id,
             model,
             input_tokens,
             output_tokens,
+            status as i64,
             chrono::Utc::now().timestamp(),
         ],
     )?;
@@ -46,7 +51,8 @@ pub fn summarize_map(
         "SELECT provider_id,
                 COUNT(*),
                 COALESCE(SUM(input_tokens),0),
-                COALESCE(SUM(output_tokens),0)
+                COALESCE(SUM(output_tokens),0),
+                COALESCE(SUM(CASE WHEN status >= 400 THEN 1 ELSE 0 END),0)
          FROM usage_log WHERE app_type = ?1 GROUP BY provider_id",
     )?;
     let rows = stmt.query_map(rusqlite::params![app_type], |r| {
@@ -56,6 +62,7 @@ pub fn summarize_map(
                 requests: r.get(1)?,
                 input_tokens: r.get(2)?,
                 output_tokens: r.get(3)?,
+                errors: r.get(4)?,
             },
         ))
     })?;
@@ -93,7 +100,8 @@ pub struct UsageDashboard {
 fn app_total(pool: &Pool, app_type: &str) -> Result<UsageSummary> {
     let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
     conn.query_row(
-        "SELECT COUNT(*), COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0)
+        "SELECT COUNT(*), COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0),
+                COALESCE(SUM(CASE WHEN status >= 400 THEN 1 ELSE 0 END),0)
          FROM usage_log WHERE app_type = ?1",
         rusqlite::params![app_type],
         |r| {
@@ -101,6 +109,7 @@ fn app_total(pool: &Pool, app_type: &str) -> Result<UsageSummary> {
                 requests: r.get(0)?,
                 input_tokens: r.get(1)?,
                 output_tokens: r.get(2)?,
+                errors: r.get(3)?,
             })
         },
     )
@@ -122,6 +131,7 @@ fn group_by(pool: &Pool, app_type: &str, column: &str, limit: i64) -> Result<Vec
                 requests: r.get(1)?,
                 input_tokens: r.get(2)?,
                 output_tokens: r.get(3)?,
+                errors: 0, // 分组明细暂不统计错误数
             },
         })
     })?;

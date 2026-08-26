@@ -150,6 +150,7 @@ export const zh = {
   // 用量仪表盘
   "dash.title": "用量",
   "dash.requests": "总请求",
+  "dash.successRate": "成功率",
   "dash.input": "输入 tokens",
   "dash.output": "输出 tokens",
   "dash.trend": "近 7 日趋势",
@@ -341,6 +342,7 @@ export const en: Dict = {
   // Usage dashboard
   "dash.title": "Usage",
   "dash.requests": "Requests",
+  "dash.successRate": "Success rate",
   "dash.input": "Input tokens",
   "dash.output": "Output tokens",
   "dash.trend": "Last 7 Days",

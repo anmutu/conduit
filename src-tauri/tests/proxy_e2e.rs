@@ -15,12 +15,14 @@ fn test_provider(id: &str, name: &str, base_url: String) -> Provider {
         name: name.into(),
         base_url,
         keychain_id: None,
+        endpoints: std::collections::HashMap::new(),
         models: vec![],
         is_current: false,
         is_healthy: true,
         sort_index: 0,
         created_at: 0,
         has_key: false,
+        meta_has_key: None,
     }
 }
 

@@ -295,16 +295,16 @@ pub fn failover_candidates(pool: &Pool, app: AppType) -> Result<Vec<Provider>> {
     let mut stmt = conn.prepare(&format!(
         "SELECT {PROVIDER_COLS}
          FROM providers
-         WHERE keychain_id IS NOT NULL
          ORDER BY sort_index, created_at"
     ))?;
     let rows = stmt.query_map([], row_to_provider)?;
     let protocol = app.protocol();
     let mut list: Vec<Provider> = rows
         .filter_map(|r| r.ok())
-        .filter(|p| p.endpoint(protocol).is_some())
+        .filter(|p| p.endpoint(protocol).is_some() || !p.base_url.trim().is_empty())
+        .filter(|p| p.keychain_id.is_some() || Some(&p.id) == current_id.as_ref())
         .collect();
-    // 当前供应商优先
+    // 当前供应商优先(无条件入链:没配 Key 也不该把"仅剩的当前"排除掉)
     if let Some(cid) = &current_id {
         if let Some(pos) = list.iter().position(|p| &p.id == cid) {
             let cur = list.remove(pos);

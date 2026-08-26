@@ -8,6 +8,7 @@ interface UsageSummary {
   requests: number;
   input_tokens: number;
   output_tokens: number;
+  errors?: number;
 }
 interface NamedUsage extends UsageSummary {
   key: string;
@@ -125,10 +126,18 @@ export function UsagePage({
   return (
     <div className="space-y-6 w-full">
       {/* 总览 */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         <StatCard label={t("dash.requests")} value={fmt(data?.total.requests ?? 0)} />
         <StatCard label={t("dash.input")} value={`↓ ${fmt(data?.total.input_tokens ?? 0)}`} />
         <StatCard label={t("dash.output")} value={`↑ ${fmt(data?.total.output_tokens ?? 0)}`} />
+        <StatCard
+          label={t("dash.successRate")}
+          value={
+            data && data.total.requests > 0
+              ? `${Math.round(((data.total.requests - (data.total.errors ?? 0)) / data.total.requests) * 100)}%`
+              : "—"
+          }
+        />
       </div>
 
       {/* 近 7 日趋势 */}

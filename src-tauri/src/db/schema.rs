@@ -11,7 +11,7 @@ use rusqlite::{params, Connection};
 
 /// 当前 schema 版本,用于未来迁移校验。
 #[allow(dead_code)]
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 3;
 
 pub fn create_tables(conn: &Connection) -> Result<()> {
     let version: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
@@ -49,6 +49,8 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             model         TEXT,
             input_tokens  INTEGER NOT NULL DEFAULT 0,
             output_tokens INTEGER NOT NULL DEFAULT 0,
+            -- v3:上游 HTTP 状态码(<400 视为成功;旧行默认 200)
+            status        INTEGER NOT NULL DEFAULT 200,
             created_at    INTEGER NOT NULL DEFAULT 0
         );
         CREATE INDEX IF NOT EXISTS idx_usage_provider ON usage_log(provider_id);
@@ -64,7 +66,21 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
     if version < 2 {
         migrate_v1_to_v2(conn)?;
     }
-    conn.execute_batch("PRAGMA user_version = 2;")?;
+    if version < 3 {
+        migrate_v2_to_v3(conn)?;
+    }
+    conn.execute_batch("PRAGMA user_version = 3;")?;
+    Ok(())
+}
+
+/// v2 → v3:usage_log 增加 status 列(上游 HTTP 状态码)。
+fn migrate_v2_to_v3(conn: &Connection) -> Result<()> {
+    let has_status = conn.prepare("SELECT status FROM usage_log LIMIT 1").is_ok();
+    if !has_status {
+        conn.execute_batch(
+            "ALTER TABLE usage_log ADD COLUMN status INTEGER NOT NULL DEFAULT 200;",
+        )?;
+    }
     Ok(())
 }
 
