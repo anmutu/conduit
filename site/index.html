@@ -96,20 +96,15 @@
       .alink::after { content: " ›"; font-size: 17px; display: inline-block; transition: transform .2s ease; padding-left: 2px; }
       .alink:hover::after { transform: translateX(3px); }
 
-      /* Hero:左图右文两栏(呼应产品左侧栏形态) */
-      .hero { padding: 72px 0 40px; }
-      .hero-grid { display: grid; grid-template-columns: 1.04fr 1fr; gap: 56px; align-items: center; text-align: left; }
-      @media (max-width: 860px) {
-        .hero-grid { grid-template-columns: 1fr; gap: 36px; text-align: center; }
-        .hero-grid .hero-copy .links { justify-content: center; }
-      }
-      .hero h1 { font-size: 54px; font-weight: 600; letter-spacing: -.02em; line-height: 1.05; }
+      /* Hero:居中大标题 + 大图 */
+      .hero { padding: 96px 0 64px; }
+      .hero h1 { font-size: 56px; font-weight: 600; letter-spacing: -.02em; line-height: 1.05; }
       .hero h1 .dot { color: var(--fg-3); }
-      .hero .tagline { font-size: 27px; font-weight: 600; margin-top: 6px; letter-spacing: -.01em; }
-      .hero .sub { font-size: 18px; max-width: 480px; margin: 16px 0 0; color: var(--fg-2); }
-      .hero-grid .hero-copy .links { margin-top: 22px; justify-content: flex-start; }
+      .hero .tagline { font-size: 28px; font-weight: 600; margin-top: 6px; letter-spacing: -.01em; }
+      .hero .sub { font-size: 19px; max-width: 640px; margin: 14px auto 0; }
+      .hero .links { justify-content: center; }
       .hero-shot {
-        border-radius: 18px; overflow: hidden;
+        max-width: 860px; margin: 52px auto 0; border-radius: 18px; overflow: hidden;
         box-shadow: 0 30px 80px rgba(0,0,0,.18); border: 1px solid var(--hair);
       }
       .hero-shot img { display: block; width: 100%; }
@@ -209,21 +204,17 @@
       </div>
     </nav>
 
-    <!-- Hero:左图右文 -->
+    <!-- Hero -->
     <section class="hero container">
-      <div class="hero-grid">
-        <div class="hero-shot">
-          <img src="./app-light.png" alt="Conduit" />
-        </div>
-        <div class="hero-copy">
-          <h1>Conduit<span class="dot">。</span></h1>
-          <div class="tagline" data-i18n="tagline">切换,从未如此轻盈。</div>
-          <p class="sub" data-i18n="heroSub">一个应用,管好你的每一个 AI CLI。供应商、密钥、用量,尽在掌握。</p>
-          <div class="links">
-            <a class="alink" href="#features" data-i18n="learnMore">进一步了解</a>
-            <a class="alink" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer" data-i18n="freeDl">免费下载</a>
-          </div>
-        </div>
+      <h1>Conduit<span class="dot">。</span></h1>
+      <div class="tagline" data-i18n="tagline">切换,从未如此轻盈。</div>
+      <p class="sub" data-i18n="heroSub">一个应用,管好你的每一个 AI CLI。供应商、密钥、用量,尽在掌握。</p>
+      <div class="links">
+        <a class="alink" href="#features" data-i18n="learnMore">进一步了解</a>
+        <a class="alink" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer" data-i18n="freeDl">免费下载</a>
+      </div>
+      <div class="hero-shot">
+        <img src="./app-light.png" alt="Conduit" />
       </div>
     </section>
 
