@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Conduit 使用指南 — 5 分钟上手,管好你的每一个 AI CLI</title>
+    <meta name="description" content="Conduit 完整使用教程:下载安装、添加供应商、一键接管 CLI、免重启切换、模型路由、故障转移、请求日志与用量统计,5 分钟全部掌握。" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="Conduit 使用指南" />
+    <meta property="og:description" content="从安装到进阶:接管、秒切、路由、故障转移、日志,5 分钟全部掌握。" />
+    <link rel="icon" type="image/svg+xml" href="./logo.svg" />
+    <style>
+      :root {
+        --fg: #1d1d1f; --fg-2: #6e6e73; --fg-3: #86868b;
+        --blue: #0066cc; --bg: #ffffff; --bg-alt: #f5f5f7;
+        --nav-bg: rgba(22, 22, 23, 0.8); --hair: #d2d2d7;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html { scroll-behavior: smooth; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg); color: var(--fg); font-size: 17px; line-height: 1.6;
+        -webkit-font-smoothing: antialiased; letter-spacing: .011em;
+      }
+      .container { max-width: 760px; margin: 0 auto; padding: 0 22px; }
+      nav { position: sticky; top: 0; z-index: 50; background: var(--nav-bg); backdrop-filter: saturate(180%) blur(20px); height: 44px; }
+      .nav-inner { max-width: 980px; margin: 0 auto; padding: 0 22px; height: 100%; display: flex; align-items: center; justify-content: space-between; }
+      .nav-inner a { color: rgba(255,255,255,.8); text-decoration: none; font-size: 12px; transition: color .15s; }
+      .nav-inner a:hover { color: #fff; }
+      .nav-links { display: flex; gap: 26px; align-items: center; }
+
+      /* Hero */
+      header.hero { padding: 88px 0 30px; text-align: center; }
+      .hero h1 { font-size: 44px; font-weight: 600; letter-spacing: -.015em; line-height: 1.1; }
+      .hero .sub { font-size: 19px; color: var(--fg-2); margin-top: 12px; }
+      .alink { color: var(--blue); text-decoration: none; font-size: 17px; }
+      .alink:hover { text-decoration: underline; }
+      .alink::after { content: " ›"; }
+
+      /* 目录 */
+      .toc { background: var(--bg-alt); border-radius: 14px; padding: 22px 26px; margin: 36px 0 8px; font-size: 15px; }
+      .toc b { font-size: 13px; color: var(--fg-3); font-weight: 500; display: block; margin-bottom: 8px; }
+      .toc ol { margin-left: 20px; }
+      .toc li { margin: 5px 0; }
+      .toc a { color: var(--blue); text-decoration: none; }
+      .toc a:hover { text-decoration: underline; }
+
+      /* 章节 */
+      section.step { padding: 56px 0 8px; }
+      section.step .kicker { font-size: 13px; font-weight: 600; color: var(--blue); letter-spacing: .04em; }
+      section.step h2 { font-size: 32px; font-weight: 600; letter-spacing: -.01em; margin-top: 6px; line-height: 1.15; }
+      section.step p { font-size: 16.5px; color: var(--fg-2); margin-top: 14px; }
+      section.step p b, section.step li b { color: var(--fg); font-weight: 600; }
+      section.step ul, section.step ol.plain { margin: 12px 0 0 22px; font-size: 16.5px; color: var(--fg-2); }
+      section.step li { margin: 7px 0; }
+      code {
+        font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13.5px;
+        background: var(--bg-alt); border-radius: 5px; padding: 2px 6px;
+      }
+
+      /* 步骤序号圆 */
+      .stepnum {
+        width: 34px; height: 34px; border-radius: 50%; background: var(--fg); color: #fff;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 15px; font-weight: 600; margin-bottom: 14px;
+      }
+
+      /* 提示框 */
+      .tip {
+        background: var(--bg-alt); border-radius: 12px; padding: 16px 20px; margin-top: 20px;
+        font-size: 15px; color: var(--fg-2);
+      }
+      .tip b { color: var(--fg); }
+      .tip.blue { background: rgba(0,102,204,.06); }
+
+      /* 终端 */
+      .terminal { margin-top: 24px; background: #1d1d20; border-radius: 14px; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,.22); }
+      .term-bar { display: flex; gap: 7px; align-items: center; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
+      .term-bar i { width: 11px; height: 11px; border-radius: 50%; }
+      .term-bar span { margin-left: 10px; color: #86868b; font-size: 11.5px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+      .term-body { padding: 18px 20px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; line-height: 1.9; color: #d5d5da; }
+      .dim { color: #6e6e73; } .blue { color: #5ac8fa; } .green { color: #30d158; } .violet { color: #bf5af2; } .yellow { color: #ffd60a; }
+
+      /* CTA + footer */
+      .cta { text-align: center; padding: 90px 0 80px; background: var(--bg-alt); }
+      .cta h2 { font-size: 36px; font-weight: 600; letter-spacing: -.015em; }
+      .cta .sub { font-size: 18px; color: var(--fg-2); margin-top: 10px; }
+      .cta .links { margin-top: 22px; display: flex; gap: 30px; justify-content: center; }
+      footer { padding: 26px 0 34px; text-align: center; font-size: 12px; color: var(--fg-3); }
+      footer a { color: #424245; text-decoration: none; }
+      footer a:hover { color: var(--blue); text-decoration: underline; }
+      @media (prefers-reduced-motion: no-preference) {
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+        header.hero * { animation: fadeUp .8s cubic-bezier(.28,.11,.32,1) both; }
+        header.hero .sub { animation-delay: .1s; } header.hero .toc { animation-delay: .2s; }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="nav-inner">
+        <a href="./index.html" style="display:flex;align-items:center;gap:7px;">
+          <svg width="16" height="16" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="#0A84FF"/><path d="M8 16h5l2.5-6 3 12 2.5-6h3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span style="font-weight:600;color:#fff;">Conduit</span>
+        </a>
+        <div class="nav-links">
+          <a href="./index.html">首页</a>
+          <a href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer">下载</a>
+        </div>
+      </div>
+    </nav>
+
+    <header class="hero container">
+      <h1>使用指南。</h1>
+      <p class="sub">从安装到进阶,5 分钟掌握 Conduit 的全部。</p>
+      <div class="toc">
+        <b>本页内容</b>
+        <ol>
+          <li><a href="#install">下载与安装</a></li>
+          <li><a href="#add">添加供应商</a></li>
+          <li><a href="#takeover">一键接管 CLI</a></li>
+          <li><a href="#switch">切换:秒生效,不重启</a></li>
+          <li><a href="#advanced">进阶:路由 · 故障转移 · 日志 · 档案</a></li>
+          <li><a href="#faq">遇到问题?</a></li>
+        </ol>
+      </div>
+    </header>
+
+    <main class="container">
+
+      <section class="step" id="install">
+        <span class="stepnum">1</span>
+        <div class="kicker">准备</div>
+        <h2>下载与安装</h2>
+        <p>Conduit 是一个免费的 macOS 桌面应用。从 GitHub Releases 下载 <code>.dmg</code>,拖入「应用程序」即可,无需其他依赖。</p>
+        <ul>
+          <li>首次打开若提示「无法验证开发者」,请在 <b>系统设置 → 隐私与安全性</b> 中点击「仍要打开」。</li>
+          <li>启动后 Conduit 会常驻<b>菜单栏(托盘)</b>,关闭窗口不影响代理运行。</li>
+          <li>本地代理默认监听 <code>127.0.0.1:9527</code>,只接受本机请求。</li>
+        </ul>
+        <div class="tip blue"><b>它怎么工作?</b>Conduit 接管各 AI CLI 的 API 地址后,所有请求先到本地代理,再转发到你选定的供应商。切换只改本地状态、不重写 CLI 配置 —— 这就是"免重启"的原因。</div>
+      </section>
+
+      <section class="step" id="add">
+        <span class="stepnum">2</span>
+        <div class="kicker">配置</div>
+        <h2>添加供应商</h2>
+        <p>打开主界面,按 CLI 分组(Claude Code、Codex、Gemini CLI 等)添加你要用的模型供应商:</p>
+        <ul>
+          <li><b>预设直选</b>:内置常见供应商与中转站,填入 API Key 即可用。</li>
+          <li><b>从现有配置导入</b>:已在 CLI 里配过?一键导入,不用重新填。</li>
+          <li><b>自定义</b>:填名称、Base URL、API Key,任意中转/自建网关都支持。</li>
+        </ul>
+        <div class="tip"><b>密钥安全</b>:API Key 存入系统钥匙串 + 整库加密的本地数据库,不会明文写进任何 CLI 配置文件,导出备份也不含密钥。</div>
+        <p style="margin-top:18px;">添加完成后,可点击供应商卡片上的 <b>测速按钮</b> 检查连通性与延迟,再决定用谁。</p>
+      </section>
+
+      <section class="step" id="takeover">
+        <span class="stepnum">3</span>
+        <div class="kicker">接管</div>
+        <h2>一键接管 CLI</h2>
+        <p>在分组页点击 <b>「接管」</b>,Conduit 会把该 CLI 的配置指向本地代理:</p>
+        <ul>
+          <li>接管前<b>自动备份原配置</b>,随时可一键还原,不留残留。</li>
+          <li>接管后 CLI 照常使用 —— 你不需要改变任何使用习惯。</li>
+          <li>也可以不接管,手动给 CLI 设置环境变量指向 <code>127.0.0.1:9527</code>(应用内有可复制的变量)。</li>
+        </ul>
+        <div class="terminal">
+          <div class="term-bar">
+            <i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>
+            <span>conduit — takeover</span>
+          </div>
+          <div class="term-body">
+            <div><span class="dim">»</span> 点击 <span class="blue">接管 Claude Code</span></div>
+            <div><span class="green">✓</span> 已备份 <span class="yellow">~/.claude/settings.json</span> → conduit.bak</div>
+            <div><span class="green">✓</span> 已接管,代理 127.0.0.1:9527 运行中</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="step" id="switch">
+        <span class="stepnum">4</span>
+        <div class="kicker">日常</div>
+        <h2>切换:秒生效,不重启</h2>
+        <p>这是 Conduit 与"改配置文件"类工具最大的不同 —— <b>切换只改本地状态,下一个请求立即走新供应商</b>:</p>
+        <ul>
+          <li>主界面点供应商卡片上的 <b>「切换」</b>,或直接在<b>菜单栏托盘</b>里选,两秒钟完成。</li>
+          <li><b>正在运行的 claude / codex 会话无需重启</b>,发下一条消息就已切换。</li>
+          <li>同一供应商可按协议复用到多个 CLI(如一个中转 Key 同时供 Claude Code 和 Codex)。</li>
+        </ul>
+        <div class="terminal">
+          <div class="term-bar">
+            <i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>
+            <span>claude — running session</span>
+          </div>
+          <div class="term-body">
+            <div><span class="dim">»</span> 托盘切换: GLM Coding Plan <span class="dim">→</span> Kimi</div>
+            <div><span class="green">✓</span> 已切换 → Kimi</div>
+            <div><span class="dim">»</span> codex "continue"</div>
+            <div><span class="dim">POST</span> /v1/chat/completions <span class="dim">→</span> <span class="violet">Kimi</span> <span class="green">200 · 1.2s</span> <span class="dim">(会话未重启)</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="step" id="advanced">
+        <span class="stepnum">5</span>
+        <div class="kicker">进阶</div>
+        <h2>路由 · 故障转移 · 日志 · 档案</h2>
+        <p><b>模型路由规则</b> —— 让特定模型永远走特定供应商:</p>
+        <ul>
+          <li>例:规则 <code>deepseek</code> → 中转站 A;规则 <code>claude</code> → 官方。CLI 里指定模型名,Conduit 自动分发。</li>
+        </ul>
+        <p style="margin-top:18px;"><b>自动故障转移</b> —— 上游 5xx 或超时时,自动重试备用供应商,长任务不中断。把多个供应商加入候选链即可。</p>
+        <p style="margin-top:18px;"><b>用量与日志</b> —— 侧栏「用量」按 CLI / 供应商汇总 token 与成功率;「日志」可查最近 100 条请求(模型、上下行 token、状态码),排障一目了然。</p>
+        <p style="margin-top:18px;"><b>配置档案与备份</b> —— 「设置」里可将当前供应商组合保存为档案(工作 / 个人 / 测试一键整组切换),也可导出 JSON 备份(不含密钥),换机无忧。</p>
+      </section>
+
+      <section class="step" id="faq">
+        <span class="stepnum">?</span>
+        <div class="kicker">排障</div>
+        <h2>遇到问题?</h2>
+        <ul>
+          <li><b>请求 401 / 403</b>:响应头带 <code>x-conduit-hint</code>,按提示检查 Key 是否有效、额度是否充足。</li>
+          <li><b>切换没生效</b>:确认该 CLI 已被接管(分组页有接管状态),或环境变量指向 <code>127.0.0.1:9527</code>。</li>
+          <li><b>想恢复原样</b>:分组页「还原」即可,原配置在接管时已备份。</li>
+          <li><b>数据在哪</b>:全部在本机加密数据库,不上传任何服务器;卸载即彻底清除。</li>
+        </ul>
+      </section>
+
+    </main>
+
+    <section class="cta">
+      <div class="container">
+        <h2>准备好了吗?</h2>
+        <p class="sub">免费、开源,五分钟接管你的每一个 AI CLI。</p>
+        <div class="links">
+          <a class="alink" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer">免费下载</a>
+          <a class="alink" href="https://github.com/anmutu/conduit" target="_blank" rel="noreferrer">GitHub</a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="container">
+      <span>Copyright © 2026 Conduit. MIT License. · <a href="./index.html">返回首页</a></span>
+    </footer>
+  </body>
+</html>

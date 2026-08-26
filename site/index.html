@@ -50,6 +50,20 @@
         -webkit-font-smoothing: antialiased;
         letter-spacing: .011em;
       }
+
+      /* ============ 入场动效(Apple 式克制的淡入上移) ============ */
+      @keyframes fadeUp { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+      .hero h1, .hero .tagline { animation: fadeUp .9s cubic-bezier(.28,.11,.32,1) both; }
+      .hero .tagline { animation-delay: .12s; }
+      .hero .sub, .hero .links { animation: fadeUp .9s cubic-bezier(.28,.11,.32,1) .22s both; }
+      .hero-shot { animation: fadeUp 1.1s cubic-bezier(.28,.11,.32,1) .34s both; }
+      .reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.28,.11,.32,1), transform .8s cubic-bezier(.28,.11,.32,1); }
+      .reveal.in { opacity: 1; transform: none; }
+      @media (prefers-reduced-motion: reduce) {
+        .hero h1, .hero .tagline, .hero .sub, .hero .links, .hero-shot { animation: none; }
+        .reveal { opacity: 1; transform: none; transition: none; }
+        html { scroll-behavior: auto; }
+      }
       .container { max-width: 980px; margin: 0 auto; padding: 0 22px; }
 
       /* 导航:深灰半透明细条(Apple global nav) */
@@ -75,9 +89,11 @@
       .links { margin-top: 18px; display: flex; gap: 28px; justify-content: center; flex-wrap: wrap; }
       .alink {
         color: var(--blue); text-decoration: none; font-size: 19px;
+        transition: color .15s;
       }
       .alink:hover { text-decoration: underline; }
-      .alink::after { content: " ›"; font-size: 17px; }
+      .alink::after { content: " ›"; font-size: 17px; display: inline-block; transition: transform .2s ease; padding-left: 2px; }
+      .alink:hover::after { transform: translateX(3px); }
 
       /* Hero */
       .hero { padding: 96px 0 64px; }
@@ -134,8 +150,10 @@
       .shot figcaption { font-size: 13px; color: var(--fg-3); padding: 10px 0 12px; }
 
       /* 对比:Apple spec 风格线表 */
+      .table-wrap { max-width: 700px; margin: 0 auto; }
       table { width: 100%; border-collapse: collapse; margin-top: 48px; font-size: 15px; }
-      th, td { padding: 16px 14px; text-align: left; border-bottom: 1px solid var(--hair); }
+      th, td { padding: 16px 14px; text-align: left; border-bottom: 1px solid var(--hair); transition: background .15s; }
+      tbody tr:hover td { background: rgba(0,0,0,.025); }
       th { font-size: 12px; color: var(--fg-3); font-weight: 500; text-transform: none; }
       td:first-child { font-weight: 600; }
       td.yes { color: var(--fg); } td.no { color: var(--fg-3); }
@@ -176,6 +194,7 @@
           <a href="#features" data-i18n="navF">功能</a>
           <a href="#capabilities" data-i18n="navCap">能力</a>
           <a href="#faq" data-i18n="navFAQ">FAQ</a>
+          <a href="./guide.html" data-i18n="navG">使用指南</a>
           <a href="#quickstart" data-i18n="navQ">上手</a>
           <a href="#compare" data-i18n="navC">对比</a>
           <a href="#" id="langToggle">EN</a>
@@ -334,6 +353,7 @@
     <section class="alt" id="compare">
       <div class="container">
         <h2 data-i18n="cmpTitle">和 CC Switch 相比。</h2>
+        <div class="table-wrap">
         <table>
           <thead><tr><th></th><th>Conduit</th><th>CC Switch</th></tr></thead>
           <tbody>
@@ -347,8 +367,10 @@
             <tr><td data-i18n="r9c">配置档案 / 备份</td><td class="yes" data-i18n="r9a">快照 + JSON 导出</td><td class="no" data-i18n="r9b">—</td></tr>
           </tbody>
         </table>
+        </div>
         <div class="links" style="margin-top:34px;">
           <a class="alink" href="https://github.com/anmutu/conduit" target="_blank" rel="noreferrer">GitHub</a>
+          <a class="alink" href="./guide.html" data-i18n="readGuide">阅读使用指南</a>
           <a class="alink" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer" data-i18n="freeDl2">免费下载</a>
         </div>
       </div>
@@ -409,7 +431,8 @@
     <script>
       var I18N = {
         en: {
-          navF: "Features", navCap: "Capabilities", navFAQ: "FAQ", navQ: "Start", navC: "Compare", navD: "Download",
+          navF: "Features", navCap: "Capabilities", navFAQ: "FAQ", navG: "Guide", navQ: "Start", navC: "Compare", navD: "Download",
+          readGuide: "Read the guide",
           tagline: "Switching, weightless.",
           heroSub: "One app for every AI CLI you use. Providers, keys and usage — all in hand.",
           learnMore: "Learn more", freeDl: "Download free", freeDl2: "Download free",
@@ -460,11 +483,27 @@
         },
         zh: { darkVer: "暗色版本" }
       };
+      // 滚动入场:区块内容淡入上移(Apple 式克制,仅一次)
+      (function () {
+        var els = document.querySelectorAll(
+          "section:not(.hero) h2, section:not(.hero) .sub, .trio > div, .cap, .step, .terminal, .shots, .table-wrap, .faq, section .links"
+        );
+        els.forEach(function (el) { el.classList.add("reveal"); });
+        if (!("IntersectionObserver" in window)) {
+          els.forEach(function (el) { el.classList.add("in"); });
+          return;
+        }
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+          });
+        }, { rootMargin: "0px 0px -12% 0px", threshold: 0.05 });
+        els.forEach(function (el) { io.observe(el); });
+      })();
       (function () {
         var root = document.documentElement;
         var toggle = document.getElementById("langToggle");
-        function apply(lang) {
-          var dict = I18N[lang] || {};
+        function apply(lang) {          var dict = I18N[lang] || {};
           document.querySelectorAll("[data-i18n]").forEach(function (el) {
             var k = el.getAttribute("data-i18n");
             if (dict[k]) el.textContent = dict[k];
