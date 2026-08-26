@@ -38,15 +38,39 @@ pub fn run() {
             }
         })
         .setup(|app| {
-            // 1. 主密钥(必要时首次生成)
-            let master_key = keychain::get_or_create_master_key().map_err(|e| {
-                tracing::error!("keychain 不可用: {e}");
-                e
-            })?;
-
-            // 2. 加密 DB
+            // 2. 数据目录
             let db_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&db_dir)?;
+
+            // 1. 主密钥:keychain 优先;授权被拒/不可用时回退到本地文件密钥
+            //    (0600 权限,DB 依然 SQLCipher 加密;已用文件密钥开过的库继续用文件密钥,
+            //     否则换钥匙会打不开旧库。签名发布后 keychain 稳定可迁回)。
+            let key_file = db_dir.join("master.key");
+            let marker = db_dir.join("master.key.in-use");
+            let use_file_key = marker.exists()
+                || keychain::get_or_create_master_key().is_err();
+            let master_key = if use_file_key {
+                let key = match std::fs::read_to_string(&key_file) {
+                    Ok(k) if k.trim().len() == 64 => k.trim().to_string(),
+                    _ => {
+                        // 生成新的 32 字节密钥
+                        let mut s = String::with_capacity(64);
+                        s.push_str(&uuid::Uuid::new_v4().simple().to_string());
+                        s.push_str(&uuid::Uuid::new_v4().simple().to_string());
+                        std::fs::write(&key_file, &s)?;
+                        let mut perms = std::fs::metadata(&key_file)?.permissions();
+                        use std::os::unix::fs::PermissionsExt;
+                        perms.set_mode(0o600);
+                        std::fs::set_permissions(&key_file, perms)?;
+                        std::fs::write(&marker, b"1")?;
+                        tracing::warn!("keychain 不可用,已回退到本地文件主密钥(0600)");
+                        s
+                    }
+                };
+                key
+            } else {
+                keychain::get_or_create_master_key()?
+            };
             let db_path = db_dir.join("conduit.db");
             tracing::info!("数据库路径: {}", db_path.display());
             let pool = db::init_pool(&db_path, &master_key)?;
