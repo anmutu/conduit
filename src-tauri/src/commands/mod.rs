@@ -3,6 +3,7 @@
 //! 用同步命令(`fn` 而非 `async fn`):Tauri 2 会在独立线程执行同步命令,
 //! 不会阻塞 UI;而 rusqlite 是阻塞调用,放线程池比放 async runtime 更合适。
 
+pub mod backup;
 pub mod import;
 pub mod keychain;
 pub mod locale;

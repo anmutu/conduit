@@ -67,6 +67,18 @@ export function AboutDialog({
         <p className="text-sm text-muted-foreground leading-relaxed">
           {t("about.desc")}
         </p>
+        {/* 克制的推荐位:仅一行文字链接,无弹窗无横幅 */}
+        <p className="text-xs text-muted-foreground">
+          {t("about.cpTip")}{" "}
+          <a
+            href="https://coderplan.ai"
+            target="_blank"
+            rel="noreferrer"
+            className="text-blue-500 hover:underline"
+          >
+            CoderPlan
+          </a>
+        </p>
         <DialogFooter>
           <Button variant="outline" onClick={() => void openGithub()}>
             <ExternalLink className="w-4 h-4 mr-1" />

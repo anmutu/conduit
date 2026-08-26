@@ -110,6 +110,8 @@ pub fn run() {
             commands::usage::get_usage_map,
             commands::usage_dash::get_usage_dashboard,
             commands::tray::refresh_tray,
+            commands::backup::export_backup,
+            commands::backup::import_backup,
             commands::import::import_existing,
             commands::takeover::takeover_status,
             commands::takeover::apply_takeover,

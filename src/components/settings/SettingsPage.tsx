@@ -14,6 +14,7 @@ import {
   PanelTop,
   PanelBottom,
   Power,
+  Save,
   Sun,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -75,6 +76,7 @@ export function SettingsPage({
 }) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [version, setVersion] = useState("…");
+  const [backupBusy, setBackupBusy] = useState(false);
   // 分组拖拽排序状态
   const [dragApp, setDragApp] = useState<AppType | null>(null);
   const [dragOver, setDragOver] = useState<AppType | null>(null);
@@ -320,6 +322,56 @@ export function SettingsPage({
         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium text-emerald-600 bg-emerald-500/10 dark:text-emerald-400">
           已加密
         </span>
+      </Row>
+
+      {/* 备份/恢复:供应商配置导出 JSON(Key 不导出),同名跳过导入 */}
+      <Row
+        icon={<Save className="w-4 h-4" />}
+        title={t("settings.backupRow")}
+        desc={t("settings.backupRowDesc")}
+      >
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={backupBusy}
+            onClick={async () => {
+              setBackupBusy(true);
+              try {
+                const r = await invoke<{ path: string; count: number }>(
+                  "export_backup",
+                );
+                onSuccess(t("settings.backupDone", { n: r.count, path: r.path }));
+              } catch (e) {
+                onError(String(e));
+              } finally {
+                setBackupBusy(false);
+              }
+            }}
+          >
+            {t("settings.backupExport")}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={backupBusy}
+            onClick={async () => {
+              setBackupBusy(true);
+              try {
+                const [created, skipped] = await invoke<[number, number]>(
+                  "import_backup",
+                );
+                onSuccess(t("settings.restoreDone", { c: created, s: skipped }));
+              } catch (e) {
+                onError(String(e));
+              } finally {
+                setBackupBusy(false);
+              }
+            }}
+          >
+            {t("settings.backupImport")}
+          </Button>
+        </div>
       </Row>
 
       <Row
