@@ -69,6 +69,12 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             provider_id TEXT NOT NULL,
             created_at  INTEGER NOT NULL DEFAULT 0
         );
+
+        -- v4:API Key 存加密库(整库 SQLCipher 加密);keychain 只留主密钥,运行期零弹窗
+        CREATE TABLE IF NOT EXISTS api_keys (
+            provider_id TEXT PRIMARY KEY,
+            key         TEXT NOT NULL
+        );
         "#,
     )?;
 

@@ -3,7 +3,7 @@
 //! 工作流程(每个请求):
 //! 1. 按 URL 前缀推断 `AppType`
 //! 2. 查该 AppType 的当前供应商(从 DB,带 base_url + keychain_id)
-//! 3. 从 keychain 取真实 API Key(不在 DB、不落盘)
+//! 3. 取真实 API Key(SQLCipher 加密库;旧 keychain 数据自动迁移)
 //! 4. 按 AppType 注入正确形式的凭证(Anthropic 用 `x-api-key`,OpenAI 用 `Authorization`,
 //!    Gemini 用 URL `?key=`),并保留客户端原始 header
 //! 5. 流式转发响应(支持 SSE)
@@ -24,7 +24,6 @@ use tracing::{debug, info, warn};
 use crate::core::proxy::meter::{MeteredStream, UsageCtx, UsageMeter};
 use crate::core::proxy::HOP_BY_HOP;
 use crate::db::provider_dao;
-use crate::services::keychain;
 use crate::state::AppState;
 use crate::types::AppType;
 
@@ -160,10 +159,8 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
     // 4. 候选链逐个转发:连接失败 / 5xx / 429 视为故障,自动尝试下一个
     let mut fallbacks: Vec<(String, String)> = Vec::new();
     for (i, provider) in candidates.iter().enumerate() {
-        let api_key = provider
-            .keychain_id
-            .as_deref()
-            .and_then(|kid| keychain::load_provider_key(kid).ok().flatten());
+        // Key 读取:加密库优先;旧数据走 keychain 一次性迁移(带超时,弹窗无人响应也不挂请求)
+        let api_key = crate::services::keys::load_async(&state.db, provider).await;
 
         // 端点选择:优先该协议端点(v2),退回 base_url(旧数据)
         let base = provider

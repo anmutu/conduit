@@ -7,20 +7,22 @@
 
 use anyhow::Result;
 
-use crate::db::{provider_dao, Pool};
+use crate::db::{api_key_dao, provider_dao, Pool};
 use crate::services::keychain;
 use crate::types::{AppType, Protocol, Provider, ProviderInput};
 
-/// 填充 `has_key`:优先用 meta 落库值(启动零 keychain 访问,不弹授权框);
-/// 旧数据无 meta 时查一次 keychain 并**回写 meta 自愈**,此后不再触碰。
+/// 填充 `has_key`:优先 meta 落库值;未知时查加密库 api_keys;
+/// 仍未知且为旧数据时查一次 keychain 并迁移落库,此后不再触碰 keychain。
 fn fill_has_key(pool: &Pool, list: &mut [Provider]) {
     for p in list.iter_mut() {
         match p.meta_has_key {
             Some(v) => p.has_key = v,
             None => {
-                let v = match &p.keychain_id {
-                    Some(kid) => keychain::has_provider_key(kid),
-                    None => false,
+                let v = match api_key_dao::get(pool, &p.id) {
+                    Ok(Some(_)) => true,
+                    _ => crate::services::keys::load(pool, p)
+                        .map(|k| k.is_some())
+                        .unwrap_or(false),
                 };
                 p.has_key = v;
                 let _ = provider_dao::set_meta_has_key(pool, &p.id, v);
@@ -64,7 +66,7 @@ pub fn create(pool: &Pool, input: ProviderInput) -> Result<Provider> {
         let mut key_stored = false;
         if let Some(key) = &input.api_key {
             if !key.is_empty() {
-                keychain::store_provider_key(existing.keychain_id.as_deref().unwrap_or(&existing.id), key)?;
+                crate::services::keys::store(pool, &existing.id, key)?;
                 key_stored = true;
             }
         }
@@ -88,7 +90,7 @@ pub fn create(pool: &Pool, input: ProviderInput) -> Result<Provider> {
 
     if let Some(key) = &input.api_key {
         if !key.is_empty() {
-            keychain::store_provider_key(&id, key)?;
+            crate::services::keys::store(pool, &id, key)?;
         }
     }
 
@@ -131,22 +133,20 @@ pub fn switch(pool: &Pool, id: &str, app: AppType) -> Result<()> {
     provider_dao::set_current(pool, id, app)
 }
 
-/// 更新某供应商的 API Key(写入 keychain)。
+/// 更新某供应商的 API Key(写入加密库)。
 pub fn set_api_key(pool: &Pool, id: &str, key: &str) -> Result<()> {
     let provider =
         provider_dao::get_by_id(pool, id)?.ok_or_else(|| anyhow::anyhow!("供应商不存在: {id}"))?;
-    let kid = provider.keychain_id.as_deref().unwrap_or(id);
-    keychain::store_provider_key(kid, key)?;
+    crate::services::keys::store(pool, id, key)?;
     provider_dao::set_meta_has_key(pool, id, true)?;
+    let _ = provider;
     Ok(())
 }
 
-/// 删除供应商,顺带清理 keychain 中的 Key。
+/// 删除供应商,顺带清理加密库与 keychain 中的 Key。
 pub fn delete(pool: &Pool, id: &str) -> Result<()> {
     if let Some(p) = provider_dao::get_by_id(pool, id)? {
-        if let Some(kid) = &p.keychain_id {
-            let _ = keychain::delete_provider_key(kid);
-        }
+        let _ = crate::services::keys::delete(pool, &p);
     }
     provider_dao::delete(pool, id)
 }

@@ -6,6 +6,7 @@
 pub mod backup;
 pub mod import;
 pub mod keychain;
+pub mod keys;
 pub mod profile;
 pub mod provider;
 pub mod takeover;
