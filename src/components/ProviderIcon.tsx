@@ -11,6 +11,24 @@ const BRAND: Record<string, { src: string; darkInvert?: boolean }> = {
   gemini: { src: "icons/gemini.svg" },
   opencode: { src: "icons/opencode.svg" },
   openclaw: { src: "icons/openclaw.svg" },
+  // 供应商品牌(预设列表用,与 CC Switch 同源 lobehub SVG,MIT)
+  deepseek: { src: "icons/deepseek.svg" },
+  kimi: { src: "icons/kimi.svg" },
+  zhipu: { src: "icons/zhipu.svg" },
+  doubao: { src: "icons/doubao.svg" },
+  minimax: { src: "icons/minimax.svg" },
+  qwen: { src: "icons/qwen.svg" },
+  bailian: { src: "icons/bailian.svg" },
+  siliconflow: { src: "icons/siliconflow.svg" },
+  openrouter: { src: "icons/openrouter.svg" },
+  aihubmix: { src: "icons/aihubmix-color.svg" },
+  stepfun: { src: "icons/stepfun.svg" },
+  modelscope: { src: "icons/modelscope-color.svg" },
+  coderplan: { src: "icons/coderplan.svg" },
+  // CLI 分组品牌(官方发布渠道获取;商标归各自所有者)
+  iflow: { src: "icons/iflow.png" },
+  crush: { src: "icons/crush.png" },
+  droid: { src: "icons/droid.svg" },
 };
 
 export function ProviderIcon({

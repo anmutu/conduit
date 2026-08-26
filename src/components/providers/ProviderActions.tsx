@@ -6,6 +6,8 @@ import type { Provider } from "@/types";
 interface ProviderActionsProps {
   provider: Provider;
   isCurrent: boolean;
+  /** 当前分组协议是否已配置端点(未配置则禁用"切换") */
+  canSwitch?: boolean;
   onSwitch: (provider: Provider) => void;
   onEdit: (provider: Provider) => void;
   onDuplicate: (provider: Provider) => void;
@@ -15,6 +17,7 @@ interface ProviderActionsProps {
 export function ProviderActions({
   provider,
   isCurrent,
+  canSwitch = true,
   onSwitch,
   onEdit,
   onDuplicate,
@@ -22,15 +25,16 @@ export function ProviderActions({
 }: ProviderActionsProps) {
   const { t } = useI18n();
   const iconButtonClass = "h-8 w-8 p-1";
+  const switchDisabled = isCurrent || !canSwitch;
 
   return (
     <div className="flex items-center gap-1.5">
       <Button
         size="sm"
         variant={isCurrent ? "secondary" : "default"}
-        disabled={isCurrent}
+        disabled={switchDisabled}
         onClick={() => onSwitch(provider)}
-        title={t("provider.switch")}
+        title={canSwitch ? t("provider.switch") : t("provider.noEndpoint")}
       >
         {isCurrent ? t("provider.current") : t("provider.switchBtn")}
       </Button>

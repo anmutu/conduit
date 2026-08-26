@@ -123,7 +123,7 @@ export function UsagePage({
   const dayMax = Math.max(...(data?.by_day.map((d) => d.tokens) ?? [1]), 1);
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 w-full">
       {/* 总览 */}
       <div className="grid grid-cols-3 gap-3">
         <StatCard label={t("dash.requests")} value={fmt(data?.total.requests ?? 0)} />
@@ -188,7 +188,7 @@ export function UsagePage({
         )}
       </div>
 
-      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+      <p className="text-xs text-muted-foreground flex items-center justify-end gap-1.5">
         <BarChart3 className="w-3.5 h-3.5" />
         {t("dash.note")}
       </p>

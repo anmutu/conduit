@@ -81,13 +81,22 @@ impl UsageMeter {
 
     /// 流结束:落库(一次性)
     pub fn finish(&mut self) {
-        let Some(ctx) = self.ctx.take() else { return };
-        let Some((input, output)) = self.last else {
-            return;
-        };
-        if input <= 0 && output <= 0 {
-            return;
+        // 非流 JSON 响应末尾通常没有换行符:先检查缓冲区残留的最后一行
+        if !self.line_buf.trim().is_empty() {
+            self.inspect_line();
+            self.line_buf.clear();
         }
+        let Some(ctx) = self.ctx.take() else { return };
+        // 无 usage 字段也记一次请求(tokens 计 0),保证"总请求"不失真
+        let (input, output) = self.last.unwrap_or((0, 0));
+        tracing::info!(
+            "计量完成: app={}, provider={}, model={:?}, in={}, out={}",
+            ctx.app_type,
+            ctx.provider_id,
+            ctx.model,
+            input,
+            output
+        );
         if let Err(e) = crate::db::usage_dao::insert(
             &ctx.pool,
             &ctx.app_type,
@@ -200,6 +209,15 @@ mod tests {
         m.observe(b"{\"id\":\"msg\",\"usage\":{\"input_tokens\":7,\"output_tokens\":9}}\n");
         m.finish();
         assert_eq!(m.last, Some((7, 9)));
+    }
+
+    #[test]
+    fn parses_plain_json_without_trailing_newline() {
+        // 真实 HTTP 响应通常没有结尾换行:缓冲区残留也必须被解析
+        let mut m = UsageMeter::disabled();
+        m.observe(b"{\"id\":\"msg\",\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":5}}");
+        m.finish();
+        assert_eq!(m.last, Some((3, 5)));
     }
 
     #[test]

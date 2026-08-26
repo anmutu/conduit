@@ -1,4 +1,5 @@
-import type { Provider, UsageSummary } from "@/types";
+import type { AppType, Provider, UsageSummary } from "@/types";
+import { APP_PROTOCOL } from "@/types";
 import { cn } from "@/lib/utils";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { ProviderActions } from "@/components/providers/ProviderActions";
@@ -7,6 +8,8 @@ import { useI18n } from "@/i18n";
 interface ProviderCardProps {
   provider: Provider;
   isCurrent: boolean;
+  /** 当前分组(用于取对应协议的端点展示/置灰判断) */
+  app: AppType;
   /** 新建/更新后短暂高亮(P2-15) */
   highlight?: boolean;
   onSwitch: (provider: Provider) => void;
@@ -25,6 +28,7 @@ interface ProviderCardProps {
 export function ProviderCard({
   provider,
   isCurrent,
+  app,
   highlight = false,
   onSwitch,
   onEdit,
@@ -34,8 +38,11 @@ export function ProviderCard({
   usage,
 }: ProviderCardProps) {
   const { t } = useI18n();
-  const displayUrl = provider.base_url || t("provider.notConfigured");
-  const shouldUseBlue = isCurrent;
+  // 该分组协议的端点;无端点 → 置灰(供应商实体仍在,只是未配置此协议)
+  const protocol = APP_PROTOCOL[app];
+  const endpoint = provider.endpoints?.[protocol];
+  const displayUrl = endpoint || provider.base_url || t("provider.notConfigured");
+  const shouldUseBlue = isCurrent && !!endpoint;
 
   return (
     <div
@@ -46,6 +53,7 @@ export function ProviderCard({
         "hover:border-border-active",
         shouldUseBlue && "border-blue-500/60 shadow-sm shadow-blue-500/10",
         !isCurrent && "hover:shadow-sm",
+        !endpoint && "opacity-60",
         highlight && "highlight-flash",
       )}
     >
@@ -84,6 +92,11 @@ export function ProviderCard({
                   无 API Key
                 </span>
               )}
+              {!endpoint && (
+                <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                  {t("provider.noEndpoint")}
+                </span>
+              )}
             </div>
 
             <button
@@ -115,6 +128,7 @@ export function ProviderCard({
             <ProviderActions
               provider={provider}
               isCurrent={isCurrent}
+              canSwitch={!!endpoint}
               onSwitch={onSwitch}
               onEdit={onEdit}
               onDuplicate={onDuplicate}

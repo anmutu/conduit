@@ -51,16 +51,13 @@ export function AboutDialog({
       <DialogContent className="sm:max-w-[360px]">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <svg width="40" height="40" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-              <rect width="32" height="32" rx="8" fill="#0A84FF" />
-              <path
-                d="M8 16h5l2.5-6 3 12 2.5-6h3"
-                stroke="#fff"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <img
+              src="icons/conduit-logo.svg?v=2"
+              alt="Conduit"
+              width={40}
+              height={40}
+              className="rounded-[10px]"
+            />
             <div>
               <DialogTitle>Conduit</DialogTitle>
               <DialogDescription>v{version} · {t("about.openSource")}</DialogDescription>

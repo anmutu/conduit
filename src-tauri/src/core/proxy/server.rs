@@ -44,10 +44,10 @@ pub async fn run_listener(state: AppState, listener: tokio::net::TcpListener) ->
 
 /// 从 URL 路径推断 AppType。
 fn infer_app_type(path: &str) -> Option<AppType> {
-    for app in AppType::all() {
-        for prefix in app.path_prefixes() {
-            if path.starts_with(prefix) {
-                return Some(app);
+        for app in AppType::all() {
+            for prefix in app.path_prefixes() {
+                if path.starts_with(prefix) {
+                    return Some(*app);
             }
         }
     }
@@ -125,7 +125,8 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         }
         base_headers.append(k.clone(), v.clone());
     }
-    if matches!(app, AppType::Claude | AppType::OpenCode | AppType::OpenClaw) {
+    let protocol = app.protocol();
+    if protocol == crate::types::Protocol::Anthropic {
         base_headers.insert(
             HeaderName::from_static("anthropic-version"),
             HeaderValue::from_static("2023-06-01"),
@@ -140,8 +141,11 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             .as_deref()
             .and_then(|kid| keychain::load_provider_key(kid).ok().flatten());
 
-        // 组装上游 URL(前缀去重)
-        let base = provider.base_url.trim_end_matches('/');
+        // 端点选择:优先该协议端点(v2),退回 base_url(旧数据)
+        let base = provider
+            .endpoint(protocol)
+            .unwrap_or(provider.base_url.as_str())
+            .trim_end_matches('/');
         let mut upstream = format!("{base}{path}");
         for prefix in ["/v1", "/v1beta"] {
             let doubled = format!("{prefix}{prefix}/");
@@ -154,7 +158,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         if let Some(q) = &query {
             query_pairs.push(q.clone());
         }
-        if matches!(app, AppType::Gemini) {
+        if protocol == crate::types::Protocol::Gemini {
             if let Some(key) = &api_key {
                 query_pairs.push(format!("key={key}"));
             }
@@ -167,7 +171,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         // 凭证注入
         let mut req_headers = base_headers.clone();
         if let Some(key) = &api_key {
-            if !matches!(app, AppType::Gemini) {
+            if protocol != crate::types::Protocol::Gemini {
                 if let Ok(val) = HeaderValue::from_str(&format!("Bearer {key}")) {
                     req_headers.insert(HeaderName::from_static("authorization"), val);
                 }

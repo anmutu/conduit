@@ -51,6 +51,28 @@ pub fn init_pool<P: AsRef<Path>>(db_path: P, cipher_key_hex: &str) -> Result<Poo
     if let Some(parent) = db_path.as_ref().parent() {
         std::fs::create_dir_all(parent)?;
     }
+    // v1→v2 合并迁移不可逆:执行前先备份一次(存在旧库且尚无备份时)
+    {
+        let p = db_path.as_ref();
+        if p.exists() {
+            let backup = p.with_extension("db.bak-v1");
+            if !backup.exists() {
+                // 仅在仍是 v1 时备份,避免每次启动都覆盖
+                if let Ok(conn) = Connection::open(p) {
+                    let _ = conn.execute_batch(&format!(
+                        "PRAGMA key = \"x'{}'\";",
+                        cipher_key_hex
+                    ));
+                    let version: i64 = conn
+                        .query_row("PRAGMA user_version", [], |r| r.get(0))
+                        .unwrap_or(0);
+                    if version < 2 {
+                        let _ = std::fs::copy(p, &backup);
+                    }
+                }
+            }
+        }
+    }
     let manager = SqliteConnectionManager::file(db_path);
     let pool = r2d2::Pool::builder()
         .max_size(8)

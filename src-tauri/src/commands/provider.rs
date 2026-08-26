@@ -4,7 +4,7 @@ use tauri::State;
 
 use crate::services::provider as svc;
 use crate::state::AppState;
-use crate::types::{AppType, Provider, ProviderInput};
+use crate::types::{AppType, Protocol, Provider, ProviderInput};
 
 #[tauri::command]
 pub fn list_providers(
@@ -54,9 +54,29 @@ pub fn update_provider(
     state: State<'_, AppState>,
     id: String,
     name: String,
+) -> Result<(), String> {
+    svc::update(&state.db, &id, &name).map_err(|e| e.to_string())
+}
+
+/// 新增/更新某协议端点(anthropic / openai / gemini)
+#[tauri::command]
+pub fn upsert_provider_endpoint(
+    state: State<'_, AppState>,
+    id: String,
+    protocol: Protocol,
     base_url: String,
 ) -> Result<(), String> {
-    svc::update(&state.db, &id, &name, &base_url).map_err(|e| e.to_string())
+    svc::upsert_endpoint(&state.db, &id, protocol, &base_url).map_err(|e| e.to_string())
+}
+
+/// 移除某协议端点(至少保留一个)
+#[tauri::command]
+pub fn remove_provider_endpoint(
+    state: State<'_, AppState>,
+    id: String,
+    protocol: Protocol,
+) -> Result<(), String> {
+    svc::remove_endpoint(&state.db, &id, protocol).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

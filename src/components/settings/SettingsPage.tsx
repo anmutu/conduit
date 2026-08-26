@@ -1,12 +1,30 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
-import { Database, Languages, Monitor, Moon, Power, Sun } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Database,
+  Languages,
+  LayoutGrid,
+  Monitor,
+  Moon,
+  PanelLeft,
+  PanelRight,
+  PanelTop,
+  PanelBottom,
+  Power,
+  Sun,
+} from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { ProviderIcon } from "@/components/ProviderIcon";
 import { useTheme, type Theme } from "@/components/theme-provider";
 import { useI18n, type LocaleSetting } from "@/i18n";
+import { FlagCN, FlagGB, GlobeAuto } from "@/components/LanguageBadges";
 import { cn } from "@/lib/utils";
+import { ALL_APPS, type LayoutMode } from "@/lib/appPrefs";
+import type { AppType } from "@/types";
 
 interface AppSettings {
   autostart: boolean;
@@ -42,12 +60,24 @@ function Row({
 export function SettingsPage({
   onError,
   onSuccess,
+  layout,
+  onLayoutChange,
+  apps,
+  onAppsChange,
 }: {
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
+  /** 界面偏好(前端 localStorage) */
+  layout: LayoutMode;
+  onLayoutChange: (m: LayoutMode) => void;
+  apps: AppType[];
+  onAppsChange: (apps: AppType[]) => void;
 }) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [version, setVersion] = useState("…");
+  // 分组拖拽排序状态
+  const [dragApp, setDragApp] = useState<AppType | null>(null);
+  const [dragOver, setDragOver] = useState<AppType | null>(null);
   const { theme, setTheme } = useTheme();
   const { t, setting: localeSetting, setSetting: setLocale } = useI18n();
 
@@ -77,8 +107,35 @@ export function SettingsPage({
     { value: "system", label: t("settings.themeSystem"), icon: Monitor },
   ];
 
+  /** 分组管理:上移/下移(仅可见项之间)与显示开关 */
+  const moveApp = (app: AppType, dir: -1 | 1) => {
+    const idx = apps.indexOf(app);
+    const target = idx + dir;
+    if (target < 0 || target >= apps.length) return;
+    const next = [...apps];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    onAppsChange(next);
+  };
+  const toggleApp = (app: AppType, visible: boolean) => {
+    if (visible) {
+      // 恢复显示:插回默认顺序位置
+      const next = ALL_APPS.filter((a) => a === app || apps.includes(a));
+      onAppsChange(next);
+    } else {
+      if (apps.length <= 1) return; // 至少保留一个分组
+      onAppsChange(apps.filter((a) => a !== app));
+    }
+  };
+
+  const layoutOptions: { value: LayoutMode; label: string; icon: typeof PanelLeft }[] = [
+    { value: "side", label: t("settings.layoutSide"), icon: PanelLeft },
+    { value: "right", label: t("settings.layoutRight"), icon: PanelRight },
+    { value: "top", label: t("settings.layoutTop"), icon: PanelTop },
+    { value: "bottom", label: t("settings.layoutBottom"), icon: PanelBottom },
+  ];
+
   return (
-    <div className="space-y-4 max-w-2xl">
+    <div className="space-y-4 w-full">
       <Row
         icon={<Power className="w-4 h-4" />}
         title={t("settings.autostart")}
@@ -123,26 +180,137 @@ export function SettingsPage({
       >
         <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
           {([
-            { value: "zh", label: t("settings.langZh") },
-            { value: "en", label: t("settings.langEn") },
-            { value: "system", label: t("settings.langSystem") },
-          ] as { value: LocaleSetting; label: string }[]).map(({ value, label }) => (
+            { value: "zh", label: t("settings.langZh"), Flag: FlagCN },
+            { value: "en", label: t("settings.langEn"), Flag: FlagGB },
+            { value: "system", label: t("settings.langSystem"), Flag: GlobeAuto },
+          ] as { value: LocaleSetting; label: string; Flag: () => React.JSX.Element }[]).map(({ value, label, Flag }) => (
             <button
               key={value}
               type="button"
               onClick={() => setLocale(value)}
               className={cn(
-                "px-2.5 h-7 rounded-md text-xs font-medium transition-all",
+                "inline-flex items-center gap-1.5 px-2.5 h-7 rounded-md text-xs font-medium transition-all",
                 localeSetting === value
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
+              <Flag />
               {label}
             </button>
           ))}
         </div>
       </Row>
+
+      {/* 界面布局:左侧边栏 / 顶部横向 */}
+      <Row
+        icon={<PanelLeft className="w-4 h-4" />}
+        title={t("settings.layout")}
+        desc={t("settings.layoutDesc")}
+      >
+        <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
+          {layoutOptions.map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onLayoutChange(value)}
+              className={cn(
+                "inline-flex items-center gap-1 px-2.5 h-7 rounded-md text-xs font-medium transition-all",
+                layout === value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+      </Row>
+
+      {/* 分组管理:显示/隐藏 + 排序 */}
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 text-muted-foreground">
+            <LayoutGrid className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium">{t("settings.appsRow")}</div>
+            <div className="text-xs text-muted-foreground mb-3">
+              {t("settings.appsRowDesc")}
+            </div>
+            <div className="space-y-1.5">
+              {ALL_APPS.map((app) => {
+                const visible = apps.includes(app);
+                const vIdx = apps.indexOf(app);
+                return (
+                  <div
+                    key={app}
+                    draggable={visible}
+                    onDragStart={() => setDragApp(app)}
+                    onDragEnd={() => {
+                      setDragApp(null);
+                      setDragOver(null);
+                    }}
+                    onDragOver={(e) => {
+                      if (!dragApp || !visible || dragApp === app) return;
+                      e.preventDefault();
+                      setDragOver(app);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragApp && visible && dragApp !== app) {
+                        const next = apps.filter((a) => a !== dragApp);
+                        next.splice(apps.indexOf(app), 0, dragApp);
+                        onAppsChange(next);
+                      }
+                      setDragApp(null);
+                      setDragOver(null);
+                    }}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg border border-border px-3 py-1.5",
+                      !visible && "opacity-50",
+                      dragApp === app && "opacity-40",
+                      dragOver === app && dragApp !== app && "border-blue-500/60 ring-1 ring-blue-500/40",
+                      visible && "cursor-grab active:cursor-grabbing",
+                    )}
+                  >
+                    <ProviderIcon icon={app} name={app} size={16} />
+                    <span className="flex-1 text-sm capitalize">{app}</span>
+                    <div className="flex items-center gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        disabled={!visible || vIdx === 0}
+                        onClick={() => moveApp(app, -1)}
+                        title={t("settings.appUp")}
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        disabled={!visible || vIdx === apps.length - 1}
+                        onClick={() => moveApp(app, 1)}
+                        title={t("settings.appDown")}
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </Button>
+                      <Switch
+                        checked={visible}
+                        onCheckedChange={(v) => toggleApp(app, v)}
+                        disabled={!visible && apps.length <= 1}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
 
       <Row
         icon={<Database className="w-4 h-4" />}

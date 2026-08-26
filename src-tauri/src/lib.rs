@@ -97,6 +97,8 @@ pub fn run() {
             commands::provider::switch_provider,
             commands::provider::delete_provider,
             commands::provider::update_provider,
+            commands::provider::upsert_provider_endpoint,
+            commands::provider::remove_provider_endpoint,
             commands::provider::set_provider_key,
             commands::settings::get_app_settings,
             commands::settings::set_autostart,
@@ -132,7 +134,11 @@ fn build_tray_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let mut builder = MenuBuilder::new(app).item(&show);
 
     for app_type in types::AppType::all() {
-        let providers = db::provider_dao::list_by_app(&state.db, app_type).unwrap_or_default();
+        let providers = db::provider_dao::list_by_app(&state.db, *app_type)
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|p| p.endpoint(app_type.protocol()).is_some())
+            .collect::<Vec<_>>();
         if providers.is_empty() {
             continue;
         }

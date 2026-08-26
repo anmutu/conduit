@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { Input } from "@/components/ui/input";
@@ -13,38 +14,46 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { Provider } from "@/types";
+import type { Protocol, Provider } from "@/types";
 
 interface EditProviderDialogProps {
   provider: Provider | null;
+  /** 预填:从置灰卡片"补配"进入时,默认选中的协议 */
+  defaultProtocol?: Protocol;
   onOpenChange: (open: boolean) => void;
   onSaved: (provider: Provider) => void;
   onError: (msg: string) => void;
 }
 
-function validateUrl(v: string, t: ReturnType<typeof useI18n>["t"]): string | null {
+const PROTOCOLS: { value: Protocol; label: string }[] = [
+  { value: "anthropic", label: "Anthropic" },
+  { value: "openai", label: "OpenAI" },
+  { value: "gemini", label: "Gemini" },
+];
+
+function validateUrl(v: string): string | null {
   if (!v.trim()) return null;
   try {
     const u = new URL(v.trim());
-    if (u.protocol !== "http:" && u.protocol !== "https:") {
-      return t("url.scheme");
-    }
+    if (u.protocol !== "http:" && u.protocol !== "https:") return "scheme";
     return null;
   } catch {
-    return t("url.invalid");
+    return "invalid";
   }
 }
 
 // form 包住整个内容,支持 Enter 提交
 export function EditProviderDialog({
   provider,
+  defaultProtocol,
   onOpenChange,
   onSaved,
   onError,
 }: EditProviderDialogProps) {
   const { t } = useI18n();
   const [name, setName] = useState("");
-  const [baseUrl, setBaseUrl] = useState("");
+  /** 三行端点编辑状态:protocol -> url(url 为空字符串表示该行新增未提交) */
+  const [endpoints, setEndpoints] = useState<Record<string, string>>({});
   const [apiKey, setApiKey] = useState("");
   const [urlError, setUrlError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -52,26 +61,65 @@ export function EditProviderDialog({
   useEffect(() => {
     if (provider) {
       setName(provider.name);
-      setBaseUrl(provider.base_url);
+      // 兼容旧数据:endpoints 为空时退回 base_url 记为 anthropic
+      const eps = { ...provider.endpoints };
+      if (Object.keys(eps).length === 0 && provider.base_url) {
+        eps.anthropic = provider.base_url;
+      }
+      // "补配"场景:默认带出目标协议空行
+      if (defaultProtocol && !(defaultProtocol in eps)) {
+        eps[defaultProtocol] = "";
+      }
+      setEndpoints(eps);
       setApiKey("");
       setUrlError(null);
     }
-  }, [provider]);
+  }, [provider, defaultProtocol]);
 
   const urlValid = urlError === null;
-  const canSubmit =
-    Boolean(provider) && name.trim() !== "" && baseUrl.trim() !== "" && urlValid;
+  const filledCount = Object.values(endpoints).filter((v) => v.trim() !== "").length;
+  const canSubmit = Boolean(provider) && name.trim() !== "" && urlValid && filledCount >= 1;
+
+  const setEndpoint = (proto: string, v: string) => {
+    setEndpoints((prev) => ({ ...prev, [proto]: v }));
+    if (urlError) setUrlError(validateUrl(v));
+  };
+
+  const addEndpointRow = (proto: Protocol) => {
+    setEndpoints((prev) => (proto in prev ? prev : { ...prev, [proto]: "" }));
+  };
+  const removeEndpointRow = (proto: string) => {
+    setEndpoints((prev) => {
+      const next = { ...prev };
+      delete next[proto];
+      return next;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!provider || !canSubmit || submitting) return;
     setSubmitting(true);
     try {
-      await invoke("update_provider", {
-        id: provider.id,
-        name: name.trim(),
-        baseUrl: baseUrl.trim(),
-      });
+      await invoke("update_provider", { id: provider.id, name: name.trim() });
+      // 端点逐协议保存:与原值不同的才调用
+      const original = { ...provider.endpoints };
+      for (const { value: proto } of PROTOCOLS) {
+        const next = (endpoints[proto] ?? "").trim();
+        const prev = original[proto] ?? "";
+        if (next === prev) continue;
+        if (next === "") {
+          if (prev !== "") {
+            await invoke("remove_provider_endpoint", { id: provider.id, protocol: proto });
+          }
+        } else {
+          await invoke("upsert_provider_endpoint", {
+            id: provider.id,
+            protocol: proto,
+            baseUrl: next,
+          });
+        }
+      }
       // Key 留空表示不变更
       if (apiKey.trim()) {
         await invoke("set_provider_key", {
@@ -90,13 +138,11 @@ export function EditProviderDialog({
 
   return (
     <Dialog open={Boolean(provider)} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[460px]">
         <form onSubmit={handleSubmit} className="grid gap-4">
           <DialogHeader>
             <DialogTitle>{t("dialog.editTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("dialog.editDesc")}
-            </DialogDescription>
+            <DialogDescription>{t("dialog.editDesc")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-2">
@@ -108,20 +154,53 @@ export function EditProviderDialog({
             />
           </div>
 
+          {/* 多协议端点:每个协议一行,可增删 */}
           <div className="grid gap-2">
-            <Label htmlFor="edit-url">{t("dialog.url")}</Label>
-            <Input
-              id="edit-url"
-              value={baseUrl}
-              onChange={(e) => {
-                setBaseUrl(e.target.value);
-                if (urlError) setUrlError(validateUrl(e.target.value, t));
-              }}
-              onBlur={() => setUrlError(validateUrl(baseUrl, t))}
-              aria-invalid={!urlValid}
-              className={!urlValid ? "border-red-500 focus-visible:ring-red-500" : ""}
-            />
-            {urlError && <p className="text-xs text-red-500">{urlError}</p>}
+            <Label>{t("dialog.endpoints")}</Label>
+            <div className="grid gap-2">
+              {PROTOCOLS.filter((p) => p.value in endpoints).map(({ value: proto, label }) => (
+                <div key={proto} className="grid gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">{label}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeEndpointRow(proto)}
+                      className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                      {t("common.remove")}
+                    </button>
+                  </div>
+                  <Input
+                    value={endpoints[proto]}
+                    onChange={(e) => setEndpoint(proto, e.target.value)}
+                    onBlur={() => setUrlError(validateUrl(endpoints[proto] ?? ""))}
+                    aria-invalid={!urlValid}
+                    className={!urlValid ? "border-red-500 focus-visible:ring-red-500" : ""}
+                    placeholder={t("dialog.urlPh")}
+                  />
+                </div>
+              ))}
+            </div>
+            {/* 未配置的协议:按钮形式追加 */}
+            <div className="flex flex-wrap gap-1.5">
+              {PROTOCOLS.filter((p) => !(p.value in endpoints)).map(({ value: proto, label }) => (
+                <Button
+                  key={proto}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => addEndpointRow(proto)}
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  {label}
+                </Button>
+              ))}
+            </div>
+            {urlError && (
+              <p className="text-xs text-red-500">{t(urlError === "scheme" ? "url.scheme" : "url.invalid")}</p>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -140,7 +219,7 @@ export function EditProviderDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              取消
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={!canSubmit || submitting}>
               {submitting ? t("dialog.saving") : t("common.save")}

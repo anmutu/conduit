@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { ArrowLeft, BarChart3, Boxes, Download, Plus, Settings } from "lucide-react";
+import { Boxes, Download, Plus } from "lucide-react";
 import type { AppType, Provider, ProxyStatus, UsageSummary } from "@/types";
-import { AppSwitcher } from "@/components/AppSwitcher";
+import { APP_PROTOCOL } from "@/types";
+import { Sidebar } from "@/components/Sidebar";
+import { AppHeaderBar } from "@/components/AppHeaderBar";
 import { ProviderCard } from "@/components/providers/ProviderCard";
 import { AddProviderDialog } from "@/components/providers/AddProviderDialog";
 import { EditProviderDialog } from "@/components/providers/EditProviderDialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ToastStack, type ToastItem, type ToastType } from "@/components/Toast";
-import { ModeToggle } from "@/components/mode-toggle";
 import { AboutDialog } from "@/components/AboutDialog";
 import { TakeoverDialog } from "@/components/TakeoverDialog";
 import { SettingsPage } from "@/components/settings/SettingsPage";
@@ -17,12 +18,17 @@ import { UsagePage } from "@/components/usage/UsagePage";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
+import {
+  loadLayout,
+  saveLayout,
+  loadApps,
+  saveApps,
+  ALL_APPS,
+  type LayoutMode,
+} from "@/lib/appPrefs";
 
 const STORAGE_KEY = "conduit-last-app";
-const VALID_APPS: AppType[] = ["claude", "codex", "gemini", "opencode", "openclaw"];
-const HEADER_HEIGHT = 64; // px,与 CC Switch 一致
-/** 窗口窄于该宽度时,AppSwitcher 收起文字只留图标 */
-const COMPACT_BREAKPOINT = 860;
+const VALID_APPS: AppType[] = ALL_APPS;
 
 function getInitialApp(): AppType {
   const saved = localStorage.getItem(STORAGE_KEY) as AppType | null;
@@ -65,6 +71,7 @@ const DEMO_PROVIDERS: Provider[] = [
     app_type: "claude",
     name: "CoderPlan",
     base_url: "https://api.coderplan.ai",
+    endpoints: { anthropic: "https://api.coderplan.ai", openai: "https://api.coderplan.ai/v1" },
     keychain_id: "demo-1",
     models: [],
     is_current: true,
@@ -78,6 +85,7 @@ const DEMO_PROVIDERS: Provider[] = [
     app_type: "claude",
     name: "OpenAI",
     base_url: "https://api.openai.com",
+    endpoints: { openai: "https://api.openai.com" },
     keychain_id: "demo-2",
     models: [],
     is_current: false,
@@ -91,6 +99,7 @@ const DEMO_PROVIDERS: Provider[] = [
     app_type: "claude",
     name: "官方登录",
     base_url: "https://api.anthropic.com",
+    endpoints: { anthropic: "https://api.anthropic.com" },
     keychain_id: null,
     models: [],
     is_current: false,
@@ -112,13 +121,23 @@ function App() {
   const [confirmDelete, setConfirmDelete] = useState<Provider | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [currentView, setCurrentView] = useState<"providers" | "settings" | "usage">("providers");
+  // 界面偏好:布局(左侧/顶部)+ 可见分组顺序,设置页可改
+  const [layout, setLayoutState] = useState<LayoutMode>(loadLayout);
+  const [appsOrder, setAppsOrder] = useState<AppType[]>(loadApps);
+  const setLayout = (m: LayoutMode) => {
+    setLayoutState(m);
+    saveLayout(m);
+  };
+  const updateApps = (apps: AppType[]) => {
+    setAppsOrder(apps);
+    saveApps(apps);
+  };
   const [takeoverOpen, setTakeoverOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [proxyOk, setProxyOk] = useState<boolean | null>(null);
   const [proxyAddr, setProxyAddr] = useState("");
   const [highlightId, setHighlightId] = useState<string | null>(null);
-  const [winWidth, setWinWidth] = useState(() => window.innerWidth);
-  // macOS 融合标题栏(Overlay):红绿灯占据左上角,header 内容需左侧避让
+  // macOS 融合标题栏(Overlay):红绿灯占据左上角,侧栏顶部需向下避让
   const [isMac, setIsMac] = useState(false);
   useEffect(() => {
     const p = (window as any).__TAURI_INTERNALS__?.platform;
@@ -198,13 +217,6 @@ function App() {
       .catch(() => setProxyOk(false));
   }, []);
 
-  // 窗口宽度:驱动 AppSwitcher compact 收缩
-  useEffect(() => {
-    const onResize = () => setWinWidth(window.innerWidth);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
   // 快捷键:Cmd/Ctrl+N 新建,Cmd/Ctrl+1..5 切换应用
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -221,14 +233,16 @@ function App() {
         return;
       }
       const idx = Number(e.key) - 1;
-      if (Number.isInteger(idx) && idx >= 0 && idx < VALID_APPS.length) {
+      if (Number.isInteger(idx) && idx >= 0 && idx < appsOrder.length) {
         e.preventDefault();
-        setActiveApp(VALID_APPS[idx]);
+        setActiveApp(appsOrder[idx]);
+        setCurrentView("providers");
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appsOrder]);
 
   // 故障转移自动回退提示
   useEffect(() => {
@@ -300,7 +314,7 @@ function App() {
     try {
       await invoke("switch_provider", {
         id: provider.id,
-        appType: provider.app_type,
+        appType: activeApp,
       });
       toast("success", t("toast.switched", { name: provider.name }));
       syncTray();
@@ -344,123 +358,70 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground selection:bg-primary/30">
-      {/* 顶部栏:品牌 + 代理状态 + 应用切换胶囊 + 添加按钮 */}
-      <header
-        className="shrink-0 z-50 w-full transition-all duration-300 bg-background/80 backdrop-blur-md border-b border-border"
-        style={{ height: HEADER_HEIGHT }}
+    <div
+      className={cn(
+        "flex h-screen overflow-hidden bg-background text-foreground selection:bg-primary/30",
+        layout === "top" || layout === "bottom" ? "flex-col" : "flex-row",
+      )}
+    >
+      {/* 布局一:左侧导航栏(默认,腾讯会议式) */}
+      {layout === "side" && (
+        <Sidebar
+          apps={appsOrder}
+          activeApp={activeApp}
+          onSwitchApp={setActiveApp}
+          currentView={currentView}
+          onViewChange={setCurrentView}
+          proxyOk={proxyOk}
+          proxyAddr={proxyAddr}
+          onTakeover={() => setTakeoverOpen(true)}
+          onAbout={() => setAboutOpen(true)}
+          onAdd={() => setIsAddOpen(true)}
+          isMac={isMac}
+        />
+      )}
+
+      {/* 顶部横栏布局 */}
+      {layout === "top" && (
+        <AppHeaderBar
+          position="top"
+          apps={appsOrder}
+          activeApp={activeApp}
+          currentView={currentView}
+          onViewChange={setCurrentView}
+          onSwitchApp={setActiveApp}
+          proxyOk={proxyOk}
+          proxyAddr={proxyAddr}
+          onTakeover={() => setTakeoverOpen(true)}
+          isMac={isMac}
+        />
+      )}
+
+      {/* 右侧主区:内容直接铺满(标题与添加入口在侧栏) */}
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+      {/* 主内容区:供应商卡片列表 */}
+      <main
+        className={cn(
+          "flex-1 min-h-0 flex flex-col overflow-y-auto",
+          // 右侧/底部布局:macOS 红绿灯悬于主区左上,顶部避让
+          (layout === "right" || layout === "bottom") && isMac && "pt-7",
+        )}
         data-tauri-drag-region
       >
-        <div
-          className={cn(
-            "flex h-full items-center justify-between gap-2 px-6",
-            isMac && "pl-[84px]",
-          )}
-        >
-          <div className="flex items-center gap-2" data-tauri-no-drag>
-            {currentView !== "providers" && (
-              <>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="mr-1 rounded-lg"
-                  title={t("common.back")}
-                  onClick={() => setCurrentView("providers")}
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-                <h1 className="text-lg font-semibold">
-                  {currentView === "settings" ? t("common.settings") : t("dash.title")}
-                </h1>
-              </>
-            )}
-            {currentView === "providers" && (
-            <button
-              type="button"
-              onClick={() => setAboutOpen(true)}
-              title={t("common.about")}
-              className="text-xl font-semibold transition-colors text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 select-none cursor-pointer"
-            >
-              Conduit
-            </button>
-            )}
-            {/* 代理状态常显:产品核心卖点的可见性 */}
-            {proxyOk !== null && (
-              <button
-                type="button"
-                onClick={() => setTakeoverOpen(true)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium select-none cursor-pointer transition-opacity hover:opacity-80",
-                  proxyOk
-                    ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
-                    : "text-red-600 dark:text-red-400 bg-red-500/10",
-                )}
-                title={proxyOk ? t("takeover.proxyTipOn", { addr: proxyAddr }) : t("takeover.proxyTipOff")}
-              >
-                <span
-                  className={cn(
-                    "h-1.5 w-1.5 rounded-full",
-                    proxyOk ? "bg-emerald-500" : "bg-red-500",
-                  )}
-                />
-                {proxyOk ? t("takeover.proxyOn") : t("takeover.proxyOff")}
-              </button>
-            )}
-            <ModeToggle />
-            <Button
-              variant="ghost"
-              size="icon"
-              title={t("common.settings")}
-              className="hover:bg-black/5 dark:hover:bg-white/5"
-              onClick={() => setCurrentView("settings")}
-            >
-              <Settings className="w-4 h-4" />
-            </Button>
-          </div>
-
-          <div className="flex flex-1 min-w-0 items-center justify-end gap-1.5">
-            {currentView === "providers" && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  title={t("dash.title")}
-                  className="hover:bg-black/5 dark:hover:bg-white/5 mr-1"
-                  onClick={() => setCurrentView("usage")}
-                >
-                  <BarChart3 className="w-4 h-4" />
-                </Button>
-                <AppSwitcher
-                  activeApp={activeApp}
-                  onSwitch={setActiveApp}
-                  compact={winWidth < COMPACT_BREAKPOINT}
-                />
-                <Button
-                  onClick={() => setIsAddOpen(true)}
-                  size="icon"
-                  className="ml-2"
-                  title="添加供应商 (⌘N)"
-                >
-                  <Plus className="w-5 h-5" />
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* 主内容区:供应商卡片列表 */}
-      <main className="flex-1 min-h-0 flex flex-col overflow-y-auto">
         {currentView === "settings" && (
-          <div className="px-6 py-6 animate-fade-in">
+          <div className="px-6 py-6 max-w-[760px] w-full mx-auto animate-fade-in">
             <SettingsPage
               onError={(m) => toast("error", humanizeError(m, t))}
               onSuccess={(m) => toast("success", m)}
+              layout={layout}
+              onLayoutChange={setLayout}
+              apps={appsOrder}
+              onAppsChange={updateApps}
             />
           </div>
         )}
         {currentView === "usage" && (
-          <div className="px-6 py-6 animate-fade-in">
+          <div className="px-6 py-6 max-w-[760px] w-full mx-auto my-auto animate-fade-in">
             <UsagePage
               app={activeApp}
               providers={providers}
@@ -469,9 +430,9 @@ function App() {
           </div>
         )}
         {currentView === "providers" && (
-        <div className="px-6 flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="px-6 pt-6 flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="flex-1 overflow-y-auto overflow-x-hidden pb-12 px-1">
-            <div className="space-y-4 animate-fade-in" key={activeApp}>
+            <div className="max-w-[760px] mx-auto w-full h-full flex flex-col space-y-4 animate-fade-in" key={activeApp}>
               {/* 首次加载:骨架屏占位 */}
               {!hasCache && providers.length === 0 && (
                 <>
@@ -483,7 +444,7 @@ function App() {
 
               {/* 空状态:CTA 引导 */}
               {hasCache && providers.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
                   <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center border border-border">
                     <Boxes className="h-6 w-6 text-muted-foreground" />
                   </div>
@@ -521,6 +482,7 @@ function App() {
                   key={p.id}
                   provider={p}
                   isCurrent={p.is_current}
+                  app={activeApp}
                   highlight={p.id === highlightId}
                   onSwitch={(provider) => void switchProvider(provider)}
                   onEdit={(provider) => setEditingProvider(provider)}
@@ -540,6 +502,41 @@ function App() {
         </div>
         )}
       </main>
+      </div>
+
+      {/* 右侧边栏布局:导航在右 */}
+      {layout === "right" && (
+        <Sidebar
+          apps={appsOrder}
+          edge="right"
+          activeApp={activeApp}
+          onSwitchApp={setActiveApp}
+          currentView={currentView}
+          onViewChange={setCurrentView}
+          proxyOk={proxyOk}
+          proxyAddr={proxyAddr}
+          onTakeover={() => setTakeoverOpen(true)}
+          onAbout={() => setAboutOpen(true)}
+          onAdd={() => setIsAddOpen(true)}
+          isMac={isMac}
+        />
+      )}
+
+      {/* 底部横栏布局 */}
+      {layout === "bottom" && (
+        <AppHeaderBar
+          position="bottom"
+          apps={appsOrder}
+          activeApp={activeApp}
+          currentView={currentView}
+          onViewChange={setCurrentView}
+          onSwitchApp={setActiveApp}
+          proxyOk={proxyOk}
+          proxyAddr={proxyAddr}
+          onTakeover={() => setTakeoverOpen(true)}
+          isMac={isMac}
+        />
+      )}
 
       <ToastStack items={toasts} onDismiss={dismissToast} />
 
@@ -567,6 +564,7 @@ function App() {
 
       <EditProviderDialog
         provider={editingProvider}
+        defaultProtocol={APP_PROTOCOL[activeApp]}
         onOpenChange={(open: boolean) => {
           if (!open) setEditingProvider(null);
         }}

@@ -1,9 +1,9 @@
 import { ProviderIcon } from "@/components/ProviderIcon";
+import { ALL_APPS } from "@/lib/appPrefs";
 import { cn } from "@/lib/utils";
 import type { AppType } from "@/types";
 
-// 布局与交互复刻 CC Switch 的 AppSwitcher;空间不足时收起文字(compact)
-const ALL_APPS: AppType[] = ["claude", "codex", "gemini", "opencode", "openclaw"];
+// 布局与交互复刻 CC Switch 的 AppSwitcher;分组多时收起文字
 const STORAGE_KEY = "conduit-last-app";
 
 const appIconName: Record<AppType, string> = {
@@ -12,6 +12,10 @@ const appIconName: Record<AppType, string> = {
   gemini: "gemini",
   opencode: "opencode",
   openclaw: "openclaw",
+  qwen: "qwen",
+  iflow: "iflow",
+  crush: "crush",
+  droid: "droid",
 };
 
 const appDisplayName: Record<AppType, string> = {
@@ -20,18 +24,28 @@ const appDisplayName: Record<AppType, string> = {
   gemini: "Gemini",
   opencode: "OpenCode",
   openclaw: "OpenClaw",
+  qwen: "Qwen Code",
+  iflow: "iFlow",
+  crush: "Crush",
+  droid: "Droid",
 };
 
 export function AppSwitcher({
   activeApp,
   onSwitch,
+  apps = ALL_APPS,
   compact = false,
 }: {
   activeApp: AppType;
   onSwitch: (app: AppType) => void;
-  /** 窗口较窄时只显示图标 */
+  /** 可见分组(按设置中的顺序);缺省为全部 */
+  apps?: AppType[];
+  /** 只显示图标(分组较多时节省顶栏空间) */
   compact?: boolean;
 }) {
+  const visible = apps.filter((a) => ALL_APPS.includes(a));
+  // 分组不多时图标+文字;超过 5 个才收起文字只留图标
+  const iconOnly = compact || visible.length > 5;
   const handleSwitch = (app: AppType) => {
     if (app === activeApp) return;
     localStorage.setItem(STORAGE_KEY, app);
@@ -41,14 +55,15 @@ export function AppSwitcher({
 
   return (
     <div className="inline-flex bg-muted rounded-xl p-1 gap-1">
-      {ALL_APPS.map((app) => (
+      {visible.map((app) => (
         <button
           key={app}
           type="button"
           onClick={() => handleSwitch(app)}
-          title={`${appDisplayName[app]}(⌘${ALL_APPS.indexOf(app) + 1})`}
+          title={`${appDisplayName[app]}(⌘${visible.indexOf(app) + 1})`}
           className={cn(
-            "group inline-flex items-center px-3 h-8 rounded-md text-sm font-medium transition-all duration-200",
+            "group inline-flex items-center h-8 rounded-md text-sm font-medium transition-all duration-200",
+            iconOnly ? "w-9 justify-center" : "px-3",
             activeApp === app
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground hover:bg-background/50",
@@ -62,7 +77,7 @@ export function AppSwitcher({
           <span
             className={cn(
               "transition-all duration-200 whitespace-nowrap overflow-hidden",
-              compact
+              iconOnly
                 ? "max-w-0 opacity-0 ml-0"
                 : "max-w-[80px] opacity-100 ml-2",
             )}

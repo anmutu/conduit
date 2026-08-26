@@ -114,11 +114,14 @@ pub fn import_existing(pool: &Pool) -> Result<Vec<ImportedProvider>> {
             keychain::store_provider_key(&id, k)?;
         }
         let keychain_ref = Some(id.clone());
+        let mut endpoints = std::collections::HashMap::new();
+        endpoints.insert(app_type.protocol().as_str().to_string(), base_url.clone());
         let provider = Provider {
             id,
             app_type,
             name: name.to_string(),
             base_url,
+            endpoints,
             keychain_id: keychain_ref,
             models: vec![],
             is_current: false,
@@ -126,6 +129,7 @@ pub fn import_existing(pool: &Pool) -> Result<Vec<ImportedProvider>> {
             sort_index: 0,
             created_at: chrono::Utc::now().timestamp(),
             has_key: key.is_some(),
+            meta_has_key: None, // insert 会按 has_key 写入 meta
         };
         provider_dao::insert(pool, &provider)?;
         tracing::info!("导入 {}: {}", app_type.as_str(), provider.base_url);
