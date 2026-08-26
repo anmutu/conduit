@@ -15,6 +15,19 @@
     <meta property="og:image" content="https://anmutu.github.io/conduit/logo.svg" />
     <meta name="twitter:card" content="summary" />
     <link rel="icon" type="image/svg+xml" href="./logo.svg" />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "Conduit 是如何工作的?", "acceptedAnswer": { "@type": "Answer", "text": "Conduit 在本机运行轻量代理 127.0.0.1:9527,接管各 AI CLI 的 API 地址后转发到你选定的供应商。切换只改本地状态,不重写 CLI 配置,无需重启终端。" } },
+        { "@type": "Question", "name": "Conduit 的 API Key 安全吗?", "acceptedAnswer": { "@type": "Answer", "text": "安全。密钥存于 SQLCipher 整库加密的本地数据库与系统钥匙串,绝不明文落盘、绝不上传,导出备份也不含密钥。" } },
+        { "@type": "Question", "name": "Conduit 支持哪些 AI CLI?", "acceptedAnswer": { "@type": "Answer", "text": "Claude Code、Codex CLI、Gemini CLI、OpenCode、OpenClaw 等 9 大 CLI 工具,覆盖 Anthropic / OpenAI / Gemini 三种协议。" } },
+        { "@type": "Question", "name": "切换供应商后正在运行的会话要重启吗?", "acceptedAnswer": { "@type": "Answer", "text": "不需要。代理实时转发,下一个请求即生效,正在运行的 claude / codex 会话无感切换。" } },
+        { "@type": "Question", "name": "Conduit 收费吗?", "acceptedAnswer": { "@type": "Answer", "text": "完全免费且开源(MIT),只需为自己使用的模型供应商付费。" } }
+      ]
+    }
+    </script>
     <style>
       /* ============ Apple.cn 风格:极简、留白、超大标题、亮色 ============ */
       :root {
@@ -128,6 +141,19 @@
       td.yes { color: var(--fg); } td.no { color: var(--fg-3); }
       td.yes::before { content: "✓ "; color: #30a74a; font-weight: 600; }
 
+      /* FAQ */
+      .faq { max-width: 720px; margin: 48px auto 0; text-align: left; }
+      details { border-bottom: 1px solid var(--hair); padding: 20px 4px; }
+      details summary {
+        font-size: 17px; font-weight: 600; cursor: pointer; list-style: none;
+        display: flex; justify-content: space-between; align-items: center;
+      }
+      details summary::-webkit-details-marker { display: none; }
+      details summary::after { content: "+"; color: var(--fg-3); font-size: 22px; font-weight: 400; }
+      details[open] summary::after { content: "–"; }
+      details p { font-size: 15px; color: var(--fg-2); margin-top: 10px; line-height: 1.65; }
+      details p code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; background: var(--bg-alt); border-radius: 5px; padding: 1px 5px; }
+
       /* footnote + footer(Apple 风格) */
       .footnotes { background: var(--bg-alt); padding: 34px 0 30px; }
       .footnotes .container { text-align: left; }
@@ -149,6 +175,7 @@
         <div class="nav-links">
           <a href="#features" data-i18n="navF">功能</a>
           <a href="#capabilities" data-i18n="navCap">能力</a>
+          <a href="#faq" data-i18n="navFAQ">FAQ</a>
           <a href="#quickstart" data-i18n="navQ">上手</a>
           <a href="#compare" data-i18n="navC">对比</a>
           <a href="#" id="langToggle">EN</a>
@@ -314,11 +341,52 @@
             <tr><td data-i18n="r2c">API Key 存储</td><td class="yes" data-i18n="r2a">钥匙串 + 整库加密</td><td class="no" data-i18n="r2b">明文数据库</td></tr>
             <tr><td data-i18n="r3c">本地代理</td><td class="yes" data-i18n="r3a">默认开启</td><td class="no" data-i18n="r3b">可选</td></tr>
             <tr><td data-i18n="r5c">用量统计</td><td class="yes" data-i18n="r5a">转发即计量</td><td class="no" data-i18n="r5b">脚本二次请求</td></tr>
+            <tr><td data-i18n="r6c">自动故障转移</td><td class="yes" data-i18n="r6a">5xx / 超时自动切备用</td><td class="no" data-i18n="r6b">—</td></tr>
+            <tr><td data-i18n="r7c">模型路由规则</td><td class="yes" data-i18n="r7a">按模型名分发</td><td class="no" data-i18n="r7b">—</td></tr>
+            <tr><td data-i18n="r8c">请求日志</td><td class="yes" data-i18n="r8a">逐条可见,含状态码</td><td class="no" data-i18n="r8b">—</td></tr>
+            <tr><td data-i18n="r9c">配置档案 / 备份</td><td class="yes" data-i18n="r9a">快照 + JSON 导出</td><td class="no" data-i18n="r9b">—</td></tr>
           </tbody>
         </table>
         <div class="links" style="margin-top:34px;">
           <a class="alink" href="https://github.com/anmutu/conduit" target="_blank" rel="noreferrer">GitHub</a>
           <a class="alink" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer" data-i18n="freeDl2">免费下载</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq">
+      <div class="container">
+        <h2 data-i18n="faqTitle">常见问题。</h2>
+        <div class="faq">
+          <details>
+            <summary data-i18n="q1">Conduit 是如何工作的?</summary>
+            <p data-i18n="a1">Conduit 在本机运行一个轻量代理(127.0.0.1:9527),接管各 CLI 的 API 地址后,所有请求经它转发到你选定的供应商。切换供应商只改本地状态,不重写 CLI 配置,所以无需重启终端。</p>
+          </details>
+          <details>
+            <summary data-i18n="q2">我的 API Key 安全吗?</summary>
+            <p data-i18n="a2">安全。密钥存于 SQLCipher 整库加密的本地数据库与系统钥匙串,绝不明文落盘、绝不上传;导出的备份文件也不包含密钥。</p>
+          </details>
+          <details>
+            <summary data-i18n="q3">支持哪些 AI CLI?</summary>
+            <p data-i18n="a3">Claude Code、Codex CLI、Gemini CLI、OpenCode、OpenClaw 等 9 大 CLI 工具,覆盖 Anthropic / OpenAI / Gemini 三种协议,供应商可按协议复用。</p>
+          </details>
+          <details>
+            <summary data-i18n="q4">切换供应商后,正在运行的会话要重启吗?</summary>
+            <p data-i18n="a4">不需要。代理按当前供应商实时转发,下一个请求即生效 —— 正在跑的 claude / codex 会话无感切换。</p>
+          </details>
+          <details>
+            <summary data-i18n="q5">可以同时用多个供应商吗?</summary>
+            <p data-i18n="a5">可以。模型路由规则让不同模型走不同供应商;故障转移在上游出错时自动切到备用;多配置档案可整组切换工作 / 个人环境。</p>
+          </details>
+          <details>
+            <summary data-i18n="q6">想换回原来的配置怎么办?</summary>
+            <p data-i18n="a6">一键还原。接管 CLI 时原配置已自动备份,Conduit 随时可以完整交还,不留任何残留。</p>
+          </details>
+          <details>
+            <summary data-i18n="q7">收费吗?</summary>
+            <p data-i18n="a7">Conduit 完全免费且开源(MIT)。你只需为自己使用的模型供应商付费。</p>
+          </details>
         </div>
       </div>
     </section>
@@ -341,7 +409,7 @@
     <script>
       var I18N = {
         en: {
-          navF: "Features", navCap: "Capabilities", navQ: "Start", navC: "Compare", navD: "Download",
+          navF: "Features", navCap: "Capabilities", navFAQ: "FAQ", navQ: "Start", navC: "Compare", navD: "Download",
           tagline: "Switching, weightless.",
           heroSub: "One app for every AI CLI you use. Providers, keys and usage — all in hand.",
           learnMore: "Learn more", freeDl: "Download free", freeDl2: "Download free",
@@ -374,6 +442,18 @@
           r2c: "API key storage", r2a: "Keychain + full encryption", r2b: "Plain-text database",
           r3c: "Local proxy", r3a: "Always on", r3b: "Optional",
           r5c: "Usage metering", r5a: "Metered as it forwards", r5b: "Script re-query",
+          r6c: "Automatic failover", r6a: "5xx / timeout → backup", r6b: "—",
+          r7c: "Model routing rules", r7a: "By model name", r7b: "—",
+          r8c: "Request logs", r8a: "Itemized, with status codes", r8b: "—",
+          r9c: "Profiles / backup", r9a: "Snapshots + JSON export", r9b: "—",
+          faqTitle: "Frequently asked questions.",
+          q1: "How does Conduit work?", a1: "Conduit runs a lightweight local proxy (127.0.0.1:9527). After taking over your CLI's API endpoint, every request is forwarded to your chosen provider. Switching only changes local state — no CLI config rewriting, no terminal restarts.",
+          q2: "Are my API keys safe?", a2: "Yes. Keys live in a fully SQLCipher-encrypted local database and the system keychain — never on disk in plain text, never uploaded, and excluded from exported backups.",
+          q3: "Which AI CLIs are supported?", a3: "Claude Code, Codex CLI, Gemini CLI, OpenCode, OpenClaw and more — 9 CLI tools across the Anthropic / OpenAI / Gemini protocols, with shareable providers per protocol.",
+          q4: "Do I need to restart running sessions after switching?", a4: "No. The proxy forwards by current provider in real time; the very next request follows — running claude / codex sessions switch seamlessly.",
+          q5: "Can I use multiple providers at once?", a5: "Yes. Model routing rules send different models to different providers; failover switches to backups on upstream errors; profiles swap whole work / personal setups in one tap.",
+          q6: "How do I revert to my original setup?", a6: "One click. Original configs are automatically backed up at takeover, and Conduit hands everything back cleanly with no leftovers.",
+          q7: "Is it free?", a7: "Conduit is completely free and open source (MIT). You only pay the model providers you use.",
           fn1: "* All data (provider configs, key references, usage records) is stored only in an encrypted local database. Nothing is uploaded.",
           fn2: "** Claude Code, Codex, Gemini CLI, OpenCode and OpenClaw are products of their respective owners; Conduit is not affiliated with Anthropic, OpenAI or Google.",
           darkVer: "Dark version"
