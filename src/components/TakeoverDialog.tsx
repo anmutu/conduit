@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { ShieldCheck, ShieldOff, TriangleAlert } from "lucide-react";
+import { ShieldCheck, ShieldOff, TriangleAlert, Copy, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +43,7 @@ export function TakeoverDialog({
 }) {
   const [list, setList] = useState<TakeoverStatus[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const { t } = useI18n();
 
   const refresh = () => {
@@ -174,6 +175,49 @@ export function TakeoverDialog({
               {t("common.loading")}
             </p>
           )}
+
+          {/* 其他 CLI 手动接入:一键复制环境变量 */}
+          <div className="rounded-xl border border-dashed border-border p-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-medium text-muted-foreground">
+                {t("takeover.manualTitle")}
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs"
+                onClick={async () => {
+                  const snippet = [
+                    "# Conduit 本地代理",
+                    "export ANTHROPIC_BASE_URL=http://127.0.0.1:9527",
+                    "export ANTHROPIC_AUTH_TOKEN=conduit",
+                    "export OPENAI_BASE_URL=http://127.0.0.1:9527/v1",
+                    "export OPENAI_API_KEY=conduit",
+                    "export GEMINI_BASE_URL=http://127.0.0.1:9527",
+                  ].join("\n");
+                  try {
+                    await navigator.clipboard.writeText(snippet);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1500);
+                  } catch {
+                    onError(String(t("takeover.copyFail")));
+                  }
+                }}
+              >
+                {copied ? (
+                  <><Check className="w-3.5 h-3.5 mr-1" />{t("takeover.copied")}</>
+                ) : (
+                  <><Copy className="w-3.5 h-3.5 mr-1" />{t("takeover.copyEnv")}</>
+                )}
+              </Button>
+            </div>
+            <pre className="text-[11px] leading-relaxed text-muted-foreground overflow-x-auto">
+              <code>{`export ANTHROPIC_BASE_URL=http://127.0.0.1:9527
+export ANTHROPIC_AUTH_TOKEN=conduit
+export OPENAI_BASE_URL=http://127.0.0.1:9527/v1
+export OPENAI_API_KEY=conduit`}</code>
+            </pre>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

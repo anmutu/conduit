@@ -154,7 +154,7 @@ export function AddProviderDialog({
           app_type: appId,
           name: name.trim(),
           base_url: baseUrl.trim(),
-          models: [],
+          models: preset?.models ?? [],
           api_key: apiKey.trim() || undefined,
         },
       });
@@ -319,10 +319,28 @@ export function AddProviderDialog({
               {urlError && (
                 <p className="text-xs text-red-500">{urlError}</p>
               )}
+              {preset?.models && preset.models.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {t("preset.modelsHint")}: {preset.models.join(" · ")}
+                </p>
+              )}
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="provider-key">{t("dialog.key")}</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="provider-key">{t("dialog.key")}</Label>
+                {preset?.apiKeyUrl && (
+                  <a
+                    href={preset.apiKeyUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 text-xs text-blue-500 hover:underline"
+                  >
+                    {t("preset.getKey")}
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
               <PasswordInput
                 ref={keyInputRef}
                 id="provider-key"

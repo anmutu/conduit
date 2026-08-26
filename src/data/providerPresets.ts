@@ -28,6 +28,8 @@ export interface ProviderPreset {
    * 推广参数只允许出现在 websiteUrl,且需明示。
    */
   partner?: boolean;
+  /** 内置模型列表(仅信息展示 + 创建时预填,可在编辑时修改) */
+  models?: string[];
 }
 
 /** OpenAI 兼容通用端点,opencode / openclaw 共用 */
@@ -39,6 +41,7 @@ const openaiCompatible: ProviderPreset[] = [
     category: "aggregator",
     websiteUrl: "https://coderplan.ai",
     apiKeyUrl: "https://coderplan.ai/dashboard/keys",
+    models: ["gpt-5.5", "gpt-5.4-mini", "deepseek-v4-pro", "minimax-m2.5"],
   },
   {
     name: "TheRouter",
@@ -90,6 +93,7 @@ const anthropicCompatible: ProviderPreset[] = [
     category: "aggregator",
     websiteUrl: "https://coderplan.ai",
     apiKeyUrl: "https://coderplan.ai/dashboard/keys",
+    models: ["claude-sonnet-5", "gpt-5.5", "deepseek-v4-pro", "minimax-m2.5"],
   },
   {
     name: "TheRouter",
