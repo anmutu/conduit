@@ -213,7 +213,7 @@
         <a class="alink" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer" data-i18n="freeDl">免费下载</a>
       </div>
       <div class="hero-shot">
-        <img src="./app-dark.png" alt="Conduit" />
+        <img src="./app-light.png" alt="Conduit" />
       </div>
     </section>
 
@@ -503,13 +503,20 @@
       (function () {
         var root = document.documentElement;
         var toggle = document.getElementById("langToggle");
-        function apply(lang) {          var dict = I18N[lang] || {};
+        // 缓存 HTML 中的中文原文:英文切换会覆盖 textContent,回切中文时据此恢复
+        var zhOrig = {};
+        document.querySelectorAll("[data-i18n]").forEach(function (el) {
+          zhOrig[el.getAttribute("data-i18n")] = el.textContent;
+        });
+        var zhTitle = document.title;
+        function apply(lang) {          var dict = lang === "zh" ? {} : (I18N[lang] || {});
           document.querySelectorAll("[data-i18n]").forEach(function (el) {
             var k = el.getAttribute("data-i18n");
-            if (dict[k]) el.textContent = dict[k];
+            var v = dict[k] !== undefined ? dict[k] : zhOrig[k];
+            if (v !== undefined) el.textContent = v;
           });
           root.setAttribute("lang", lang === "en" ? "en" : "zh-CN");
-          document.title = lang === "en" ? "Conduit — The local supply hub for AI CLIs" : "Conduit — AI CLI 的本地供应中心";
+          document.title = lang === "en" ? "Conduit — The local supply hub for AI CLIs" : zhTitle;
           toggle.textContent = lang === "en" ? "中文" : "EN";
           try { localStorage.setItem("site-lang", lang); } catch (e) {}
         }
