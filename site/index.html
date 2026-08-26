@@ -8,7 +8,7 @@
       name="description"
       content="Conduit:一个应用,管好你的每一个 AI CLI。切换即生效、免重启,API Key 加密不落盘。"
     />
-    <meta name="keywords" content="Claude Code 供应商切换, Codex 中转管理, AI CLI 代理, API Key 管理, cc-switch 替代, claude code provider switch, 故障转移, 模型路由, AI CLI 网关" />
+    <meta name="keywords" content="Claude Code 供应商切换, Codex 中转管理, AI CLI 代理, API Key 管理, claude code provider switch, 故障转移, 模型路由, AI CLI 网关" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Conduit — AI CLI 的本地供应中心" />
     <meta property="og:description" content="一个应用管好你的每一个 AI CLI:切换即生效、免重启,API Key 加密不落盘,本地代理计量用量。" />
@@ -96,14 +96,20 @@
       .alink::after { content: " ›"; font-size: 17px; display: inline-block; transition: transform .2s ease; padding-left: 2px; }
       .alink:hover::after { transform: translateX(3px); }
 
-      /* Hero */
-      .hero { padding: 96px 0 64px; }
-      .hero h1 { font-size: 56px; font-weight: 600; letter-spacing: -.02em; line-height: 1.05; }
+      /* Hero:左图右文两栏(呼应产品左侧栏形态) */
+      .hero { padding: 72px 0 40px; }
+      .hero-grid { display: grid; grid-template-columns: 1.04fr 1fr; gap: 56px; align-items: center; text-align: left; }
+      @media (max-width: 860px) {
+        .hero-grid { grid-template-columns: 1fr; gap: 36px; text-align: center; }
+        .hero-grid .hero-copy .links { justify-content: center; }
+      }
+      .hero h1 { font-size: 54px; font-weight: 600; letter-spacing: -.02em; line-height: 1.05; }
       .hero h1 .dot { color: var(--fg-3); }
-      .hero .tagline { font-size: 28px; font-weight: 600; margin-top: 6px; letter-spacing: -.01em; }
-      .hero .sub { font-size: 19px; max-width: 640px; margin: 14px auto 0; }
+      .hero .tagline { font-size: 27px; font-weight: 600; margin-top: 6px; letter-spacing: -.01em; }
+      .hero .sub { font-size: 18px; max-width: 480px; margin: 16px 0 0; color: var(--fg-2); }
+      .hero-grid .hero-copy .links { margin-top: 22px; justify-content: flex-start; }
       .hero-shot {
-        max-width: 860px; margin: 52px auto 0; border-radius: 18px; overflow: hidden;
+        border-radius: 18px; overflow: hidden;
         box-shadow: 0 30px 80px rgba(0,0,0,.18); border: 1px solid var(--hair);
       }
       .hero-shot img { display: block; width: 100%; }
@@ -197,24 +203,27 @@
           <a href="#faq" data-i18n="navFAQ">FAQ</a>
           <a href="./guide.html" data-i18n="navG">使用指南</a>
           <a href="#quickstart" data-i18n="navQ">上手</a>
-          <a href="#compare" data-i18n="navC">对比</a>
           <a href="#" id="langToggle">EN</a>
           <a href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer" data-i18n="navD">下载</a>
         </div>
       </div>
     </nav>
 
-    <!-- Hero -->
+    <!-- Hero:左图右文 -->
     <section class="hero container">
-      <h1>Conduit<span class="dot">。</span></h1>
-      <div class="tagline" data-i18n="tagline">切换,从未如此轻盈。</div>
-      <p class="sub" data-i18n="heroSub">一个应用,管好你的每一个 AI CLI。供应商、密钥、用量,尽在掌握。</p>
-      <div class="links">
-        <a class="alink" href="#features" data-i18n="learnMore">进一步了解</a>
-        <a class="alink" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer" data-i18n="freeDl">免费下载</a>
-      </div>
-      <div class="hero-shot">
-        <img src="./app-light.png" alt="Conduit" />
+      <div class="hero-grid">
+        <div class="hero-shot">
+          <img src="./app-light.png" alt="Conduit" />
+        </div>
+        <div class="hero-copy">
+          <h1>Conduit<span class="dot">。</span></h1>
+          <div class="tagline" data-i18n="tagline">切换,从未如此轻盈。</div>
+          <p class="sub" data-i18n="heroSub">一个应用,管好你的每一个 AI CLI。供应商、密钥、用量,尽在掌握。</p>
+          <div class="links">
+            <a class="alink" href="#features" data-i18n="learnMore">进一步了解</a>
+            <a class="alink" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer" data-i18n="freeDl">免费下载</a>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -350,35 +359,8 @@
       </div>
     </section>
 
-    <!-- 对比 -->
-    <section class="alt" id="compare">
-      <div class="container">
-        <h2 data-i18n="cmpTitle">和 CC Switch 相比。</h2>
-        <div class="table-wrap">
-        <table>
-          <thead><tr><th></th><th>Conduit</th><th>CC Switch</th></tr></thead>
-          <tbody>
-            <tr><td data-i18n="r1c">Codex / Gemini 切换免重启</td><td class="yes" data-i18n="r1a">默认支持</td><td class="no" data-i18n="r1b">需重启 / 手动开代理</td></tr>
-            <tr><td data-i18n="r2c">API Key 存储</td><td class="yes" data-i18n="r2a">钥匙串 + 整库加密</td><td class="no" data-i18n="r2b">明文数据库</td></tr>
-            <tr><td data-i18n="r3c">本地代理</td><td class="yes" data-i18n="r3a">默认开启</td><td class="no" data-i18n="r3b">可选</td></tr>
-            <tr><td data-i18n="r5c">用量统计</td><td class="yes" data-i18n="r5a">转发即计量</td><td class="no" data-i18n="r5b">脚本二次请求</td></tr>
-            <tr><td data-i18n="r6c">自动故障转移</td><td class="yes" data-i18n="r6a">5xx / 超时自动切备用</td><td class="no" data-i18n="r6b">—</td></tr>
-            <tr><td data-i18n="r7c">模型路由规则</td><td class="yes" data-i18n="r7a">按模型名分发</td><td class="no" data-i18n="r7b">—</td></tr>
-            <tr><td data-i18n="r8c">请求日志</td><td class="yes" data-i18n="r8a">逐条可见,含状态码</td><td class="no" data-i18n="r8b">—</td></tr>
-            <tr><td data-i18n="r9c">配置档案 / 备份</td><td class="yes" data-i18n="r9a">快照 + JSON 导出</td><td class="no" data-i18n="r9b">—</td></tr>
-          </tbody>
-        </table>
-        </div>
-        <div class="links" style="margin-top:34px;">
-          <a class="alink" href="https://github.com/anmutu/conduit" target="_blank" rel="noreferrer">GitHub</a>
-          <a class="alink" href="./guide.html" data-i18n="readGuide">阅读使用指南</a>
-          <a class="alink" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer" data-i18n="freeDl2">免费下载</a>
-        </div>
-      </div>
-    </section>
-
     <!-- FAQ -->
-    <section id="faq">
+    <section id="faq" class="alt">
       <div class="container">
         <h2 data-i18n="faqTitle">常见问题。</h2>
         <div class="faq">
@@ -411,6 +393,11 @@
             <p data-i18n="a7">Conduit 完全免费且开源(MIT)。你只需为自己使用的模型供应商付费。</p>
           </details>
         </div>
+        <div class="links" style="margin-top:40px;">
+          <a class="alink" href="https://github.com/anmutu/conduit" target="_blank" rel="noreferrer">GitHub</a>
+          <a class="alink" href="./guide.html" data-i18n="readGuide">阅读使用指南</a>
+          <a class="alink" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer" data-i18n="freeDl2">免费下载</a>
+        </div>
       </div>
     </section>
 
@@ -432,7 +419,7 @@
     <script>
       var I18N = {
         en: {
-          navF: "Features", navCap: "Capabilities", navFAQ: "FAQ", navG: "Guide", navQ: "Start", navC: "Compare", navD: "Download",
+          navF: "Features", navCap: "Capabilities", navFAQ: "FAQ", navG: "Guide", navQ: "Start", navD: "Download",
           readGuide: "Read the guide", navG2: "Guide",
           tagline: "Switching, weightless.",
           heroSub: "One app for every AI CLI you use. Providers, keys and usage — all in hand.",
@@ -461,15 +448,6 @@
           s3t: "Switch in a tap.", s3d: "Running claude / codex sessions pick up the next request instantly.",
           pvTitle: "Two looks. Same excellence.",
           lightMode: "Light", darkMode: "Dark",
-          cmpTitle: "Compared with CC Switch.",
-          r1c: "Codex / Gemini switch without restart", r1a: "By default", r1b: "Restart / manual proxy",
-          r2c: "API key storage", r2a: "Keychain + full encryption", r2b: "Plain-text database",
-          r3c: "Local proxy", r3a: "Always on", r3b: "Optional",
-          r5c: "Usage metering", r5a: "Metered as it forwards", r5b: "Script re-query",
-          r6c: "Automatic failover", r6a: "5xx / timeout → backup", r6b: "—",
-          r7c: "Model routing rules", r7a: "By model name", r7b: "—",
-          r8c: "Request logs", r8a: "Itemized, with status codes", r8b: "—",
-          r9c: "Profiles / backup", r9a: "Snapshots + JSON export", r9b: "—",
           faqTitle: "Frequently asked questions.",
           q1: "How does Conduit work?", a1: "Conduit runs a lightweight local proxy (127.0.0.1:9527). After taking over your CLI's API endpoint, every request is forwarded to your chosen provider. Switching only changes local state — no CLI config rewriting, no terminal restarts.",
           q2: "Are my API keys safe?", a2: "Yes. Keys live in a fully SQLCipher-encrypted local database and the system keychain — never on disk in plain text, never uploaded, and excluded from exported backups.",
