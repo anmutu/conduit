@@ -16,6 +16,8 @@ import { OnboardingDialog, ONBOARD_KEY } from "@/components/OnboardingDialog";
 import { TakeoverDialog } from "@/components/TakeoverDialog";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 import { UsagePage } from "@/components/usage/UsagePage";
+import { LogsPage } from "@/components/usage/LogsPage";
+import { RouteRules } from "@/components/providers/RouteRules";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
@@ -121,7 +123,7 @@ function App() {
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Provider | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<"providers" | "settings" | "usage">("providers");
+  const [currentView, setCurrentView] = useState<"providers" | "settings" | "usage" | "logs">("providers");
   // 界面偏好:布局(左侧/顶部)+ 可见分组顺序,设置页可改
   const [layout, setLayoutState] = useState<LayoutMode>(loadLayout);
   const [appsOrder, setAppsOrder] = useState<AppType[]>(loadApps);
@@ -441,10 +443,28 @@ function App() {
             />
           </div>
         )}
+        {currentView === "logs" && (
+          <div className="px-6 py-6 max-w-[860px] w-full mx-auto my-auto animate-fade-in">
+            <LogsPage
+              app={activeApp}
+              providers={providers}
+              onError={(m) => toast("error", humanizeError(m, t))}
+            />
+          </div>
+        )}
         {currentView === "providers" && (
         <div className="px-6 pt-6 flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="flex-1 overflow-y-auto overflow-x-hidden pb-12 px-1">
             <div className="max-w-[760px] mx-auto w-full h-full flex flex-col space-y-4 animate-fade-in" key={activeApp}>
+              {/* 模型路由规则(折叠条) */}
+              {hasCache && providers.length > 0 && !IS_DEMO && (
+                <RouteRules
+                  app={activeApp}
+                  providers={providers}
+                  onChanged={() => {/* 规则即时生效,无需刷新列表 */}}
+                  onError={(m) => toast("error", humanizeError(m, t))}
+                />
+              )}
               {/* 首次加载:骨架屏占位 */}
               {!hasCache && providers.length === 0 && (
                 <>

@@ -75,6 +75,40 @@ pub fn summarize_map(
 
 // ---------- 仪表盘聚合 ----------
 
+/// 单条请求日志(请求浏览器用)
+#[derive(Debug, Serialize)]
+pub struct UsageEntry {
+    pub id: i64,
+    pub provider_id: String,
+    pub model: Option<String>,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub status: u16,
+    pub created_at: i64,
+}
+
+/// 最近 N 条请求日志(新→旧)
+pub fn recent(pool: &Pool, app_type: &str, limit: i64) -> Result<Vec<UsageEntry>> {
+    let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
+    let mut stmt = conn.prepare(
+        "SELECT id, provider_id, model, input_tokens, output_tokens, status, created_at
+         FROM usage_log WHERE app_type = ?1
+         ORDER BY id DESC LIMIT ?2",
+    )?;
+    let rows = stmt.query_map(rusqlite::params![app_type, limit], |r| {
+        Ok(UsageEntry {
+            id: r.get(0)?,
+            provider_id: r.get(1)?,
+            model: r.get(2)?,
+            input_tokens: r.get(3)?,
+            output_tokens: r.get(4)?,
+            status: r.get::<_, i64>(5)? as u16,
+            created_at: r.get(6)?,
+        })
+    })?;
+    Ok(rows.flatten().collect())
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub struct NamedUsage {
     pub key: String,

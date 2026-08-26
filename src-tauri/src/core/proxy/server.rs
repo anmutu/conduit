@@ -19,7 +19,7 @@ use axum::{
     Router,
 };
 use futures::TryStreamExt;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 use crate::core::proxy::meter::{MeteredStream, UsageCtx, UsageMeter};
 use crate::core::proxy::HOP_BY_HOP;
@@ -76,7 +76,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         .flatten()
         .map(|v| v == "1")
         .unwrap_or(false);
-    let candidates: Vec<crate::types::Provider> = match if failover_on {
+    let mut candidates: Vec<crate::types::Provider> = match if failover_on {
         provider_dao::failover_candidates(&state.db, app)
     } else {
         provider_dao::get_current(&state.db, app).map(|p| p.into_iter().collect())
@@ -109,6 +109,30 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
     let model = serde_json::from_slice::<serde_json::Value>(&bytes)
         .ok()
         .and_then(|v| v.get("model").and_then(|m| m.as_str()).map(str::to_string));
+
+    // 模型路由规则:命中则把规则供应商提到候选链最前(优先于当前供应商;
+    // 后续仍保留故障转移候选,规则供应商 5xx 时可继续回退)
+    if let Some(rule_pid) = crate::db::route_dao::match_provider(
+        &state.db,
+        app.as_str(),
+        model.as_deref(),
+    )
+    .ok()
+    .flatten()
+    {
+        if let Some(rule_provider) =
+            crate::db::provider_dao::get_by_id(&state.db, &rule_pid).ok().flatten()
+        {
+            if let Some(pos) = candidates.iter().position(|p| p.id == rule_pid) {
+                let p = candidates.remove(pos);
+                candidates.insert(0, p);
+            } else {
+                candidates.insert(0, rule_provider);
+                candidates.truncate(3);
+            }
+            info!(rule = %rule_pid, model = ?model, "模型路由规则命中");
+        }
+    }
 
     // 客户端基础 header(剔除 hop-by-hop 与凭证类;凭证按供应商注入)
     let mut base_headers = HeaderMap::new();

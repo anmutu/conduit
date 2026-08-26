@@ -1,0 +1,125 @@
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { ScrollText } from "lucide-react";
+import { useI18n } from "@/i18n";
+import type { Provider } from "@/types";
+
+interface UsageEntry {
+  id: number;
+  provider_id: string;
+  model: string | null;
+  input_tokens: number;
+  output_tokens: number;
+  status: number;
+  created_at: number;
+}
+
+const IS_DEMO = new URLSearchParams(location.search).has("demo");
+
+/** 请求日志浏览器:最近 100 条请求(时间/供应商/模型/tokens/状态) */
+export function LogsPage({
+  app,
+  providers,
+  onError,
+}: {
+  app: string;
+  providers: Provider[];
+  onError: (msg: string) => void;
+}) {
+  const { t } = useI18n();
+  const [entries, setEntries] = useState<UsageEntry[] | null>(null);
+
+  useEffect(() => {
+    if (IS_DEMO) {
+      setEntries([]);
+      return;
+    }
+    invoke<UsageEntry[]>("get_recent_usage", { appType: app, limit: 100 })
+      .then(setEntries)
+      .catch((e) => onError(String(e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app]);
+
+  const nameOf = (id: string) =>
+    providers.find((p) => p.id === id)?.name ?? id.slice(0, 8);
+
+  const fmtTime = (ts: number) => {
+    const d = new Date(ts * 1000);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  };
+
+  return (
+    <div className="space-y-4 w-full">
+      <div className="rounded-xl border border-border bg-card">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <h3 className="text-sm font-semibold">{t("logs.title")}</h3>
+          <span className="text-xs text-muted-foreground">
+            {t("logs.count", { n: entries?.length ?? 0 })}
+          </span>
+        </div>
+        {entries === null ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            {t("common.loading")}
+          </p>
+        ) : entries.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-10 text-center">
+            <ScrollText className="w-8 h-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">{t("logs.empty")}</p>
+          </div>
+        ) : (
+          <div className="max-h-[60vh] overflow-y-auto">
+            <table className="w-full text-xs">
+              <thead className="text-muted-foreground sticky top-0 bg-card">
+                <tr className="border-b border-border">
+                  <th className="text-left font-medium px-4 py-2">{t("logs.time")}</th>
+                  <th className="text-left font-medium px-2 py-2">{t("logs.provider")}</th>
+                  <th className="text-left font-medium px-2 py-2">{t("logs.model")}</th>
+                  <th className="text-right font-medium px-2 py-2">↓</th>
+                  <th className="text-right font-medium px-2 py-2">↑</th>
+                  <th className="text-right font-medium px-4 py-2">{t("logs.status")}</th>
+                </tr>
+              </thead>
+              <tbody className="tabular-nums">
+                {entries.map((e) => (
+                  <tr
+                    key={e.id}
+                    className="border-b border-border/50 hover:bg-accent/50"
+                  >
+                    <td className="px-4 py-1.5 text-muted-foreground whitespace-nowrap">
+                      {fmtTime(e.created_at)}
+                    </td>
+                    <td className="px-2 py-1.5 max-w-[140px] truncate">
+                      {nameOf(e.provider_id)}
+                    </td>
+                    <td className="px-2 py-1.5 max-w-[180px] truncate">
+                      {e.model ?? "—"}
+                    </td>
+                    <td className="px-2 py-1.5 text-right text-muted-foreground">
+                      {e.input_tokens}
+                    </td>
+                    <td className="px-2 py-1.5 text-right text-muted-foreground">
+                      {e.output_tokens}
+                    </td>
+                    <td className="px-4 py-1.5 text-right">
+                      <span
+                        className={
+                          e.status < 400
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-red-500"
+                        }
+                      >
+                        {e.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground text-right">{t("logs.note")}</p>
+    </div>
+  );
+}

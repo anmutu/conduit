@@ -60,6 +60,15 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             app_type    TEXT PRIMARY KEY,
             provider_id TEXT NOT NULL
         );
+
+        -- 模型路由规则:请求体 model 包含 pattern(不区分大小写)→ 路由到指定供应商
+        CREATE TABLE IF NOT EXISTS route_rules (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            app_type    TEXT NOT NULL,
+            pattern     TEXT NOT NULL,
+            provider_id TEXT NOT NULL,
+            created_at  INTEGER NOT NULL DEFAULT 0
+        );
         "#,
     )?;
 
