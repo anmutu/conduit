@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Conduit — AI CLI 的本地供应中心</title>
+    <title>Keyway — AI CLI 的本地供应中心</title>
     <meta
       name="description"
-      content="Conduit:一个应用,管好你的每一个 AI CLI。切换即生效、免重启,API Key 加密不落盘。"
+      content="Keyway:一个应用,管好你的每一个 AI CLI。切换即生效、免重启,API Key 加密不落盘。"
     />
     <meta name="keywords" content="Claude Code 供应商切换, Codex 中转管理, AI CLI 代理, API Key 管理, claude code provider switch, 故障转移, 模型路由, AI CLI 网关" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Conduit — AI CLI 的本地供应中心" />
+    <meta property="og:title" content="Keyway — AI CLI 的本地供应中心" />
     <meta property="og:description" content="一个应用管好你的每一个 AI CLI:切换即生效、免重启,API Key 加密不落盘,本地代理计量用量。" />
     <meta property="og:image" content="https://anmutu.github.io/conduit/logo.svg" />
     <meta name="twitter:card" content="summary" />
@@ -21,11 +21,11 @@
       "@context": "https://schema.org",
       "@type": "FAQPage",
       "mainEntity": [
-        { "@type": "Question", "name": "Conduit 是如何工作的?", "acceptedAnswer": { "@type": "Answer", "text": "Conduit 在本机运行轻量代理 127.0.0.1:9527,接管各 AI CLI 的 API 地址后转发到你选定的供应商。切换只改本地状态,不重写 CLI 配置,无需重启终端。" } },
-        { "@type": "Question", "name": "Conduit 的 API Key 安全吗?", "acceptedAnswer": { "@type": "Answer", "text": "安全。密钥存于 SQLCipher 整库加密的本地数据库与系统钥匙串,绝不明文落盘、绝不上传,导出备份也不含密钥。" } },
-        { "@type": "Question", "name": "Conduit 支持哪些 AI CLI?", "acceptedAnswer": { "@type": "Answer", "text": "Claude Code、Codex CLI、Gemini CLI、OpenCode、OpenClaw 等 9 大 CLI 工具,覆盖 Anthropic / OpenAI / Gemini 三种协议。" } },
+        { "@type": "Question", "name": "Keyway 是如何工作的?", "acceptedAnswer": { "@type": "Answer", "text": "Keyway 在本机运行轻量代理 127.0.0.1:9527,接管各 AI CLI 的 API 地址后转发到你选定的供应商。切换只改本地状态,不重写 CLI 配置,无需重启终端。" } },
+        { "@type": "Question", "name": "Keyway 的 API Key 安全吗?", "acceptedAnswer": { "@type": "Answer", "text": "安全。密钥存于 SQLCipher 整库加密的本地数据库与系统钥匙串,绝不明文落盘、绝不上传,导出备份也不含密钥。" } },
+        { "@type": "Question", "name": "Keyway 支持哪些 AI CLI?", "acceptedAnswer": { "@type": "Answer", "text": "Claude Code、Codex CLI、Gemini CLI、OpenCode、OpenClaw 等 9 大 CLI 工具,覆盖 Anthropic / OpenAI / Gemini 三种协议。" } },
         { "@type": "Question", "name": "切换供应商后正在运行的会话要重启吗?", "acceptedAnswer": { "@type": "Answer", "text": "不需要。代理实时转发,下一个请求即生效,正在运行的 claude / codex 会话无感切换。" } },
-        { "@type": "Question", "name": "Conduit 收费吗?", "acceptedAnswer": { "@type": "Answer", "text": "完全免费且开源(MIT),只需为自己使用的模型供应商付费。" } }
+        { "@type": "Question", "name": "Keyway 收费吗?", "acceptedAnswer": { "@type": "Answer", "text": "完全免费且开源(MIT),只需为自己使用的模型供应商付费。" } }
       ]
     }
     </script>
@@ -81,6 +81,10 @@
       }
       .nav-inner a:hover { color: #fff; }
       .nav-links { display: flex; gap: 26px; align-items: center; }
+      @media (max-width: 640px) {
+        .nav-links { gap: 16px; }
+        .nav-main { display: none; }
+      }
 
       /* 章节通用 */
       section { padding: 100px 0 84px; text-align: center; scroll-margin-top: 56px; }
@@ -189,15 +193,15 @@
     <nav>
       <div class="nav-inner">
         <a href="#" style="display:flex;align-items:center;gap:7px;">
-          <img src="./logo.svg" width="18" height="18" alt="Conduit logo" style="border-radius:4px;" />
-          <span style="font-weight:600;color:#fff;">Conduit</span>
+          <img src="./logo.svg" width="18" height="18" alt="Keyway logo" style="border-radius:4px;" />
+          <span style="font-weight:600;color:#fff;">Keyway</span>
         </a>
         <div class="nav-links">
-          <a href="#features" data-i18n="navF">功能</a>
-          <a href="#capabilities" data-i18n="navCap">能力</a>
-          <a href="#faq" data-i18n="navFAQ">FAQ</a>
-          <a href="./guide.html" data-i18n="navG">使用指南</a>
-          <a href="#quickstart" data-i18n="navQ">上手</a>
+          <a class="nav-main" href="#features" data-i18n="navF">功能</a>
+          <a class="nav-main" href="#capabilities" data-i18n="navCap">能力</a>
+          <a class="nav-main" href="#faq" data-i18n="navFAQ">FAQ</a>
+          <a class="nav-main" href="./guide.html" data-i18n="navG">使用指南</a>
+          <a class="nav-main" href="#quickstart" data-i18n="navQ">上手</a>
           <a href="#" id="langToggle">EN</a>
           <a href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer" data-i18n="navD">下载</a>
         </div>
@@ -206,7 +210,7 @@
 
     <!-- Hero -->
     <section class="hero container">
-      <h1>Conduit<span class="dot">。</span></h1>
+      <h1>Keyway<span class="dot">。</span></h1>
       <div class="tagline" data-i18n="tagline">切换,从未如此轻盈。</div>
       <p class="sub" data-i18n="heroSub">一个应用,管好你的每一个 AI CLI。供应商、密钥、用量,尽在掌握。</p>
       <div class="links">
@@ -214,7 +218,7 @@
         <a class="alink" href="https://github.com/anmutu/conduit/releases" target="_blank" rel="noreferrer" data-i18n="freeDl">免费下载</a>
       </div>
       <div class="hero-shot">
-        <img src="./app-light.png" alt="Conduit" />
+        <img src="./app-light.png" alt="Keyway" />
       </div>
     </section>
 
@@ -248,14 +252,14 @@
         <div class="terminal">
           <div class="term-bar">
             <i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>
-            <span>conduit — proxy 127.0.0.1:9527</span>
+            <span>keyway — proxy 127.0.0.1:9527</span>
           </div>
           <div class="term-body">
-            <div><span class="dim">»</span> <span class="blue">conduit</span> takeover codex</div>
+            <div><span class="dim">»</span> <span class="blue">keyway</span> takeover codex</div>
             <div><span class="green">✓</span> <span data-i18n="t1">已接管 ~/.codex/config.toml(已备份)</span></div>
             <div><span class="dim">»</span> codex "refactor this module"</div>
             <div><span class="dim">POST</span> /v1/chat/completions <span class="dim">→</span> <span class="violet">GLM Coding Plan</span> <span class="green">200 · 1.8s</span></div>
-            <div><span class="dim">»</span> <span class="blue">conduit</span> use kimi</div>
+            <div><span class="dim">»</span> <span class="blue">keyway</span> use kimi</div>
             <div><span class="green">✓</span> <span data-i18n="t2">已切换 → Kimi(免重启,下个请求生效)</span></div>
             <div><span class="dim">»</span> <span class="cursor"></span></div>
           </div>
@@ -267,7 +271,7 @@
     <section id="capabilities">
       <div class="container">
         <h2 data-i18n="capTitle">远不止切换。</h2>
-        <p class="sub" data-i18n="capSub">从密钥安全到请求观测,Conduit 是 AI CLI 的本地网关。</p>
+        <p class="sub" data-i18n="capSub">从密钥安全到请求观测,Keyway 是 AI CLI 的本地网关。</p>
         <div class="cap-grid">
           <div class="cap">
             <h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg><span data-i18n="c1t">自动故障转移</span></h3>
@@ -356,8 +360,8 @@
         <h2 data-i18n="faqTitle">常见问题。</h2>
         <div class="faq">
           <details>
-            <summary data-i18n="q1">Conduit 是如何工作的?</summary>
-            <p data-i18n="a1">Conduit 在本机运行一个轻量代理(127.0.0.1:9527),接管各 CLI 的 API 地址后,所有请求经它转发到你选定的供应商。切换供应商只改本地状态,不重写 CLI 配置,所以无需重启终端。</p>
+            <summary data-i18n="q1">Keyway 是如何工作的?</summary>
+            <p data-i18n="a1">Keyway 在本机运行一个轻量代理(127.0.0.1:9527),接管各 CLI 的 API 地址后,所有请求经它转发到你选定的供应商。切换供应商只改本地状态,不重写 CLI 配置,所以无需重启终端。</p>
           </details>
           <details>
             <summary data-i18n="q2">我的 API Key 安全吗?</summary>
@@ -377,11 +381,11 @@
           </details>
           <details>
             <summary data-i18n="q6">想换回原来的配置怎么办?</summary>
-            <p data-i18n="a6">一键还原。接管 CLI 时原配置已自动备份,Conduit 随时可以完整交还,不留任何残留。</p>
+            <p data-i18n="a6">一键还原。接管 CLI 时原配置已自动备份,Keyway 随时可以完整交还,不留任何残留。</p>
           </details>
           <details>
             <summary data-i18n="q7">收费吗?</summary>
-            <p data-i18n="a7">Conduit 完全免费且开源(MIT)。你只需为自己使用的模型供应商付费。</p>
+            <p data-i18n="a7">Keyway 完全免费且开源(MIT)。你只需为自己使用的模型供应商付费。</p>
           </details>
         </div>
         <div class="links" style="margin-top:40px;">
@@ -396,13 +400,13 @@
     <div class="footnotes">
       <div class="container">
         <p data-i18n="fn1">* 所有数据(供应商配置、密钥引用、用量记录)仅存储于本机加密数据库,不上传任何服务器。</p>
-        <p data-i18n="fn2">** Claude Code、Codex、Gemini CLI、OpenCode、OpenClaw 分别为各自所有者的产品;Conduit 与 Anthropic、OpenAI、Google 无关联。</p>
+        <p data-i18n="fn2">** Claude Code、Codex、Gemini CLI、OpenCode、OpenClaw 分别为各自所有者的产品;Keyway 与 Anthropic、OpenAI、Google 无关联。</p>
         <div class="divider"></div>
       </div>
     </div>
     <footer>
       <div class="container">
-        <span>Copyright © 2026 Conduit. MIT License.</span>
+        <span>Copyright © 2026 Keyway. MIT License.</span>
         <span><a href="https://github.com/anmutu/conduit" target="_blank" rel="noreferrer">GitHub</a> · <a href="./guide.html" data-i18n="navG2">使用指南</a></span>
       </div>
     </footer>
@@ -423,7 +427,7 @@
           t1: "Took over ~/.codex/config.toml (backed up)",
           t2: "Switched → Kimi (no restart, next request)",
           capTitle: "Far more than switching.",
-          capSub: "From key safety to request observability, Conduit is the local gateway for your AI CLIs.",
+          capSub: "From key safety to request observability, Keyway is the local gateway for your AI CLIs.",
           c1t: "Automatic failover", c1d: "Upstream 5xx or timeouts automatically fail over to backup providers. Long tasks no longer break on a single point of failure. Configurable candidate chain.",
           c2t: "Model routing rules", c2d: "Route specific models to specific providers: e.g. claude-* to official, deepseek-* to a relay — dispatched automatically by model name.",
           c3t: "Request logs", c3d: "The last 100 requests, item by item: provider, model, tokens in/out, status code and latency. Debugging at a glance.",
@@ -440,15 +444,15 @@
           pvTitle: "Two looks. Same excellence.",
           lightMode: "Light", darkMode: "Dark",
           faqTitle: "Frequently asked questions.",
-          q1: "How does Conduit work?", a1: "Conduit runs a lightweight local proxy (127.0.0.1:9527). After taking over your CLI's API endpoint, every request is forwarded to your chosen provider. Switching only changes local state — no CLI config rewriting, no terminal restarts.",
+          q1: "How does Keyway work?", a1: "Keyway runs a lightweight local proxy (127.0.0.1:9527). After taking over your CLI's API endpoint, every request is forwarded to your chosen provider. Switching only changes local state — no CLI config rewriting, no terminal restarts.",
           q2: "Are my API keys safe?", a2: "Yes. Keys live in a fully SQLCipher-encrypted local database and the system keychain — never on disk in plain text, never uploaded, and excluded from exported backups.",
           q3: "Which AI CLIs are supported?", a3: "Claude Code, Codex CLI, Gemini CLI, OpenCode, OpenClaw and more — 9 CLI tools across the Anthropic / OpenAI / Gemini protocols, with shareable providers per protocol.",
           q4: "Do I need to restart running sessions after switching?", a4: "No. The proxy forwards by current provider in real time; the very next request follows — running claude / codex sessions switch seamlessly.",
           q5: "Can I use multiple providers at once?", a5: "Yes. Model routing rules send different models to different providers; failover switches to backups on upstream errors; profiles swap whole work / personal setups in one tap.",
-          q6: "How do I revert to my original setup?", a6: "One click. Original configs are automatically backed up at takeover, and Conduit hands everything back cleanly with no leftovers.",
-          q7: "Is it free?", a7: "Conduit is completely free and open source (MIT). You only pay the model providers you use.",
+          q6: "How do I revert to my original setup?", a6: "One click. Original configs are automatically backed up at takeover, and Keyway hands everything back cleanly with no leftovers.",
+          q7: "Is it free?", a7: "Keyway is completely free and open source (MIT). You only pay the model providers you use.",
           fn1: "* All data (provider configs, key references, usage records) is stored only in an encrypted local database. Nothing is uploaded.",
-          fn2: "** Claude Code, Codex, Gemini CLI, OpenCode and OpenClaw are products of their respective owners; Conduit is not affiliated with Anthropic, OpenAI or Google.",
+          fn2: "** Claude Code, Codex, Gemini CLI, OpenCode and OpenClaw are products of their respective owners; Keyway is not affiliated with Anthropic, OpenAI or Google.",
           darkVer: "Dark version"
         },
         zh: { darkVer: "暗色版本" }
@@ -486,7 +490,7 @@
             if (v !== undefined) el.textContent = v;
           });
           root.setAttribute("lang", lang === "en" ? "en" : "zh-CN");
-          document.title = lang === "en" ? "Conduit — The local supply hub for AI CLIs" : zhTitle;
+          document.title = lang === "en" ? "Keyway — The local supply hub for AI CLIs" : zhTitle;
           toggle.textContent = lang === "en" ? "中文" : "EN";
           try { localStorage.setItem("site-lang", lang); } catch (e) {}
         }
