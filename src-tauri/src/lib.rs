@@ -180,6 +180,7 @@ pub fn run() {
             commands::provider::get_provider_balance,
             commands::provider::set_responses_bridge,
             commands::provider::get_responses_bridge,
+            commands::provider::get_provider_balance,
             commands::settings::get_app_settings,
             commands::settings::set_autostart,
             commands::proxy::proxy_status,

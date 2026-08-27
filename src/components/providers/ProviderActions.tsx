@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useI18n } from "@/i18n";
-import { Pencil, Trash2, Copy, Activity } from "lucide-react";
+import { Pencil, Trash2, Copy, Activity, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { AppType, Provider } from "@/types";
@@ -17,6 +17,11 @@ interface ProviderActionsProps {
   onDuplicate: (provider: Provider) => void;
   onDelete: (provider: Provider) => void;
   onError: (msg: string) => void;
+}
+
+interface Balance {
+  usage: number | null;
+  limit: number | null;
 }
 
 interface TestResult {
@@ -42,6 +47,8 @@ export function ProviderActions({
   const switchDisabled = isCurrent || !canSwitch;
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
+  const [balance, setBalance] = useState<Balance | null>(null);
+  const [balanceNA, setBalanceNA] = useState(false);
 
   const runTest = async () => {
     setTesting(true);
@@ -56,6 +63,17 @@ export function ProviderActions({
       onError(String(e));
     } finally {
       setTesting(false);
+    }
+  };
+
+  const runBalance = async () => {
+    setBalanceNA(false);
+    try {
+      const b = await invoke<Balance>("get_provider_balance", { id: provider.id });
+      setBalance(b);
+    } catch {
+      setBalance(null);
+      setBalanceNA(true);
     }
   };
 
@@ -93,6 +111,25 @@ export function ProviderActions({
       >
         <Activity className={cn("h-4 w-4", testing && "animate-pulse")} />
       </Button>
+      <Button
+        size="icon"
+        variant="ghost"
+        className={iconButtonClass}
+        disabled={!provider.has_key}
+        onClick={() => void runBalance()}
+        title={t("provider.balance")}
+      >
+        <Wallet className="h-4 w-4" />
+      </Button>
+      {balance && (
+        <span className="text-xs tabular-nums text-muted-foreground">
+          ${(balance.usage ?? 0).toFixed(2)}
+          {balance.limit != null ? ` / $${balance.limit.toFixed(2)}` : ""}
+        </span>
+      )}
+      {balanceNA && (
+        <span className="text-xs text-muted-foreground">{t("provider.balanceNA")}</span>
+      )}
       <Button
         size="icon"
         variant="ghost"

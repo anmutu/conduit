@@ -2,6 +2,7 @@
 
 use tauri::State;
 
+use crate::db::provider_dao;
 use crate::services::provider as svc;
 use crate::state::AppState;
 use crate::types::{AppType, Protocol, Provider, ProviderInput};
@@ -130,16 +131,6 @@ pub fn set_responses_bridge(
     }
 }
 
-/// 查询供应商余额(骨架:接口未定,统一返回 None,前端不展示)。
-#[tauri::command]
-pub fn get_provider_balance(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<Option<String>, String> {
-    let _ = (&state.db, &id); // TODO: 接入 CoderPlan 余额接口后实现
-    Ok(None)
-}
-
 /// 拖拽排序:按 id 顺序写 sort_index
 #[tauri::command]
 pub fn reorder_providers(state: State<'_, AppState>, ids: Vec<String>) -> Result<(), String> {
@@ -155,4 +146,45 @@ pub fn get_responses_bridge(state: State<'_, AppState>, id: String) -> Result<bo
             .as_deref()
             == Some("1"),
     )
+}
+
+/// 供应商余额(OpenRouter 兼容 /api/v1/key;其他上游返回 not_supported)。
+#[tauri::command]
+pub async fn get_provider_balance(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<serde_json::Value, String> {
+    let (pool, provider) = {
+        let db = state.inner().db.clone();
+        let p = provider_dao::get_by_id(&db, &id).map_err(|e| e.to_string())?;
+        (db, p)
+    };
+    let p = provider.ok_or("provider not found")?;
+    let key = crate::services::keys::load_async(&pool, &p).await;
+    let key = key.filter(|k| !k.is_empty()).ok_or("no api key")?;
+    let base = p
+        .endpoints
+        .get("openai")
+        .cloned()
+        .unwrap_or_else(|| p.base_url.clone());
+    let url = format!("{}/api/v1/key", base.trim_end_matches('/'));
+    let resp = reqwest::Client::new()
+        .get(&url)
+        .bearer_auth(&key)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = resp.status();
+    let v: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!("HTTP {status}"));
+    }
+    let d = v.get("data").cloned().ok_or("not_supported")?;
+    Ok(serde_json::json!({
+        "label": d.get("label").cloned().unwrap_or(serde_json::Value::Null),
+        "usage": d.get("usage").and_then(|x| x.as_f64()),
+        "limit": d.get("limit").and_then(|x| x.as_f64()),
+        "is_free_tier": d.get("is_free_tier").and_then(|x| x.as_bool()).unwrap_or(false),
+    }))
 }

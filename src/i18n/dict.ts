@@ -71,6 +71,8 @@ export const zh = {
   "dialog.editKey": "API Key(留空不变)",
   "dialog.endpoints": "接口端点(按协议)",
   "dialog.responsesBridge": "Responses 桥接:把 /v1/responses 请求转成 /v1/chat/completions 发往该供应商(适用于不支持 Responses API 的 chat 中转)",
+  "provider.balanceNA": "暂无余额信息",
+  "provider.balance": "余额(OpenRouter 兼容渠道)",
   "dialog.adding": "添加中…",
   // 预设选择
   "preset.pickDesc": "选择一个预设供应商,或自定义;预设会自动填好接口地址。",
@@ -376,6 +378,8 @@ export const en: Dict = {
   "dialog.editDesc": "Leave the API key blank to keep it unchanged; enter a new one to update the keychain.",
   "dialog.editKey": "API Key (blank = unchanged)",
   "dialog.responsesBridge": "Responses bridge: convert /v1/responses requests to /v1/chat/completions for this provider (for chat relays without Responses API support)",
+  "provider.balanceNA": "No balance info",
+  "provider.balance": "Balance (OpenRouter-compatible relays)",
   "dialog.endpoints": "Endpoints (per protocol)",
   "dialog.adding": "Adding…",
   "preset.pickDesc": "Pick a preset provider or go custom — presets prefill the base URL.",
