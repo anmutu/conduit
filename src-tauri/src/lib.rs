@@ -211,6 +211,14 @@ pub fn run() {
             commands::mcp::delete_mcp_server,
             commands::mcp::set_mcp_server_enabled,
             commands::mcp::sync_mcp_servers,
+            commands::skills::list_skills,
+            commands::skills::save_skill,
+            commands::skills::delete_skill,
+            commands::skills::import_skill,
+            commands::skills::scan_cli_skills,
+            commands::skills::sync_skills,
+            commands::skills::read_skill_content,
+            commands::skills::set_skill_apps,
         ])
         .run(tauri::generate_context!())
         .expect("运行 Keyway 时出错");

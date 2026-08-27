@@ -19,6 +19,7 @@ import { SettingsPage } from "@/components/settings/SettingsPage";
 import { UsagePage } from "@/components/usage/UsagePage";
 import { LogsPage } from "@/components/usage/LogsPage";
 import { McpPage } from "@/components/settings/McpPage";
+import { SkillsPage } from "@/components/settings/SkillsPage";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
@@ -173,7 +174,7 @@ function App() {
       return next;
     });
   };
-  const [currentView, setCurrentView] = useState<"providers" | "settings" | "usage" | "logs" | "mcp">("providers");
+  const [currentView, setCurrentView] = useState<"providers" | "settings" | "usage" | "logs" | "mcp" | "skills">("providers");
   // 界面偏好:布局(左侧/顶部)+ 可见分组顺序,设置页可改
   const [layout, setLayoutState] = useState<LayoutMode>(loadLayout);
   const [appsOrder, setAppsOrder] = useState<AppType[]>(loadApps);
@@ -482,6 +483,14 @@ function App() {
         )}
         data-tauri-drag-region
       >
+        {currentView === "skills" && (
+          <div className="px-6 py-6 max-w-[760px] w-full mx-auto animate-fade-in">
+            <SkillsPage
+              onError={(m) => toast("error", humanizeError(m, t))}
+              onSuccess={(m) => toast("success", m)}
+            />
+          </div>
+        )}
         {currentView === "mcp" && (
           <div className="px-6 py-6 max-w-[760px] w-full mx-auto animate-fade-in">
             <McpPage

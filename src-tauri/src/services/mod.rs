@@ -10,4 +10,5 @@ pub mod keys;
 pub mod mcp;
 pub mod profile;
 pub mod provider;
+pub mod skills;
 pub mod takeover;

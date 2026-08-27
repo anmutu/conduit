@@ -13,6 +13,7 @@ pub mod provider;
 pub mod proxy;
 pub mod route;
 pub mod settings;
+pub mod skills;
 pub mod takeover;
 pub mod tray;
 pub mod update;

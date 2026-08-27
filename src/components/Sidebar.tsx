@@ -1,4 +1,4 @@
-import { BarChart3, ScrollText, Plus, Plug, Settings } from "lucide-react";
+import { BarChart3, ScrollText, Plus, Plug, Sparkles, Settings } from "lucide-react";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { ModeToggle } from "@/components/mode-toggle";
 import { cn } from "@/lib/utils";
@@ -32,7 +32,7 @@ const appDisplayName: Record<AppType, string> = {
   droid: "Droid",
 };
 
-export type View = "providers" | "settings" | "usage" | "logs" | "mcp";
+export type View = "providers" | "settings" | "usage" | "logs" | "mcp" | "skills";
 
 interface SidebarProps {
   /** 可见分组(有序,可在设置中调整) */
@@ -189,6 +189,14 @@ export function Sidebar({
           edge={edge}
         >
           <ScrollText className="w-[18px] h-[18px]" />
+        </RailItem>
+        <RailItem
+          active={currentView === "skills"}
+          onClick={() => onViewChange("skills")}
+          title={t("sk.title")}
+          edge={edge}
+        >
+          <Sparkles className="w-[18px] h-[18px]" />
         </RailItem>
         <RailItem
           active={currentView === "mcp"}
