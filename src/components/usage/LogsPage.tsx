@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { ScrollText, Search, Download } from "lucide-react";
+import { ScrollText, Search, Download, Trash2 } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { Input } from "@/components/ui/input";
 import type { Provider } from "@/types";
@@ -43,6 +43,17 @@ export function LogsPage({
         { appType: app },
       );
       onError(t("logs.exportedTo", { path: r.path, n: r.count }));
+    } catch (e) {
+      onError(String(e));
+    }
+  };
+
+  const clearAll = async () => {
+    if (!window.confirm(t("logs.clearConfirm"))) return;
+    try {
+      const n = await invoke<number>("clear_usage", { appType: app });
+      setEntries([]);
+      onError(t("logs.cleared", { n }));
     } catch (e) {
       onError(String(e));
     }
@@ -138,6 +149,17 @@ export function LogsPage({
               <Download className="w-3.5 h-3.5" />
               CSV
             </button>
+            {entries !== null && entries.length > 0 && (
+              <button
+                type="button"
+                onClick={() => void clearAll()}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-500"
+                title={t("logs.clearTitle")}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {t("logs.clear")}
+              </button>
+            )}
           </div>
         )}
         {entries === null ? (

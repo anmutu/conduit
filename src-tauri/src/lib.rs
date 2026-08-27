@@ -185,6 +185,7 @@ pub fn run() {
             commands::usage_dash::get_usage_dashboard,
             commands::usage_dash::get_recent_usage,
             commands::usage_dash::export_usage_csv,
+            commands::usage_dash::clear_usage,
             commands::update::check_update,
             commands::route::list_route_rules,
             commands::route::add_route_rule,

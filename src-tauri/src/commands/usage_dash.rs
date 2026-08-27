@@ -27,6 +27,12 @@ pub fn get_recent_usage(
         .map_err(|e| e.to_string())
 }
 
+/// 清空该分组的请求日志
+#[tauri::command]
+pub fn clear_usage(state: State<'_, AppState>, app_type: AppType) -> Result<usize, String> {
+    crate::db::usage_dao::clear(&state.db, app_type.as_str()).map_err(|e| e.to_string())
+}
+
 #[derive(serde::Serialize)]
 pub struct CsvResult {
     pub path: String,

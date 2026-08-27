@@ -127,6 +127,16 @@ pub fn recent(pool: &Pool, app_type: &str, limit: i64) -> Result<Vec<UsageEntry>
     Ok(rows.flatten().collect())
 }
 
+/// 清空该分组的请求日志。返回删除行数。
+pub fn clear(pool: &Pool, app_type: &str) -> Result<usize> {
+    let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
+    conn.execute(
+        "DELETE FROM usage_log WHERE app_type = ?1",
+        rusqlite::params![app_type],
+    )
+    .map_err(|e| anyhow!("{e}"))
+}
+
 /// 删除超过 days 天的日志行(本地观察用途,防库无限膨胀)。返回删除行数。
 pub fn prune(pool: &Pool, days: i64) -> Result<usize> {
     let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
