@@ -23,11 +23,12 @@ pub fn insert(
     input_tokens: i64,
     output_tokens: i64,
     status: u16,
+    rule_pattern: Option<&str>,
 ) -> Result<()> {
     let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
     conn.execute(
-        "INSERT INTO usage_log(app_type, provider_id, model, input_tokens, output_tokens, status, created_at)
-         VALUES(?1,?2,?3,?4,?5,?6,?7)",
+        "INSERT INTO usage_log(app_type, provider_id, model, input_tokens, output_tokens, status, rule_pattern, created_at)
+         VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
         rusqlite::params![
             app_type,
             provider_id,
@@ -35,6 +36,7 @@ pub fn insert(
             input_tokens,
             output_tokens,
             status as i64,
+            rule_pattern,
             chrono::Utc::now().timestamp(),
         ],
     )?;
@@ -84,6 +86,8 @@ pub struct UsageEntry {
     pub input_tokens: i64,
     pub output_tokens: i64,
     pub status: u16,
+    /// 命中的路由规则匹配词(未命中为 None)
+    pub rule_pattern: Option<String>,
     pub created_at: i64,
 }
 
@@ -91,7 +95,7 @@ pub struct UsageEntry {
 pub fn recent(pool: &Pool, app_type: &str, limit: i64) -> Result<Vec<UsageEntry>> {
     let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
     let mut stmt = conn.prepare(
-        "SELECT id, provider_id, model, input_tokens, output_tokens, status, created_at
+        "SELECT id, provider_id, model, input_tokens, output_tokens, status, rule_pattern, created_at
          FROM usage_log WHERE app_type = ?1
          ORDER BY id DESC LIMIT ?2",
     )?;
@@ -103,7 +107,8 @@ pub fn recent(pool: &Pool, app_type: &str, limit: i64) -> Result<Vec<UsageEntry>
             input_tokens: r.get(3)?,
             output_tokens: r.get(4)?,
             status: r.get::<_, i64>(5)? as u16,
-            created_at: r.get(6)?,
+            rule_pattern: r.get(6)?,
+            created_at: r.get(7)?,
         })
     })?;
     Ok(rows.flatten().collect())

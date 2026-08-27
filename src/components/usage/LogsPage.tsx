@@ -11,6 +11,7 @@ interface UsageEntry {
   input_tokens: number;
   output_tokens: number;
   status: number;
+  rule_pattern: string | null;
   created_at: number;
 }
 
@@ -94,6 +95,14 @@ export function LogsPage({
                     </td>
                     <td className="px-2 py-1.5 max-w-[180px] truncate">
                       {e.model ?? "—"}
+                      {e.rule_pattern && (
+                        <span
+                          className="ml-1.5 rounded bg-blue-500/15 px-1 py-px text-[10px] text-blue-600 dark:text-blue-400 align-middle"
+                          title={t("logs.ruleHit", { pattern: e.rule_pattern })}
+                        >
+                          {e.rule_pattern}
+                        </span>
+                      )}
                     </td>
                     <td className="px-2 py-1.5 text-right text-muted-foreground">
                       {e.input_tokens}

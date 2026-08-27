@@ -23,6 +23,8 @@ pub struct UsageCtx {
     pub model: Option<String>,
     /// 上游 HTTP 状态码(用于成功/失败统计)
     pub status: u16,
+    /// 命中的路由规则匹配词(未命中 None;落库供日志页展示)
+    pub rule_pattern: Option<String>,
 }
 
 pub struct UsageMeter {
@@ -108,6 +110,7 @@ impl UsageMeter {
             input,
             output,
             ctx.status,
+            ctx.rule_pattern.as_deref(),
         ) {
             tracing::warn!("usage 落库失败(不影响转发): {e}");
         }

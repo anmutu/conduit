@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ArrowRight, Plus, Route, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -14,10 +15,12 @@ interface RouteRule {
   app_type: string;
   pattern: string;
   provider_id: string;
+  enabled: boolean;
+  match_type: string;
 }
 
 /**
- * 模型路由设置卡:请求体 model 包含匹配词 → 优先路由到指定供应商。
+ * 模型路由设置卡:请求体 model 匹配关键词 → 优先路由到指定供应商。
  * 自带 app 分组切换与供应商加载,可独立嵌在设置页。
  */
 export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) {
@@ -28,6 +31,7 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
   const [rules, setRules] = useState<RouteRule[]>([]);
   const [pattern, setPattern] = useState("");
   const [providerId, setProviderId] = useState("");
+  const [matchType, setMatchType] = useState("contains");
   const [adding, setAdding] = useState(false);
 
   const reload = (a: AppType) => {
@@ -48,7 +52,7 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
   }, []);
 
   const nameOf = (id: string) =>
-    providers.find((p) => p.id == id)?.name ?? id.slice(0, 8);
+    providers.find((p) => p.id === id)?.name ?? id.slice(0, 8);
 
   const add = async () => {
     if (!pattern.trim() || !providerId) return;
@@ -58,6 +62,7 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
         appType: app,
         pattern: pattern.trim(),
         providerId,
+        matchType,
       });
       setPattern("");
       setRules(await invoke<RouteRule[]>("list_route_rules", { appType: app }));
@@ -74,6 +79,17 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
       setRules(await invoke<RouteRule[]>("list_route_rules", { appType: app }));
     } catch (e) {
       onError(String(e));
+    }
+  };
+
+  const toggle = async (r: RouteRule, enabled: boolean) => {
+    // 乐观更新,失败回滚并提示
+    setRules((rs) => rs.map((x) => (x.id === r.id ? { ...x, enabled } : x)));
+    try {
+      await invoke("set_route_rule_enabled", { id: r.id, enabled });
+    } catch (e) {
+      onError(String(e));
+      setRules((rs) => rs.map((x) => (x.id === r.id ? { ...x, enabled: !enabled } : x)));
     }
   };
 
@@ -119,15 +135,28 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
             {rules.map((r) => (
               <div
                 key={r.id}
-                className="flex items-center gap-2 rounded-md bg-muted/50 px-2.5 py-1.5 text-xs"
+                className={cn(
+                  "flex items-center gap-2 rounded-md bg-muted/50 px-2.5 py-1.5 text-xs",
+                  !r.enabled && "opacity-55",
+                )}
               >
                 <code className="font-mono">{r.pattern}</code>
+                <span className="text-[10px] text-muted-foreground">
+                  {r.match_type === "starts_with"
+                    ? t("route.matchStartsWith")
+                    : t("route.matchContains")}
+                </span>
                 <ArrowRight className="w-3 h-3 text-muted-foreground" />
                 <span className="font-medium">{nameOf(r.provider_id)}</span>
+                <Switch
+                  className="ml-auto scale-75"
+                  checked={r.enabled}
+                  onCheckedChange={(v) => void toggle(r, v)}
+                />
                 <button
                   type="button"
                   onClick={() => void remove(r.id)}
-                  className="ml-auto text-muted-foreground hover:text-red-500"
+                  className="text-muted-foreground hover:text-red-500"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -141,6 +170,15 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
                 className="h-8 text-xs flex-1"
                 onKeyDown={(e) => e.key === "Enter" && void add()}
               />
+              <select
+                value={matchType}
+                onChange={(e) => setMatchType(e.target.value)}
+                className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                title={t("route.matchTypeTitle")}
+              >
+                <option value="contains">{t("route.matchContains")}</option>
+                <option value="starts_with">{t("route.matchStartsWith")}</option>
+              </select>
               <select
                 value={providerId}
                 onChange={(e) => setProviderId(e.target.value)}

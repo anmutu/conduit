@@ -111,7 +111,8 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
 
     // 模型路由规则:命中则把规则供应商提到候选链最前(优先于当前供应商;
     // 后续仍保留故障转移候选,规则供应商 5xx 时可继续回退)
-    if let Some(rule_pid) = crate::db::route_dao::match_provider(
+    let mut rule_pattern: Option<String> = None;
+    if let Some((rule_pid, rule_pat)) = crate::db::route_dao::match_provider(
         &state.db,
         app.as_str(),
         model.as_deref(),
@@ -129,6 +130,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                 candidates.insert(0, rule_provider);
                 candidates.truncate(3);
             }
+            rule_pattern = Some(rule_pat);
             info!(rule = %rule_pid, model = ?model, "模型路由规则命中");
         }
     }
@@ -257,6 +259,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                 provider_id: provider.id.clone(),
                 model: model.clone(),
                 status: status.as_u16(),
+                rule_pattern: rule_pattern.clone(),
             })
         } else {
             UsageMeter::disabled()

@@ -11,7 +11,7 @@ use rusqlite::{params, Connection};
 
 /// 当前 schema 版本,用于未来迁移校验。
 #[allow(dead_code)]
-pub const SCHEMA_VERSION: u32 = 3;
+pub const SCHEMA_VERSION: u32 = 4;
 
 pub fn create_tables(conn: &Connection) -> Result<()> {
     let version: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
@@ -51,6 +51,8 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             output_tokens INTEGER NOT NULL DEFAULT 0,
             -- v3:上游 HTTP 状态码(<400 视为成功;旧行默认 200)
             status        INTEGER NOT NULL DEFAULT 200,
+            -- v4:命中的路由规则匹配词(可观测;未命中为 NULL)
+            rule_pattern  TEXT,
             created_at    INTEGER NOT NULL DEFAULT 0
         );
         CREATE INDEX IF NOT EXISTS idx_usage_provider ON usage_log(provider_id);
@@ -61,12 +63,14 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             provider_id TEXT NOT NULL
         );
 
-        -- 模型路由规则:请求体 model 包含 pattern(不区分大小写)→ 路由到指定供应商
+        -- 模型路由规则:请求体 model 匹配 pattern(contains|starts_with,不区分大小写)→ 路由到指定供应商
         CREATE TABLE IF NOT EXISTS route_rules (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             app_type    TEXT NOT NULL,
             pattern     TEXT NOT NULL,
             provider_id TEXT NOT NULL,
+            enabled     INTEGER NOT NULL DEFAULT 1,
+            match_type  TEXT NOT NULL DEFAULT 'contains',
             created_at  INTEGER NOT NULL DEFAULT 0
         );
 
@@ -84,7 +88,26 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
     if version < 3 {
         migrate_v2_to_v3(conn)?;
     }
-    conn.execute_batch("PRAGMA user_version = 3;")?;
+    if version < 4 {
+        migrate_v3_to_v4(conn)?;
+    }
+    conn.execute_batch("PRAGMA user_version = 4;")?;
+    Ok(())
+}
+
+/// v3 → v4:route_rules 增加 enabled/match_type;usage_log 增加 rule_pattern(命中规则可观测)。
+fn migrate_v3_to_v4(conn: &Connection) -> Result<()> {
+    if conn.prepare("SELECT enabled FROM route_rules LIMIT 1").is_err() {
+        conn.execute_batch(
+            "ALTER TABLE route_rules ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1;
+             ALTER TABLE route_rules ADD COLUMN match_type TEXT NOT NULL DEFAULT 'contains';",
+        )?;
+    }
+    if conn.prepare("SELECT rule_pattern FROM usage_log LIMIT 1").is_err() {
+        conn.execute_batch(
+            "ALTER TABLE usage_log ADD COLUMN rule_pattern TEXT;",
+        )?;
+    }
     Ok(())
 }
 

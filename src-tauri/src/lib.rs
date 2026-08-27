@@ -137,6 +137,7 @@ pub fn run() {
             commands::route::list_route_rules,
             commands::route::add_route_rule,
             commands::route::delete_route_rule,
+            commands::route::set_route_rule_enabled,
             commands::profile::list_profiles,
             commands::profile::save_profile,
             commands::profile::apply_profile,
