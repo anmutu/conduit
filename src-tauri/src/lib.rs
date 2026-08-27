@@ -214,6 +214,8 @@ pub fn run() {
             commands::mcp::delete_mcp_server,
             commands::mcp::set_mcp_server_enabled,
             commands::mcp::sync_mcp_servers,
+            commands::mcp::test_mcp_server,
+            commands::skills::open_skills_vault,
             commands::skills::list_skills,
             commands::skills::save_skill,
             commands::skills::delete_skill,

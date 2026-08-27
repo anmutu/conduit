@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Plug, Plus, RefreshCw, Server, Trash2, X } from "lucide-react";
+import { Activity, Plug, Plus, RefreshCw, Server, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +43,19 @@ export function McpPage({
   onSuccess: (msg: string) => void;
 }) {
   const { t } = useI18n();
+  const [testing, setTesting] = useState<string | null>(null);
+
+  const test = async (id: string) => {
+    setTesting(id);
+    try {
+      const msg = await invoke<string>("test_mcp_server", { id });
+      onSuccess(msg);
+    } catch (e) {
+      onError(String(e));
+    } finally {
+      setTesting(null);
+    }
+  };
   const [servers, setServers] = useState<McpServer[]>([]);
   const [editing, setEditing] = useState<McpServer | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -136,6 +149,16 @@ export function McpPage({
                     .join(", ")}
                 </div>
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                disabled={testing === s.id}
+                onClick={() => void test(s.id)}
+                title={t("mcp.test")}
+              >
+                <Activity className={"w-4 h-4 " + (testing === s.id ? "animate-pulse" : "")} />
+              </Button>
               <Switch checked={s.enabled} onCheckedChange={(v) => toggle(s, v)} />
               <Button
                 variant="ghost"

@@ -52,3 +52,12 @@ pub fn set_skill_apps(id: String, apps: Vec<String>) -> Result<(), String> {
     skills::sync_all().map_err(|e| e.to_string())?;
     Ok(())
 }
+
+/// 在系统文件管理器中打开 skills vault 目录(不存在则先创建)。
+#[tauri::command]
+pub fn open_skills_vault() -> Result<(), String> {
+    let dir = crate::services::skills::vault_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    tauri_plugin_opener::open_path(dir.display().to_string(), None::<&str>)
+        .map_err(|e| e.to_string())
+}

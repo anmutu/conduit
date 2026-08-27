@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { BookOpen, Download, Plus, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
+import { BookOpen, Download, FolderOpen, Plus, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -106,6 +106,16 @@ export function SkillsPage({
           <Button variant="outline" size="sm" onClick={openImport}>
             <Download className="w-4 h-4 mr-1" />
             {t("sk.import")}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              invoke("open_skills_vault").catch((e) => onError(String(e)))
+            }
+          >
+            <FolderOpen className="w-4 h-4" />
+            {t("sk.openVault")}
           </Button>
           <Button variant="outline" size="sm" onClick={syncNow} disabled={syncing}>
             <RefreshCw className={cn("w-4 h-4 mr-1", syncing && "animate-spin")} />
