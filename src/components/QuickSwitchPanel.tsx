@@ -24,34 +24,58 @@ export function QuickSwitchPanel({
 }) {
   const { t } = useI18n();
   const [idx, setIdx] = useState(0);
+  const [q, setQ] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
+  const filtered = providers.filter((p) =>
+    q.trim() ? p.name.toLowerCase().includes(q.trim().toLowerCase()) : true,
+  );
+
   useEffect(() => {
-    if (open) setIdx(Math.max(0, providers.findIndex((p) => p.is_current)));
+    if (open) {
+      setQ("");
+      setIdx(Math.max(0, providers.findIndex((p) => p.is_current)));
+      setTimeout(() => inputRef.current?.focus(), 30);
+    }
   }, [open, providers]);
+
+  // 输入过滤后保持选中项有效
+  useEffect(() => {
+    setIdx((i) => Math.min(i, Math.max(0, filtered.length - 1)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        // 有关键词时先清词,再按一次才关闭
+        if (q.trim()) setQ("");
+        else onClose();
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
-        setIdx((i) => Math.min(providers.length - 1, i + 1));
+        setIdx((i) => Math.min(filtered.length - 1, i + 1));
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setIdx((i) => Math.max(0, i - 1));
       } else if (e.key === "Enter") {
         e.preventDefault();
-        const p = providers[idx];
+        const p = filtered[idx];
         if (p) pick(p);
       }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, idx, providers]);
+  }, [open, idx, q, filtered]);
+
+  useEffect(() => {
+    listRef.current
+      ?.querySelectorAll("[data-qs-item]")
+      [idx]?.scrollIntoView({ block: "nearest" });
+  }, [idx]);
 
   useEffect(() => {
     listRef.current
@@ -83,13 +107,22 @@ export function QuickSwitchPanel({
             ↑↓ · ⏎ · Esc
           </span>
         </div>
+        <div className="px-3 py-2 border-b border-border">
+          <input
+            ref={inputRef}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("qs.filterPh")}
+            className="w-full h-8 rounded-md bg-muted px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
+          />
+        </div>
         <div ref={listRef} className="max-h-[46vh] overflow-y-auto py-1.5">
-          {providers.length === 0 && (
+          {filtered.length === 0 && (
             <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-              {t("qs.empty")}
+              {providers.length === 0 ? t("qs.empty") : t("qs.noMatch")}
             </p>
           )}
-          {providers.map((p, i) => (
+          {filtered.map((p, i) => (
             <button
               key={p.id}
               type="button"
