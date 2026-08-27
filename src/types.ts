@@ -42,6 +42,7 @@ export interface Provider {
   sort_index: number;
   created_at: number;
   has_key: boolean;
+  last_test?: { ok: boolean; latency_ms: number } | null;
 }
 
 export interface ProviderInput {

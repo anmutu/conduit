@@ -24,9 +24,12 @@ fn row_to_provider(row: &Row<'_>) -> rusqlite::Result<Provider> {
         serde_json::from_str(&endpoints_json).unwrap_or_default();
     // meta.has_key 落库后启动无需查 keychain(未签名二进制每次读取都可能弹授权框)
     let meta_json: String = row.get("meta")?;
-    let meta_has_key: Option<bool> = serde_json::from_str::<serde_json::Value>(&meta_json)
-        .ok()
-        .and_then(|m| m.get("has_key").and_then(|v| v.as_bool()));
+    let meta: serde_json::Value =
+        serde_json::from_str(&meta_json).unwrap_or_else(|_| serde_json::json!({}));
+    let meta_has_key: Option<bool> = meta.get("has_key").and_then(|v| v.as_bool());
+    let last_test: Option<crate::types::LastTest> = meta
+        .get("last_test")
+        .and_then(|v| serde::Deserialize::deserialize(v).ok());
     Ok(Provider {
         id: row.get("id")?,
         app_type: AppType::from_str(&app_type_str).unwrap_or(AppType::Claude),
@@ -41,6 +44,7 @@ fn row_to_provider(row: &Row<'_>) -> rusqlite::Result<Provider> {
         created_at: row.get("created_at")?,
         has_key: meta_has_key.unwrap_or(false), // 运行时由 service 层按 meta/keychain 填充
         meta_has_key,
+        last_test,
     })
 }
 
@@ -139,6 +143,29 @@ pub fn set_meta_has_key(pool: &Pool, id: &str, has_key: bool) -> Result<()> {
     let mut meta: serde_json::Value =
         serde_json::from_str(&meta_json).unwrap_or_else(|_| serde_json::json!({}));
     meta["has_key"] = serde_json::json!(has_key);
+    let affected = conn.execute(
+        "UPDATE providers SET meta = ?2 WHERE id = ?1",
+        params![id, meta.to_string()],
+    )?;
+    if affected == 0 {
+        return Err(anyhow!("供应商不存在: {id}"));
+    }
+    Ok(())
+}
+
+/// 持久化最近一次测速结果到 meta 列。
+pub fn set_meta_last_test(pool: &Pool, id: &str, t: &crate::types::LastTest) -> Result<()> {
+    let conn = get_conn(pool)?;
+    let meta_json: String = conn
+        .query_row(
+            "SELECT meta FROM providers WHERE id = ?1",
+            params![id],
+            |r| r.get(0),
+        )
+        .map_err(|_| anyhow!("供应商不存在: {id}"))?;
+    let mut meta: serde_json::Value =
+        serde_json::from_str(&meta_json).unwrap_or_else(|_| serde_json::json!({}));
+    meta["last_test"] = serde_json::to_value(t)?;
     let affected = conn.execute(
         "UPDATE providers SET meta = ?2 WHERE id = ?1",
         params![id, meta.to_string()],

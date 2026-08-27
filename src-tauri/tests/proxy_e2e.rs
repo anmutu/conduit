@@ -26,6 +26,7 @@ fn test_provider(id: &str, name: &str, base_url: String) -> Provider {
         created_at: 0,
         has_key: false,
         meta_has_key: None,
+        last_test: None,
     }
 }
 

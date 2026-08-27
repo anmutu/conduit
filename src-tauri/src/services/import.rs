@@ -130,7 +130,8 @@ pub fn import_existing(pool: &Pool) -> Result<Vec<ImportedProvider>> {
             sort_index: 0,
             created_at: chrono::Utc::now().timestamp(),
             has_key: key.is_some(),
-            meta_has_key: None, // insert 会按 has_key 写入 meta
+            meta_has_key: None,
+            last_test: None, // insert 会按 has_key 写入 meta
         };
         provider_dao::insert(pool, &provider)?;
         tracing::info!("导入 {}: {}", app_type.as_str(), provider.base_url);

@@ -179,6 +179,16 @@ pub struct Provider {
     /// meta 持久化的 has_key 标记:Some 表示已落库(启动时不再查 keychain,避免授权弹窗)
     #[serde(skip)]
     pub meta_has_key: Option<bool>,
+    /// 最近一次测速结果(meta 持久化,重启后卡片仍显示)
+    #[serde(default)]
+    pub last_test: Option<LastTest>,
+}
+
+/// 供应商最近一次测速结果(持久化在 meta)
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct LastTest {
+    pub ok: bool,
+    pub latency_ms: u64,
 }
 
 impl Provider {

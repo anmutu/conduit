@@ -177,6 +177,7 @@ pub fn import(pool: &Pool, path: &std::path::Path) -> Result<(usize, usize)> {
             created_at: chrono::Utc::now().timestamp(),
             has_key: false,
             meta_has_key: Some(false),
+            last_test: None,
         };
         provider_dao::insert(pool, &p)?;
         created += 1;

@@ -245,6 +245,20 @@ function App() {
       if (activeAppRef.current === app) {
         setProviders(list);
         setHasCache(true);
+        // 播种上次测速结果(meta 持久化,重启后徽章仍在)
+        setBatchResults((prev) => {
+          const next = { ...prev };
+          for (const p of list) {
+            if (p.last_test && !next[p.id]) {
+              next[p.id] = {
+                ok: p.last_test.ok,
+                latency_ms: p.last_test.latency_ms,
+                message: p.last_test.ok ? "" : "不可达",
+              };
+            }
+          }
+          return next;
+        });
         invoke<Record<string, UsageSummary>>("get_usage_map", { appType: app })
           .then(setUsageMap)
           .catch(() => setUsageMap({}));

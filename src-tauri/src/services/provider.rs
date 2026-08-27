@@ -114,7 +114,8 @@ pub fn create(pool: &Pool, input: ProviderInput) -> Result<Provider> {
             .as_ref()
             .map(|k| !k.is_empty())
             .unwrap_or(false),
-        meta_has_key: None, // insert 会按 has_key 写入 meta
+        meta_has_key: None,
+        last_test: None, // insert 会按 has_key 写入 meta
     };
     provider_dao::insert(pool, &provider)?;
     // 该分组还没有当前供应商 → 自动设为当前(新增即生效,免二次点击)
@@ -240,11 +241,20 @@ async fn test_provider_impl(pool: &Pool, id: &str, app: AppType) -> Result<TestR
         }
     };
     let latency = start.elapsed().as_millis() as u64;
+    let persist = |ok, ms| {
+        let _ = provider_dao::set_meta_last_test(
+            pool,
+            id,
+            &crate::types::LastTest { ok, latency_ms: ms },
+        );
+    };
     match resp_result {
         Ok(resp) => {
             let status = resp.status().as_u16();
+            let ok = status < 500;
+            persist(ok, latency);
             Ok(TestResult {
-                ok: status < 500, // 4xx 说明端点通了、多为鉴权/参数问题,仍算可达
+                ok, // 4xx 说明端点通了、多为鉴权/参数问题,仍算可达
                 status: Some(status),
                 latency_ms: latency,
                 message: if status < 400 {
@@ -254,18 +264,21 @@ async fn test_provider_impl(pool: &Pool, id: &str, app: AppType) -> Result<TestR
                 },
             })
         }
-        Err(e) => Ok(TestResult {
-            ok: false,
-            status: None,
-            latency_ms: latency,
-            message: if e.is_timeout() {
-                "超时(10s)".into()
-            } else if e.is_connect() {
-                "连接失败".into()
-            } else {
-                e.to_string()
-            },
-        }),
+        Err(e) => {
+            persist(false, latency);
+            Ok(TestResult {
+                ok: false,
+                status: None,
+                latency_ms: latency,
+                message: if e.is_timeout() {
+                    "超时(10s)".into()
+                } else if e.is_connect() {
+                    "连接失败".into()
+                } else {
+                    e.to_string()
+                },
+            })
+        }
     }
 }
 
