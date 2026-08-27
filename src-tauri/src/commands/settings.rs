@@ -69,3 +69,29 @@ pub fn set_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
         app.autolaunch().disable().map_err(|e| e.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn retention_days_defaults_and_clamps() {
+        let key = "ab".repeat(32);
+        let dir = std::env::temp_dir().join(format!("keyway_kv_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let pool = crate::db::init_pool(dir.join("t.db"), &key).unwrap();
+        // 未设置 → 默认 30
+        assert_eq!(usage_retention_days(&pool), 30);
+        // 越界值收敛到 1..=365
+        crate::db::kv::set(&pool, "usage.retention_days", "0").unwrap();
+        assert_eq!(usage_retention_days(&pool), 1);
+        crate::db::kv::set(&pool, "usage.retention_days", "9000").unwrap();
+        assert_eq!(usage_retention_days(&pool), 365);
+        // 合法值原样返回;垃圾值回落默认
+        crate::db::kv::set(&pool, "usage.retention_days", "14").unwrap();
+        assert_eq!(usage_retention_days(&pool), 14);
+        crate::db::kv::set(&pool, "usage.retention_days", "abc").unwrap();
+        assert_eq!(usage_retention_days(&pool), 30);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}

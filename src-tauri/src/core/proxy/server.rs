@@ -36,15 +36,30 @@ pub async fn run(state: AppState, addr: &str) -> Result<()> {
 
 /// 在既有 listener 上启动代理(测试用随机端口)。
 pub async fn run_listener(state: AppState, listener: tokio::net::TcpListener) -> Result<()> {
+    let health_state = state.clone();
     let app = Router::new()
         .route(
             "/healthz",
-            axum::routing::get(|| async {
-                axum::Json(serde_json::json!({
-                    "status": "ok",
-                    "app": "keyway",
-                    "version": env!("CARGO_PKG_VERSION"),
-                }))
+            axum::routing::get(move || {
+                let state = health_state.clone();
+                async move {
+                    // 各分组当前供应商名(无则 null),便于脚本一眼确认路由去向
+                    let mut current = serde_json::Map::new();
+                    for app in [AppType::Claude, AppType::Codex, AppType::Gemini] {
+                        let name = crate::db::provider_dao::get_current(&state.db, app)
+                            .ok()
+                            .flatten()
+                            .map(|p| serde_json::Value::String(p.name));
+                        current
+                            .insert(app.as_str().into(), name.unwrap_or(serde_json::Value::Null));
+                    }
+                    axum::Json(serde_json::json!({
+                        "status": "ok",
+                        "app": "keyway",
+                        "version": env!("CARGO_PKG_VERSION"),
+                        "current": current,
+                    }))
+                }
             }),
         )
         .fallback(proxy_handler)

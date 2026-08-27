@@ -739,4 +739,7 @@ async fn healthz_reports_status_and_version() {
     assert_eq!(resp["status"], "ok");
     assert_eq!(resp["app"], "keyway");
     assert!(resp["version"].as_str().is_some_and(|v| !v.is_empty()));
+    // 未配置任何供应商时,各分组 current 为 null
+    assert!(resp["current"].get("claude").is_some());
+    assert!(resp["current"]["claude"].is_null());
 }
