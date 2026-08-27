@@ -243,7 +243,7 @@
         </ul>
         <p style="margin-top:18px;" data-i18n="gS5p2"><b>自动故障转移</b> —— 上游 5xx 或超时时,自动重试备用供应商,长任务不中断。把多个供应商加入候选链即可。发生回退时响应头带 <code>x-keyway-fallback</code>(链路与原因,如 A-&gt;B(502))。</p>
         <p style="margin-top:18px;" data-i18n="gS5p3"><b>用量与日志</b> —— 侧栏「用量」按 CLI / 供应商汇总 token 与成功率;「日志」可查最近 100 条请求(模型、上下行 token、状态码),排障一目了然。</p>
-        <p style="margin-top:18px;" data-i18n="gS5p4"><b>配置档案与备份</b> —— 「设置」里可将当前供应商组合保存为档案(工作 / 个人 / 测试一键整组切换),也可导出 JSON 备份(不含密钥,系统保存对话框自选位置),换机无忧。</p>
+        <p style="margin-top:18px;" data-i18n="gS5p4"><b>配置档案与备份</b> —— 「设置」里可将当前供应商组合保存为档案(工作 / 个人 / 测试一键整组切换),也可导出 JSON 备份(不含密钥,系统保存对话框自选位置),换机无忧;另支持「配置导出/导入」:供应商、路由规则与预设导出为可分享的 JSON,导入按名称自动合并,团队共享配置一步到位。</p>
       </section>
 
       <section class="step" id="faq">
@@ -324,7 +324,7 @@
           gS5l6: "Scene-based split: besides long-context, designate providers for deep-think (thinking enabled or reasoning/thinking tier models) and background-lite (haiku / mini / flash / nano tier tasks) — premium models where they matter, cheap channels for small jobs.",
           gS5p2: "Automatic failover — on upstream 5xx or timeouts, requests retry backup providers automatically. Add providers to the candidate chain to enable it. Failed-over responses carry an x-keyway-fallback header (chain and reason, e.g. A->B(502)).",
           gS5p3: "Usage & logs — the Usage page aggregates tokens and success rates by CLI and provider; Logs shows the last 100 requests (model, tokens in/out, status) for easy debugging.",
-          gS5p4: "Profiles & backup — save the current provider set as a profile (work / personal / testing, one-tap switching) and export a JSON backup via the system save dialog (keys excluded) for moving machines.",
+          gS5p4: "Profiles & backup — save the current provider set as a profile (work / personal / testing, one-tap switching) and export a JSON backup via the system save dialog (keys excluded) for moving machines. Config export / import shares providers, route rules and presets as a portable JSON — imports merge by name, so teams can share setups in one step.",
           gFaqK: "Troubleshooting", gFaqH2: "Having trouble?",
           gFaqL1: "401 / 403 responses carry an x-keyway-hint header — follow it to check key validity and quota.",
           gFaqL2: "Switch not taking effect: make sure the CLI is taken over (see the badge on its group page), or that env vars point to 127.0.0.1:9527.",
