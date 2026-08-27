@@ -200,7 +200,8 @@ fn group_by(pool: &Pool, app_type: &str, column: &str, limit: i64) -> Result<Vec
     let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
     let sql = format!(
         "SELECT {column} AS k, COUNT(*), COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0),
-                COALESCE(AVG(CASE WHEN duration_ms > 0 THEN duration_ms END),0)
+                COALESCE(AVG(CASE WHEN duration_ms > 0 THEN duration_ms END),0),
+                COALESCE(SUM(CASE WHEN status >= 400 THEN 1 ELSE 0 END),0)
          FROM usage_log WHERE app_type = ?1 AND {column} IS NOT NULL AND {column} != ''
          GROUP BY k ORDER BY (SUM(input_tokens)+SUM(output_tokens)) DESC LIMIT {limit}"
     );
@@ -212,7 +213,7 @@ fn group_by(pool: &Pool, app_type: &str, column: &str, limit: i64) -> Result<Vec
                 requests: r.get(1)?,
                 input_tokens: r.get(2)?,
                 output_tokens: r.get(3)?,
-                errors: 0, // 分组明细暂不统计错误数
+                errors: r.get(5)?,
             },
             avg_duration_ms: r.get(4)?,
         })

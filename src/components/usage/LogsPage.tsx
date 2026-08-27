@@ -58,7 +58,8 @@ export function LogsPage({
         (!kw ||
           (e.model ?? "").toLowerCase().includes(kw) ||
           nameOf(e.provider_id).toLowerCase().includes(kw) ||
-          (e.rule_pattern ?? "").toLowerCase().includes(kw)),
+          (e.rule_pattern ?? "").toLowerCase().includes(kw) ||
+          (e.error_note ?? "").toLowerCase().includes(kw)),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, q, prov, onlyErrors, providers]);

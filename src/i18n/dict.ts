@@ -246,6 +246,7 @@ export const zh = {
   "dash.byModel": "按模型",
   "dash.empty": "暂无数据",
   "dash.reqUnit": "次",
+  "dash.fails": "失败 {n}",
   "dash.note": "转发即计量,零额外请求;数据仅存本机加密库。",
   // 关于
   "about.desc": "AI CLI 的本地供应中心:切换即生效、免重启,API Key 加密不落盘。",
@@ -546,6 +547,7 @@ export const en: Dict = {
   "dash.byModel": "By Model",
   "dash.empty": "No data yet",
   "dash.reqUnit": "reqs",
+  "dash.fails": "{n} failed",
   "dash.note": "Metered as it forwards, zero extra requests; data stays in your local encrypted store.",
   "github.repo": "GitHub · MIT",
   "err.generic": "Something went wrong",

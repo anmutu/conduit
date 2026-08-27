@@ -11,8 +11,8 @@ interface UsageSummary {
   errors?: number;
 }
 interface NamedUsage extends UsageSummary {
-  key: string;
   avg_duration_ms?: number;
+  key: string;
 }
 interface DayUsage {
   date: string;
@@ -194,7 +194,12 @@ export function UsagePage({
             rows={data.by_provider.map((p) => ({
               label: nameOf(p.key),
               value: p.input_tokens + p.output_tokens,
-              sub: `${p.requests} ${t("dash.reqUnit")}`,
+              sub:
+                `${p.requests} ${t("dash.reqUnit")}` +
+                ((p.errors ?? 0) > 0 ? ` · ${t("dash.fails", { n: p.errors ?? 0 })}` : "") +
+                (p.avg_duration_ms && p.avg_duration_ms > 0
+                  ? ` · ${(p.avg_duration_ms / 1000).toFixed(1)}s`
+                  : ""),
             }))}
             format={fmt}
           />
