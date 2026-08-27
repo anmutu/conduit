@@ -749,3 +749,147 @@ async fn healthz_reports_status_and_version() {
     assert!(resp["current"].get("claude").is_some());
     assert!(resp["current"]["claude"].is_null());
 }
+
+/// Responses 桥接(非流式):Codex /v1/responses → chat/completions 上游,响应转回 Responses 形态。
+#[tokio::test]
+async fn responses_bridge_non_streaming() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let app = Router::new().route(
+        "/v1/chat/completions",
+        post(|body: String| async move {
+            let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert_eq!(v["messages"][0]["role"], "system");
+            assert_eq!(v["messages"][0]["content"], "be brief");
+            assert_eq!(v["messages"][1]["content"], "hi");
+            assert_eq!(v["tools"][0]["function"]["name"], "ls");
+            assert_eq!(v["max_tokens"], 100);
+            axum::Json(serde_json::json!({
+                "id": "chatcmpl-1", "model": "gpt-test",
+                "choices": [{ "finish_reason": "stop", "message": { "content": "hello" } }],
+                "usage": { "prompt_tokens": 5, "completion_tokens": 2 }
+            }))
+        }),
+    );
+    tokio::spawn(async move { axum::serve(listener, app).await });
+
+    let key = "ab".repeat(32);
+    let db_dir = std::env::temp_dir().join(format!("conduit_e2e_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&db_dir).unwrap();
+    let pool = db::init_pool(db_dir.join("test.db"), &key).unwrap();
+
+    let mut p = test_provider("pr", "ChatOnly", format!("http://{addr}"));
+    p.app_type = AppType::Codex;
+    p.endpoints
+        .insert("openai".into(), format!("http://{addr}/v1"));
+    provider_dao::insert(&pool, &p).unwrap();
+    provider_dao::set_current(&pool, "pr", AppType::Codex).unwrap();
+    db::kv::set(&pool, "responses.bridge.pr", "1").unwrap();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let proxy_addr = listener.local_addr().unwrap();
+    tokio::spawn(proxy::server::run_listener(
+        AppState::new(pool.clone()),
+        listener,
+    ));
+
+    let client = reqwest::Client::new();
+    let resp: serde_json::Value = client
+        .post(format!("http://{proxy_addr}/v1/responses"))
+        .json(&serde_json::json!({
+            "model": "gpt-test", "stream": false, "max_output_tokens": 100,
+            "instructions": "be brief",
+            "input": [{ "role": "user", "content": "hi" }],
+            "tools": [{ "type": "function", "name": "ls", "description": "list",
+                "parameters": {"type":"object"} }]
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    assert_eq!(resp["object"], "response", "应返回 Responses 形态");
+    assert_eq!(resp["status"], "completed");
+    assert_eq!(resp["output"][0]["content"][0]["text"], "hello");
+    assert_eq!(resp["usage"]["input_tokens"], 5);
+    assert_eq!(resp["usage"]["output_tokens"], 2);
+}
+
+/// Responses 桥接(流式):chat SSE → Responses SSE 事件序列。
+#[tokio::test]
+async fn responses_bridge_streaming() {
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let app = Router::new().route(
+        "/v1/chat/completions",
+        post(|| async move {
+            let body = concat!(
+                "data: {\"id\":\"1\",\"model\":\"gpt-test\",\"choices\":[{\"delta\":{\"content\":\"Hel\"}}]}\n\n",
+                "data: {\"choices\":[{\"delta\":{\"content\":\"lo\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2}}\n\n",
+                "data: [DONE]\n\n",
+            );
+            ([(axum::http::header::CONTENT_TYPE, "text/event-stream")], body).into_response()
+        }),
+    );
+    tokio::spawn(async move { axum::serve(listener, app).await });
+
+    let key = "ab".repeat(32);
+    let db_dir = std::env::temp_dir().join(format!("conduit_e2e_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&db_dir).unwrap();
+    let pool = db::init_pool(db_dir.join("test.db"), &key).unwrap();
+
+    let mut p = test_provider("ps", "ChatOnlyS", format!("http://{addr}"));
+    p.app_type = AppType::Codex;
+    p.endpoints
+        .insert("openai".into(), format!("http://{addr}/v1"));
+    provider_dao::insert(&pool, &p).unwrap();
+    provider_dao::set_current(&pool, "ps", AppType::Codex).unwrap();
+    db::kv::set(&pool, "responses.bridge.ps", "1").unwrap();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let proxy_addr = listener.local_addr().unwrap();
+    tokio::spawn(proxy::server::run_listener(
+        AppState::new(pool.clone()),
+        listener,
+    ));
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("http://{proxy_addr}/v1/responses"))
+        .json(&serde_json::json!({
+            "model": "gpt-test", "stream": true,
+            "input": [{ "role": "user", "content": "hi" }]
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let ct = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    assert!(ct.starts_with("text/event-stream"), "content-type={ct}");
+    let body = resp.text().await.unwrap();
+    assert!(
+        body.contains("response.output_item.added"),
+        "缺 output_item.added:\n{body}"
+    );
+    assert!(
+        body.contains("\"delta\":\"Hel\""),
+        "缺文本 delta Hel:\n{body}"
+    );
+    assert!(
+        body.contains("\"delta\":\"lo\""),
+        "缺文本 delta lo:\n{body}"
+    );
+    assert!(body.contains("response.completed"), "缺 completed:\n{body}");
+    assert!(body.contains("\"input_tokens\":3"), "缺 usage:\n{body}");
+}

@@ -114,6 +114,22 @@ pub async fn test_all_providers(
     Ok(r)
 }
 
+/// Responses 桥接开关:开启后该供应商把 Codex 的 /v1/responses 请求
+/// 转成 chat/completions 转发(适用于不支持 Responses API 的中转站)。
+#[tauri::command]
+pub fn set_responses_bridge(
+    state: State<'_, AppState>,
+    id: String,
+    enabled: bool,
+) -> Result<(), String> {
+    let key = format!("responses.bridge.{id}");
+    if enabled {
+        crate::db::kv::set(&state.db, &key, "1").map_err(|e| e.to_string())
+    } else {
+        crate::db::kv::del(&state.db, &key).map_err(|e| e.to_string())
+    }
+}
+
 /// 查询供应商余额(骨架:接口未定,统一返回 None,前端不展示)。
 #[tauri::command]
 pub fn get_provider_balance(
@@ -128,4 +144,15 @@ pub fn get_provider_balance(
 #[tauri::command]
 pub fn reorder_providers(state: State<'_, AppState>, ids: Vec<String>) -> Result<(), String> {
     crate::db::provider_dao::reorder(&state.db, &ids).map_err(|e| e.to_string())
+}
+
+/// 读取 /v1/responses 桥接开关(某供应商)。
+#[tauri::command]
+pub fn get_responses_bridge(state: State<'_, AppState>, id: String) -> Result<bool, String> {
+    Ok(
+        crate::db::kv::get(&state.db, &format!("responses.bridge.{id}"))
+            .map_err(|e| e.to_string())?
+            .as_deref()
+            == Some("1"),
+    )
 }

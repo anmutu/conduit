@@ -57,10 +57,19 @@ export function EditProviderDialog({
   const [apiKey, setApiKey] = useState("");
   const [urlError, setUrlError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  /** /v1/responses → chat/completions 桥接(仅 codex 供应商有意义) */
+  const [bridge, setBridge] = useState(false);
 
   useEffect(() => {
     if (provider) {
       setName(provider.name);
+      if (provider.app_type === "codex") {
+        invoke<boolean>("get_responses_bridge", { id: provider.id })
+          .then(setBridge)
+          .catch(() => setBridge(false));
+      } else {
+        setBridge(false);
+      }
       // 兼容旧数据:endpoints 为空时退回 base_url 记为 anthropic
       const eps = { ...provider.endpoints };
       if (Object.keys(eps).length === 0 && provider.base_url) {
@@ -126,6 +135,9 @@ export function EditProviderDialog({
           id: provider.id,
           apiKey: apiKey.trim(),
         });
+      }
+      if (provider.app_type === "codex") {
+        await invoke("set_responses_bridge", { id: provider.id, enabled: bridge });
       }
       onSaved(provider);
       onOpenChange(false);
@@ -212,6 +224,18 @@ export function EditProviderDialog({
               placeholder={t("dialog.keyPh")}
             />
           </div>
+
+          {provider?.app_type === "codex" && (
+            <label className="flex items-start gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={bridge}
+                onChange={(e) => setBridge(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>{t("dialog.responsesBridge")}</span>
+            </label>
+          )}
 
           <DialogFooter>
             <Button

@@ -327,42 +327,64 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             AnthropicUpstream,
             /// 反向:Gemini 协议客户端(generateContent)→ OpenAI 上游
             GeminiClientOpenai,
+            /// Responses 协议客户端(Codex,/v1/responses)→ chat/completions 上游。
+            /// 按供应商 KV responses.bridge.{pid} 显式开启。
+            ResponsesBridge,
         }
         let mut conv = Conv::None;
         // /v1/responses 路径的请求体是 Responses API,不在反向转换范围
         let reversible_path = path.contains("chat/completions");
-        let base = match provider.endpoint(protocol) {
-            Some(b) => b.trim_end_matches('/').to_string(),
-            None => {
-                if protocol == crate::types::Protocol::Anthropic {
-                    if let Some(b) = provider.endpoint(crate::types::Protocol::Openai) {
-                        conv = Conv::Openai;
-                        b.trim_end_matches('/').to_string()
-                    } else if let Some(b) = provider.endpoint(crate::types::Protocol::Gemini) {
-                        conv = Conv::Gemini;
-                        b.trim_end_matches('/').to_string()
+        // Responses 桥接:Codex 的 /v1/responses 请求 → chat/completions 上游。
+        // 显式开关(官方 OpenAI 原生支持 /responses,不需要桥接)。
+        let responses_bridge = protocol == crate::types::Protocol::Openai
+            && path.contains("/responses")
+            && crate::db::kv::get(&state.db, &format!("responses.bridge.{}", provider.id))
+                .ok()
+                .flatten()
+                .as_deref()
+                == Some("1");
+        let base = if responses_bridge {
+            match provider.endpoint(crate::types::Protocol::Openai) {
+                Some(b) => b.trim_end_matches('/').to_string(),
+                None => provider.base_url.trim_end_matches('/').to_string(),
+            }
+        } else {
+            match provider.endpoint(protocol) {
+                Some(b) => b.trim_end_matches('/').to_string(),
+                None => {
+                    if protocol == crate::types::Protocol::Anthropic {
+                        if let Some(b) = provider.endpoint(crate::types::Protocol::Openai) {
+                            conv = Conv::Openai;
+                            b.trim_end_matches('/').to_string()
+                        } else if let Some(b) = provider.endpoint(crate::types::Protocol::Gemini) {
+                            conv = Conv::Gemini;
+                            b.trim_end_matches('/').to_string()
+                        } else {
+                            provider.base_url.trim_end_matches('/').to_string()
+                        }
+                    } else if protocol == crate::types::Protocol::Openai && reversible_path {
+                        if let Some(b) = provider.endpoint(crate::types::Protocol::Anthropic) {
+                            conv = Conv::AnthropicUpstream;
+                            b.trim_end_matches('/').to_string()
+                        } else {
+                            provider.base_url.trim_end_matches('/').to_string()
+                        }
+                    } else if protocol == crate::types::Protocol::Gemini {
+                        if let Some(b) = provider.endpoint(crate::types::Protocol::Openai) {
+                            conv = Conv::GeminiClientOpenai;
+                            b.trim_end_matches('/').to_string()
+                        } else {
+                            provider.base_url.trim_end_matches('/').to_string()
+                        }
                     } else {
                         provider.base_url.trim_end_matches('/').to_string()
                     }
-                } else if protocol == crate::types::Protocol::Openai && reversible_path {
-                    if let Some(b) = provider.endpoint(crate::types::Protocol::Anthropic) {
-                        conv = Conv::AnthropicUpstream;
-                        b.trim_end_matches('/').to_string()
-                    } else {
-                        provider.base_url.trim_end_matches('/').to_string()
-                    }
-                } else if protocol == crate::types::Protocol::Gemini {
-                    if let Some(b) = provider.endpoint(crate::types::Protocol::Openai) {
-                        conv = Conv::GeminiClientOpenai;
-                        b.trim_end_matches('/').to_string()
-                    } else {
-                        provider.base_url.trim_end_matches('/').to_string()
-                    }
-                } else {
-                    provider.base_url.trim_end_matches('/').to_string()
                 }
             }
         };
+        if responses_bridge {
+            conv = Conv::ResponsesBridge;
+        }
         let path: String = match conv {
             Conv::AnthropicUpstream => {
                 if base.ends_with("/v1") {
@@ -371,7 +393,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                     "/v1/messages".into()
                 }
             }
-            Conv::Openai | Conv::GeminiClientOpenai => {
+            Conv::Openai | Conv::GeminiClientOpenai | Conv::ResponsesBridge => {
                 // 端点一般以 /v1 结尾;没有则补上
                 if base.ends_with("/v1") {
                     "/chat/completions".into()
@@ -471,6 +493,10 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             },
             Conv::AnthropicUpstream => match serde_json::from_slice::<serde_json::Value>(&bytes) {
                 Ok(v) => bytes::Bytes::from(super::anthropic_upstream::request(&v).to_string()),
+                Err(_) => bytes.clone(),
+            },
+            Conv::ResponsesBridge => match serde_json::from_slice::<serde_json::Value>(&bytes) {
+                Ok(v) => bytes::Bytes::from(super::responses_convert::request(&v).to_string()),
                 Err(_) => bytes.clone(),
             },
             Conv::GeminiClientOpenai => match serde_json::from_slice::<serde_json::Value>(&bytes) {
@@ -581,6 +607,11 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                         super::gemini_client_convert::GeminiClientConvertStream::new(raw);
                     Response::new(Body::from_stream(MeteredStream::new(converted, meter2)))
                 }
+                Conv::ResponsesBridge => {
+                    let converted =
+                        super::responses_convert::ResponsesBridgeConvertStream::new(raw);
+                    Response::new(Body::from_stream(MeteredStream::new(converted, meter2)))
+                }
                 _ => {
                     let converted = super::convert::ConvertStream::new(raw);
                     Response::new(Body::from_stream(MeteredStream::new(converted, meter2)))
@@ -610,6 +641,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                     Conv::Gemini => super::gemini_convert::response(&v),
                     Conv::AnthropicUpstream => super::anthropic_upstream::response(&v),
                     Conv::GeminiClientOpenai => super::gemini_client_convert::response(&v),
+                    Conv::ResponsesBridge => super::responses_convert::response(&v),
                     _ => super::convert::response(&v),
                 })
                 .map(|v| v.to_string())

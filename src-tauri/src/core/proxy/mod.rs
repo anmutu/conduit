@@ -3,6 +3,7 @@ pub mod convert;
 pub mod gemini_client_convert;
 pub mod gemini_convert;
 pub mod meter;
+pub mod responses_convert;
 pub mod server;
 
 /// 代理默认监听地址。
