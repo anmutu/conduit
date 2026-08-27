@@ -1,5 +1,7 @@
 import type { AppType, Provider, UsageSummary } from "@/types";
 import { APP_PROTOCOL } from "@/types";
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { cn } from "@/lib/utils";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { ProviderActions } from "@/components/providers/ProviderActions";
@@ -51,6 +53,17 @@ export function ProviderCard({
   const endpoint = provider.endpoints?.[protocol];
   const displayUrl = endpoint || provider.base_url || t("provider.notConfigured");
   const shouldUseBlue = isCurrent && !!endpoint;
+  // codex 供应商:是否开启了 /v1/responses 桥接(卡片徽标)
+  const [bridged, setBridged] = useState(false);
+  useEffect(() => {
+    if (provider.app_type === "codex") {
+      invoke<boolean>("get_responses_bridge", { id: provider.id })
+        .then(setBridged)
+        .catch(() => setBridged(false));
+    } else {
+      setBridged(false);
+    }
+  }, [provider.id, provider.app_type]);
 
   return (
     <div
@@ -93,6 +106,11 @@ export function ProviderCard({
               {isCurrent && (
                 <span className="inline-flex items-center rounded-md bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
                   当前
+                </span>
+              )}
+              {bridged && (
+                <span className="inline-flex items-center rounded-md bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+                  {t("provider.responsesBridgeBadge")}
                 </span>
               )}
               {!provider.has_key && (
