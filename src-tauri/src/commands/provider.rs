@@ -188,3 +188,13 @@ pub async fn get_provider_balance(
         "is_free_tier": d.get("is_free_tier").and_then(|x| x.as_bool()).unwrap_or(false),
     }))
 }
+
+/// 更新供应商模型列表(逗号分隔字符串)。
+#[tauri::command]
+pub fn set_provider_models(
+    state: State<'_, AppState>,
+    id: String,
+    models: Vec<String>,
+) -> Result<(), String> {
+    provider_dao::set_models(&state.db, &id, &models).map_err(|e| e.to_string())
+}

@@ -371,3 +371,17 @@ pub fn reorder(pool: &Pool, ids: &[String]) -> Result<()> {
     tx.commit()?;
     Ok(())
 }
+
+/// 更新模型列表(卡片展示/CLI 提示用,不参与路由)。
+pub fn set_models(pool: &Pool, id: &str, models: &[String]) -> Result<()> {
+    let conn = get_conn(pool)?;
+    let models_json = serde_json::to_string(models)?;
+    let affected = conn.execute(
+        "UPDATE providers SET models = ?2 WHERE id = ?1",
+        params![id, models_json],
+    )?;
+    if affected == 0 {
+        return Err(anyhow!("供应商不存在: {id}"));
+    }
+    Ok(())
+}

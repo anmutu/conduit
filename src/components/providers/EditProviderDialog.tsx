@@ -55,6 +55,7 @@ export function EditProviderDialog({
   /** 三行端点编辑状态:protocol -> url(url 为空字符串表示该行新增未提交) */
   const [endpoints, setEndpoints] = useState<Record<string, string>>({});
   const [apiKey, setApiKey] = useState("");
+  const [models, setModels] = useState("");
   const [urlError, setUrlError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   /** /v1/responses → chat/completions 桥接(仅 codex 供应商有意义) */
@@ -81,6 +82,7 @@ export function EditProviderDialog({
       }
       setEndpoints(eps);
       setApiKey("");
+      setModels(provider.models.join(", "));
       setUrlError(null);
     }
   }, [provider, defaultProtocol]);
@@ -139,6 +141,10 @@ export function EditProviderDialog({
       if (provider.app_type === "codex") {
         await invoke("set_responses_bridge", { id: provider.id, enabled: bridge });
       }
+      await invoke("set_provider_models", {
+        id: provider.id,
+        models: models.split(",").map((m) => m.trim()).filter(Boolean),
+      });
       onSaved(provider);
       onOpenChange(false);
     } catch (err) {
@@ -222,6 +228,16 @@ export function EditProviderDialog({
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder={t("dialog.keyPh")}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="edit-models">{t("dialog.models")}</Label>
+            <Input
+              id="edit-models"
+              value={models}
+              onChange={(e) => setModels(e.target.value)}
+              placeholder={t("dialog.modelsPh")}
             />
           </div>
 

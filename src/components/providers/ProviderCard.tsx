@@ -113,6 +113,19 @@ export function ProviderCard({
                   {t("provider.responsesBridgeBadge")}
                 </span>
               )}
+              {provider.models.slice(0, 3).map((m) => (
+                <span
+                  key={m}
+                  className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                >
+                  {m}
+                </span>
+              ))}
+              {provider.models.length > 3 && (
+                <span className="text-[10px] text-muted-foreground">
+                  +{provider.models.length - 3}
+                </span>
+              )}
               {!provider.has_key && (
                 <span className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                   无 API Key
