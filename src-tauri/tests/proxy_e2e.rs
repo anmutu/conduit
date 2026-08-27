@@ -346,3 +346,65 @@ async fn convert_streaming_openai_sse_to_anthropic_sse() {
     assert!(body.contains("\"stop_reason\":\"end_turn\""), "{body}");
     assert!(body.contains("event: message_stop"), "{body}");
 }
+
+/// 协议转换:Claude(Anthropic 协议)→ 只有 Gemini 端点的供应商(非流式)。
+#[tokio::test]
+async fn convert_anthropic_client_to_gemini_upstream() {
+    // mock Gemini 上游:/v1beta/models/{model}:generateContent
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let app = Router::new().route(
+        "/v1beta/models/{modelverb}",
+        post(|body: String| async move {
+            let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert_eq!(v["contents"][0]["parts"][0]["text"], "hi");
+            assert_eq!(v["systemInstruction"]["parts"][0]["text"], "brief");
+            axum::Json(serde_json::json!({
+                "modelVersion": "gemini-test",
+                "candidates": [{ "finishReason": "STOP", "content": { "parts": [
+                    { "text": "hello from gemini" }
+                ]}}],
+                "usageMetadata": { "promptTokenCount": 3, "candidatesTokenCount": 4 }
+            }))
+        }),
+    );
+    tokio::spawn(async move { axum::serve(listener, app).await });
+
+    let key = "ab".repeat(32);
+    let db_dir = std::env::temp_dir().join(format!("conduit_e2e_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&db_dir).unwrap();
+    let pool = db::init_pool(db_dir.join("test.db"), &key).unwrap();
+    let mut p = test_provider("pg", "GeminiOnly", format!("http://{addr}"));
+    p.endpoints
+        .insert("gemini".into(), format!("http://{addr}/v1beta"));
+    provider_dao::insert(&pool, &p).unwrap();
+    provider_dao::set_current(&pool, "pg", AppType::Claude).unwrap();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let proxy_addr = listener.local_addr().unwrap();
+    tokio::spawn(proxy::server::run_listener(
+        AppState::new(pool.clone()),
+        listener,
+    ));
+
+    let client = reqwest::Client::new();
+    let resp: serde_json::Value = client
+        .post(format!("http://{proxy_addr}/v1/messages"))
+        .json(&serde_json::json!({
+            "model": "gemini-test", "max_tokens": 50, "stream": false,
+            "system": "brief",
+            "messages": [{ "role": "user", "content": "hi" }]
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    assert_eq!(resp["type"], "message", "应返回 Anthropic message 形态");
+    assert_eq!(resp["content"][0]["text"], "hello from gemini");
+    assert_eq!(resp["stop_reason"], "end_turn");
+    assert_eq!(resp["usage"]["input_tokens"], 3);
+    assert_eq!(resp["usage"]["output_tokens"], 4);
+}

@@ -212,15 +212,24 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         let api_key = crate::services::keys::load_async(&state.db, provider).await;
 
         // 端点选择:优先该协议端点(v2),退回 base_url(旧数据)。
-        // 协议转换:app 是 Anthropic 协议但供应商只有 OpenAI 端点时,
-        // 自动改走 /chat/completions 并做 Anthropic↔OpenAI 双向转换。
-        let mut convert_to_openai = false;
+        // 协议转换:app 是 Anthropic 协议但供应商只有 OpenAI/Gemini 端点时,
+        // 自动改走对应上游路径并做双向转换(对 CLI 透明)。
+        #[derive(PartialEq, Clone, Copy)]
+        enum Conv {
+            None,
+            Openai,
+            Gemini,
+        }
+        let mut conv = Conv::None;
         let base = match provider.endpoint(protocol) {
             Some(b) => b.trim_end_matches('/').to_string(),
             None => {
                 if protocol == crate::types::Protocol::Anthropic {
                     if let Some(b) = provider.endpoint(crate::types::Protocol::Openai) {
-                        convert_to_openai = true;
+                        conv = Conv::Openai;
+                        b.trim_end_matches('/').to_string()
+                    } else if let Some(b) = provider.endpoint(crate::types::Protocol::Gemini) {
+                        conv = Conv::Gemini;
                         b.trim_end_matches('/').to_string()
                     } else {
                         provider.base_url.trim_end_matches('/').to_string()
@@ -230,15 +239,37 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                 }
             }
         };
-        let path = if convert_to_openai {
-            // 端点一般以 /v1 结尾;没有则补上
-            if base.ends_with("/v1") {
-                "/chat/completions"
-            } else {
-                "/v1/chat/completions"
+        let path: String = match conv {
+            Conv::Openai => {
+                // 端点一般以 /v1 结尾;没有则补上
+                if base.ends_with("/v1") {
+                    "/chat/completions".into()
+                } else {
+                    "/v1/chat/completions".into()
+                }
             }
-        } else {
-            path.as_str()
+            Conv::Gemini => {
+                // Gemini 按模型生成路径;无模型名时无法转换,回退直连
+                match &model {
+                    Some(m) => {
+                        let verb = if wants_stream {
+                            "streamGenerateContent?alt=sse"
+                        } else {
+                            "generateContent"
+                        };
+                        if base.ends_with("/v1beta") {
+                            format!("/models/{m}:{verb}")
+                        } else {
+                            format!("/v1beta/models/{m}:{verb}")
+                        }
+                    }
+                    None => {
+                        conv = Conv::None;
+                        path.to_string()
+                    }
+                }
+            }
+            Conv::None => path.to_string(),
         };
         let mut upstream = format!("{base}{path}");
         for prefix in ["/v1", "/v1beta"] {
@@ -252,7 +283,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         if let Some(q) = &query {
             query_pairs.push(q.clone());
         }
-        if protocol == crate::types::Protocol::Gemini {
+        if protocol == crate::types::Protocol::Gemini || conv == Conv::Gemini {
             if let Some(key) = &api_key {
                 query_pairs.push(format!("key={key}"));
             }
@@ -262,10 +293,10 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             upstream.push_str(&query_pairs.join("&"));
         }
 
-        // 凭证注入
+        // 凭证注入(Gemini 走 query key;转换到 Gemini 上游同理,上面已处理)
         let mut req_headers = base_headers.clone();
         if let Some(key) = &api_key {
-            if protocol != crate::types::Protocol::Gemini {
+            if protocol != crate::types::Protocol::Gemini && conv != Conv::Gemini {
                 if let Ok(val) = HeaderValue::from_str(&format!("Bearer {key}")) {
                     req_headers.insert(HeaderName::from_static("authorization"), val);
                 }
@@ -275,14 +306,17 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             }
         }
 
-        // 协议转换:请求体 Anthropic → OpenAI
-        let send_body = if convert_to_openai {
-            match serde_json::from_slice::<serde_json::Value>(&bytes) {
+        // 协议转换:请求体 Anthropic → OpenAI / Gemini
+        let send_body = match conv {
+            Conv::None => bytes.clone(),
+            Conv::Openai => match serde_json::from_slice::<serde_json::Value>(&bytes) {
                 Ok(v) => bytes::Bytes::from(super::convert::request(&v).to_string()),
                 Err(_) => bytes.clone(),
-            }
-        } else {
-            bytes.clone()
+            },
+            Conv::Gemini => match serde_json::from_slice::<serde_json::Value>(&bytes) {
+                Ok(v) => bytes::Bytes::from(super::gemini_convert::request(&v).to_string()),
+                Err(_) => bytes.clone(),
+            },
         };
 
         let send_result = state
@@ -342,7 +376,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             .and_then(|v| v.to_str().ok())
             .map(|v| v.contains("text/event-stream"))
             .unwrap_or(false);
-        if convert_to_openai && status.is_success() && (wants_stream || upstream_is_sse) {
+        if conv != Conv::None && status.is_success() && (wants_stream || upstream_is_sse) {
             let raw = resp
                 .bytes_stream()
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
@@ -354,8 +388,16 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                 status.as_u16(),
                 &rule_pattern,
             );
-            let converted = super::convert::ConvertStream::new(raw);
-            let mut out = Response::new(Body::from_stream(MeteredStream::new(converted, meter2)));
+            let mut out = match conv {
+                Conv::Gemini => {
+                    let converted = super::gemini_convert::GeminiConvertStream::new(raw);
+                    Response::new(Body::from_stream(MeteredStream::new(converted, meter2)))
+                }
+                _ => {
+                    let converted = super::convert::ConvertStream::new(raw);
+                    Response::new(Body::from_stream(MeteredStream::new(converted, meter2)))
+                }
+            };
             *out.status_mut() = status;
             out_headers.remove("content-length");
             out_headers.insert(
@@ -365,7 +407,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             *out.headers_mut() = out_headers;
             return out;
         }
-        if convert_to_openai && status.is_success() {
+        if conv != Conv::None && status.is_success() {
             // 非流式:读全量 → JSON 转换
             let body_bytes = match resp.bytes().await {
                 Ok(b) => b,
@@ -376,7 +418,10 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             };
             let converted = serde_json::from_slice::<serde_json::Value>(&body_bytes)
                 .ok()
-                .map(|v| super::convert::response(&v))
+                .map(|v| match conv {
+                    Conv::Gemini => super::gemini_convert::response(&v),
+                    _ => super::convert::response(&v),
+                })
                 .map(|v| v.to_string())
                 .unwrap_or_else(|| String::from_utf8_lossy(&body_bytes).into_owned());
             let mut meter3 = meter_for(
