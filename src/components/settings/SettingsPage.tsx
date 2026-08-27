@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
-import { save } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import {
   ChevronDown,
   ChevronUp,
@@ -509,8 +509,14 @@ export function SettingsPage({
             onClick={async () => {
               setBackupBusy(true);
               try {
+                // 先弹系统文件选择框;取消则回落"数据目录最新备份"
+                const picked = await open({
+                  multiple: false,
+                  filters: [{ name: "JSON", extensions: ["json"] }],
+                });
                 const [created, skipped] = await invoke<[number, number]>(
                   "import_backup",
+                  { path: typeof picked === "string" ? picked : null },
                 );
                 onSuccess(t("settings.restoreDone", { c: created, s: skipped }));
               } catch (e) {
@@ -530,7 +536,23 @@ export function SettingsPage({
         title={t("settings.proxyRow")}
         desc={settings ? t("settings.proxyRowDesc", { addr: settings.proxy_addr }) : "…"}
       >
-        <span className="text-xs text-muted-foreground">v{version}</span>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+            title={t("settings.copyHealthz")}
+            onClick={() => {
+              void navigator.clipboard.writeText(
+                `curl http://127.0.0.1:9527/healthz`,
+              );
+              onSuccess(t("settings.healthzCopied"));
+            }}
+          >
+            {t("settings.copyHealthz")}
+          </Button>
+          <span className="text-xs text-muted-foreground">v{version}</span>
+        </div>
       </Row>
 
       <div className="flex justify-end pt-2">
