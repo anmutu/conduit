@@ -37,9 +37,37 @@ fn build_config(state: &AppState) -> Result<Value, String> {
         .filter(|(k, _)| CONFIG_KEYS.iter().any(|p| k.starts_with(p)))
         .map(|(k, v)| json!({ "key": k, "value": v }))
         .collect();
+    // 配置档案:name → {app → 供应商名}(用名称而非 ID,导入端可移植)
+    let profiles: Value = kv::get(&state.db, "profiles")
+        .map_err(|e| e.to_string())?
+        .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+        .map(|ps| {
+            let by_id: std::collections::HashMap<String, String> =
+                provider_dao::list_all(&state.db)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|p| (p.id, p.name))
+                    .collect();
+            let mut out = json!({});
+            if let Some(obj) = ps.as_object() {
+                for (name, apps) in obj {
+                    let mut m = json!({});
+                    if let Some(apps) = apps.as_object() {
+                        for (app, pid) in apps {
+                            if let Some(n) = pid.as_str().and_then(|id| by_id.get(id)) {
+                                m[app] = json!(n);
+                            }
+                        }
+                    }
+                    out[name] = m;
+                }
+            }
+            out
+        })
+        .unwrap_or(json!({}));
     Ok(
         json!({ "format": "keyway-config", "version": 1, "providers": providers,
-                "route_rules": rules, "presets": presets }),
+                "route_rules": rules, "presets": presets, "profiles": profiles }),
     )
 }
 
@@ -186,6 +214,34 @@ fn do_import(db: &crate::db::Pool, cfg: &Value) -> Result<(usize, usize), String
         }
         let _ = kv::set(state_db, &key, &val);
     }
+    // 配置档案:按名称解析回本机 ID(供应商缺失的分组条目丢弃)
+    if let Some(ps) = cfg.get("profiles").and_then(|v| v.as_object()) {
+        let by_name: std::collections::HashMap<String, String> = provider_dao::list_all(db)
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .map(|p| (format!("{}:{}", p.app_type.as_str(), p.name), p.id))
+            .collect();
+        let mut out = serde_json::Map::new();
+        for (name, apps) in ps {
+            let mut m = serde_json::Map::new();
+            if let Some(apps) = apps.as_object() {
+                for (app, pname) in apps {
+                    if let Some(pid) = pname
+                        .as_str()
+                        .and_then(|n| by_name.get(&format!("{app}:{n}")))
+                    {
+                        m.insert(app.clone(), json!(pid));
+                    }
+                }
+            }
+            if !m.is_empty() {
+                out.insert(name.clone(), Value::Object(m));
+            }
+        }
+        if !out.is_empty() {
+            let _ = kv::set(db, "profiles", &Value::Object(out).to_string());
+        }
+    }
     Ok((created, rules_added))
 }
 
@@ -228,11 +284,13 @@ mod tests {
         .unwrap();
         crate::db::route_dao::insert(&pool, "claude", "deep", "src-a", "contains").unwrap();
         kv::set(&pool, "responses.bridge.src-a", "1").unwrap();
+        kv::set(&pool, "profiles", r#"{"work":{"claude":"src-a"}}"#).unwrap();
 
         let cfg = build_config(&state).unwrap();
         assert_eq!(cfg["providers"].as_array().unwrap().len(), 1);
         assert_eq!(cfg["route_rules"].as_array().unwrap().len(), 1);
         assert_eq!(cfg["presets"].as_array().unwrap().len(), 1);
+        assert_eq!(cfg["profiles"]["work"]["claude"], "RelayA");
         // 密钥与用量不在导出里
         let raw = cfg.to_string();
         assert!(!raw.contains("api_key"));
@@ -258,5 +316,11 @@ mod tests {
         let bridged = kv::get(&pool2, &format!("responses.bridge.{}", new_p.id)).unwrap();
         // 旧 ID 的预设值在本机无对应供应商 → 被跳过
         assert_ne!(bridged.as_deref(), Some("1"));
+        // profile 按名称映射到本机新 ID
+        let profiles = kv::get(&pool2, "profiles").unwrap().unwrap();
+        assert!(
+            profiles.contains(&format!(r#""{}""#, new_p.id)),
+            "{profiles}"
+        );
     }
 }
