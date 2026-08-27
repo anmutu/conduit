@@ -207,7 +207,7 @@
           <li data-i18n="gS4l2"><b>正在运行的 claude / codex 会话无需重启</b>,发下一条消息就已切换。</li>
           <li data-i18n="gS4l3">同一供应商可按协议复用到多个 CLI(如一个中转 Key 同时供 Claude Code 和 Codex)。</li>
           <li data-i18n="gS4l4"><b>自动协议转换(全向)</b>:只配置了 OpenAI 兼容或 Gemini 端点的供应商,也能直接给 Claude Code 等 Anthropic 协议 CLI 使用;反过来,只有 Anthropic 或 OpenAI 端点的渠道也能供 Codex、Gemini CLI 使用 —— Keyway 在本地完成请求/响应/流式与工具调用的双向转换,对 CLI 完全透明。</li>
-          <li data-i18n="gS4l5"><b>MCP 服务器统一管理</b>:在 Keyway 里定义一次 MCP 服务器,自动写入 Claude Code 与 Codex 的配置;手工配置的条目不受影响。</li>
+          <li data-i18n="gS4l5"><b>MCP 服务器统一管理</b>:在 Keyway 里定义一次 MCP 服务器,自动写入 Claude Code 与 Codex 的配置(stdio 支持环境变量);手工配置的条目不受影响,还可逐个测试连接。</li>
           <li data-i18n="gS4l8">本地代理提供 <b>http://127.0.0.1:9527/healthz</b> 探活端点,返回版本号与各 CLI 分组当前使用的供应商,方便脚本与健康检查集成。</li>
           <li data-i18n="gS4l7">更多应用内快捷键:<b>⌘N</b> 新建供应商、<b>⌘1..5</b> 切换 CLI 分组、<b>⌘⇧M / ⌘⇧S</b> 直达 MCP / Skills 管理页(Windows/Linux 对应 Ctrl 组合)。</li>
           <li data-i18n="gS4l6"><b>Skills 统一管理</b>:本地 vault 集中维护 Skills,一键同步给 Claude Code 与 Codex;CLI 自带或手工添加的 skill 不受影响。</li>

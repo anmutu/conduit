@@ -224,6 +224,17 @@ function McpEditDialog({
   const set = (patch: Partial<McpServer>) => setDraft({ ...draft, ...patch });
   const isRemote = !!draft.config.url;
   const argsText = (draft.config.args ?? []).join(" ");
+  const envText = Object.entries(draft.config.env ?? {})
+    .map(([k, v]) => `${k}=${v}`)
+    .join("\n");
+  const parseEnv = (text: string) => {
+    const env: Record<string, string> = {};
+    for (const line of text.split("\n")) {
+      const i = line.indexOf("=");
+      if (i > 0) env[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+    }
+    return env;
+  };
 
   const submit = () => {
     onSave({
@@ -327,6 +338,18 @@ function McpEditDialog({
                   }
                 />
                 <p className="text-[11px] text-muted-foreground">{t("mcp.fArgsHint")}</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("mcp.fEnv")}</Label>
+                <textarea
+                  defaultValue={envText}
+                  placeholder={"API_TOKEN=xxx\nDEBUG=1"}
+                  onChange={(e) =>
+                    set({ config: { ...draft.config, env: parseEnv(e.target.value) } })
+                  }
+                  className="w-full min-h-[56px] rounded-md border border-border bg-background px-2 py-1.5 font-mono text-xs"
+                />
+                <p className="text-[11px] text-muted-foreground">{t("mcp.fEnvHint")}</p>
               </div>
             </>
           )}

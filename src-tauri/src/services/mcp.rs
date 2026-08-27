@@ -303,6 +303,8 @@ mod tests {
         assert!(s.contains("[mcp_servers.fs]"), "{s}");
         assert!(s.contains("command = \"npx\""), "{s}");
         assert!(s.contains("\"-y\""), "{s}");
+        assert!(s.contains("[mcp_servers.fs.env]"), "env 应写入子表: {s}");
+        assert!(s.contains("A = \"1\""), "{s}");
         assert!(s.contains("[mcp_servers.user]"), "手工条目保留: {s}");
 
         // 远程型:不写入 codex
