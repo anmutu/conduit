@@ -335,3 +335,76 @@ pub fn read_content(id: &str) -> Result<String> {
 pub fn set_apps(id: &str, apps: &[String]) -> Result<()> {
     write_meta(&vault_dir()?.join(id), apps)
 }
+
+// ---------- 备份(v3)支持 ----------
+
+use serde::Serialize;
+
+#[derive(Serialize)]
+pub struct BackupFileEntry {
+    pub path: String,
+    pub content: String,
+}
+
+fn walk_files(dir: &Path, prefix: &str, out: &mut Vec<(String, Vec<u8>)>) -> Result<()> {
+    for e in std::fs::read_dir(dir)? {
+        let e = e?;
+        if e.file_type()?.is_dir() {
+            let name = e.file_name().to_string_lossy().to_string();
+            walk_files(&e.path(), &format!("{prefix}{name}/"), out)?;
+        } else {
+            let name = e.file_name().to_string_lossy().to_string();
+            out.push((format!("{prefix}{name}"), std::fs::read(e.path())?));
+        }
+    }
+    Ok(())
+}
+
+/// 导出 vault 全部内容(相对路径 → base64)
+pub fn export_vault() -> Result<Vec<crate::services::backup::BackupSkill>> {
+    let vault = vault_dir()?;
+    let entries = list_at(&vault)?;
+    let mut out = Vec::new();
+    for e in entries {
+        let mut files = Vec::new();
+        walk_files(&vault.join(&e.id), "", &mut files)?;
+        out.push(crate::services::backup::BackupSkill {
+            id: e.id,
+            files: files
+                .into_iter()
+                .map(|(path, content)| crate::services::backup::BackupSkillFile {
+                    path,
+                    content: {
+                        use base64::Engine;
+                        base64::engine::general_purpose::STANDARD.encode(content)
+                    },
+                })
+                .collect(),
+        });
+    }
+    Ok(out)
+}
+
+/// 从备份恢复一个 skill 到 vault(同 id 已存在则跳过,返回是否写入)
+pub fn import_backup_skill(
+    id: &str,
+    files: &[crate::services::backup::BackupSkillFile],
+) -> Result<bool> {
+    let dir = vault_dir()?.join(id);
+    if dir.exists() {
+        return Ok(false);
+    }
+    std::fs::create_dir_all(&dir)?;
+    for f in files {
+        use base64::Engine;
+        let content = base64::engine::general_purpose::STANDARD
+            .decode(&f.content)
+            .with_context(|| format!("备份文件损坏: {}", f.path))?;
+        let target = dir.join(&f.path);
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(target, content)?;
+    }
+    Ok(true)
+}

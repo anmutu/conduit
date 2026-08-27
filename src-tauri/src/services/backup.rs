@@ -21,6 +21,12 @@ pub struct BackupFile {
     /// v2:长上下文分流预设(按 app)
     #[serde(default)]
     pub longctx: Vec<BackupLongctx>,
+    /// v3:MCP 服务器
+    #[serde(default)]
+    pub mcp: Vec<BackupMcp>,
+    /// v3:Skills vault
+    #[serde(default)]
+    pub skills: Vec<BackupSkill>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -49,6 +55,30 @@ pub struct BackupLongctx {
     pub app_type: String,
     pub provider: String,
     pub threshold: i64,
+}
+
+/// v3:MCP 服务器(统一管理)
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct BackupMcp {
+    pub id: String,
+    pub name: String,
+    pub config: serde_json::Value,
+    pub apps: Vec<String>,
+    pub enabled: bool,
+}
+
+/// v3:Skills vault 内容(files 为相对路径 → base64;导入后自动同步)
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct BackupSkill {
+    pub id: String,
+    pub files: Vec<BackupSkillFile>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct BackupSkillFile {
+    pub path: String,
+    /// base64(可能有二进制附属文件)
+    pub content: String,
 }
 
 /// 导出到指定路径,返回导出的供应商数量(规则随文件一并带出)。
@@ -90,7 +120,7 @@ pub fn export(pool: &Pool, path: &std::path::Path) -> Result<usize> {
         }
     }
     let file = BackupFile {
-        version: 2,
+        version: 3,
         exported_at: chrono::Utc::now().timestamp(),
         providers: list
             .iter()
@@ -103,6 +133,17 @@ pub fn export(pool: &Pool, path: &std::path::Path) -> Result<usize> {
             .collect(),
         rules,
         longctx,
+        mcp: crate::db::mcp_dao::list(pool)?
+            .into_iter()
+            .map(|m| BackupMcp {
+                id: m.id,
+                name: m.name,
+                config: m.config,
+                apps: m.apps,
+                enabled: m.enabled,
+            })
+            .collect(),
+        skills: crate::services::skills::export_vault()?,
     };
     let json = serde_json::to_string_pretty(&file)?;
     std::fs::write(path, json)?;
@@ -174,6 +215,35 @@ pub fn import(pool: &Pool, path: &std::path::Path) -> Result<(usize, usize)> {
         if let Some(pid) = name_to_id(&lc.provider) {
             let _ = route_dao::set_longctx(pool, &lc.app_type, &pid, lc.threshold);
         }
+    }
+    // v3:MCP 与 Skills(已存在同 id 跳过;导入 Skills 后立即同步到各 CLI)
+    let mut skills_imported = 0;
+    for m in &file.mcp {
+        let exists = crate::db::mcp_dao::list(pool)
+            .map(|l| l.iter().any(|x| x.id == m.id))
+            .unwrap_or(true);
+        if exists {
+            continue;
+        }
+        let _ = crate::db::mcp_dao::upsert(
+            pool,
+            &crate::db::mcp_dao::McpServer {
+                id: m.id.clone(),
+                name: m.name.clone(),
+                config: m.config.clone(),
+                apps: m.apps.clone(),
+                enabled: m.enabled,
+                created_at: chrono::Utc::now().timestamp(),
+            },
+        );
+    }
+    for s in &file.skills {
+        if crate::services::skills::import_backup_skill(&s.id, &s.files)? {
+            skills_imported += 1;
+        }
+    }
+    if skills_imported > 0 {
+        let _ = crate::services::skills::sync_all();
     }
     Ok((created, skipped))
 }
