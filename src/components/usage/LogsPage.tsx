@@ -13,6 +13,7 @@ interface UsageEntry {
   output_tokens: number;
   status: number;
   rule_pattern: string | null;
+  duration_ms: number;
   created_at: number;
 }
 
@@ -156,6 +157,7 @@ export function LogsPage({
                   <th className="text-left font-medium px-2 py-2">{t("logs.model")}</th>
                   <th className="text-right font-medium px-2 py-2">↓</th>
                   <th className="text-right font-medium px-2 py-2">↑</th>
+                  <th className="text-right font-medium px-2 py-2">{t("logs.duration")}</th>
                   <th className="text-right font-medium px-4 py-2">{t("logs.status")}</th>
                 </tr>
               </thead>
@@ -187,6 +189,9 @@ export function LogsPage({
                     </td>
                     <td className="px-2 py-1.5 text-right text-muted-foreground">
                       {e.output_tokens}
+                    </td>
+                    <td className="px-2 py-1.5 text-right text-muted-foreground">
+                      {e.duration_ms > 0 ? `${(e.duration_ms / 1000).toFixed(1)}s` : "—"}
                     </td>
                     <td className="px-4 py-1.5 text-right">
                       <span

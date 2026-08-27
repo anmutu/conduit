@@ -169,6 +169,7 @@ export const zh = {
   "dash.title": "用量",
   "dash.requests": "总请求",
   "logs.title": "请求日志",
+  "logs.duration": "耗时",
   // MCP 统一管理
   "mcp.title": "MCP 服务器",
   // Skills 统一管理
@@ -468,6 +469,7 @@ export const en: Dict = {
   "dash.title": "Usage",
   "dash.requests": "Requests",
   "logs.title": "Request Logs",
+  "logs.duration": "Duration",
   // MCP management
   "mcp.title": "MCP Servers",
   // Skills management

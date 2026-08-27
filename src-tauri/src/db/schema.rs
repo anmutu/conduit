@@ -11,7 +11,7 @@ use rusqlite::{params, Connection};
 
 /// 当前 schema 版本,用于未来迁移校验。
 #[allow(dead_code)]
-pub const SCHEMA_VERSION: u32 = 7;
+pub const SCHEMA_VERSION: u32 = 8;
 
 pub fn create_tables(conn: &Connection) -> Result<()> {
     let version: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
@@ -111,7 +111,10 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
     if version < 6 {
         migrate_v5_to_v6(conn)?;
     }
-    conn.execute_batch("PRAGMA user_version = 7;")?;
+    if version < 8 {
+        migrate_v6_to_v8(conn)?;
+    }
+    conn.execute_batch("PRAGMA user_version = 8;")?;
     Ok(())
 }
 
@@ -159,6 +162,19 @@ fn migrate_v5_to_v6(conn: &Connection) -> Result<()> {
         conn.execute_batch(
             "UPDATE route_rules SET priority = (SELECT COUNT(*) FROM route_rules r2
              WHERE r2.app_type = route_rules.app_type AND r2.id < route_rules.id);",
+        )?;
+    }
+    Ok(())
+}
+
+/// v6 → v8:usage_log 增加 duration_ms 列(请求耗时,可观测;旧行默认 0)。
+fn migrate_v6_to_v8(conn: &Connection) -> Result<()> {
+    if conn
+        .prepare("SELECT duration_ms FROM usage_log LIMIT 1")
+        .is_err()
+    {
+        conn.execute_batch(
+            "ALTER TABLE usage_log ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 0;",
         )?;
     }
     Ok(())

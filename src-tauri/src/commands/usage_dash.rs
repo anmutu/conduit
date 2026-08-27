@@ -57,7 +57,8 @@ pub fn export_usage_csv(
             s.to_string()
         }
     };
-    let mut csv = String::from("time,provider,model,input_tokens,output_tokens,status,rule\n");
+    let mut csv =
+        String::from("time,provider,model,input_tokens,output_tokens,status,duration_ms,rule\n");
     for e in &entries {
         let time = chrono::DateTime::from_timestamp(e.created_at, 0)
             .map(|d| {
@@ -67,13 +68,14 @@ pub fn export_usage_csv(
             })
             .unwrap_or_default();
         csv.push_str(&format!(
-            "{},{},{},{},{},{},{}\n",
+            "{},{},{},{},{},{},{},{}\n",
             time,
             esc(&e.provider_id),
             esc(e.model.as_deref().unwrap_or("")),
             e.input_tokens,
             e.output_tokens,
             e.status,
+            e.duration_ms,
             esc(e.rule_pattern.as_deref().unwrap_or("")),
         ));
     }

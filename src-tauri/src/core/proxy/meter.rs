@@ -32,6 +32,8 @@ pub struct UsageMeter {
     /// 行缓冲(处理 SSE 行被 chunk 切断)
     line_buf: String,
     last: Option<(i64, i64)>,
+    /// 计量器创建时刻(≈请求开始),finish 时算耗时
+    started: std::time::Instant,
 }
 
 impl UsageMeter {
@@ -40,6 +42,7 @@ impl UsageMeter {
             ctx: Some(ctx),
             line_buf: String::new(),
             last: None,
+            started: std::time::Instant::now(),
         }
     }
 
@@ -49,6 +52,7 @@ impl UsageMeter {
             ctx: None,
             line_buf: String::new(),
             last: None,
+            started: std::time::Instant::now(),
         }
     }
 
@@ -111,6 +115,7 @@ impl UsageMeter {
             output,
             ctx.status,
             ctx.rule_pattern.as_deref(),
+            self.started.elapsed().as_millis() as i64,
         ) {
             tracing::warn!("usage 落库失败(不影响转发): {e}");
         }
