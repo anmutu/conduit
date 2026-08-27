@@ -114,6 +114,17 @@ pub fn recent(pool: &Pool, app_type: &str, limit: i64) -> Result<Vec<UsageEntry>
     Ok(rows.flatten().collect())
 }
 
+/// 删除超过 days 天的日志行(本地观察用途,防库无限膨胀)。返回删除行数。
+pub fn prune(pool: &Pool, days: i64) -> Result<usize> {
+    let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
+    let cutoff = chrono::Utc::now().timestamp() - days * 86400;
+    let n = conn.execute(
+        "DELETE FROM usage_log WHERE created_at < ?1",
+        rusqlite::params![cutoff],
+    )?;
+    Ok(n)
+}
+
 /// 最近实际服务过请求的供应商(app_type 一起返回,供托盘「最近使用」)。
 /// 每个供应商取最近一次,按最近排序,最多 n 个。
 pub fn recent_providers(pool: &Pool, n: i64) -> Result<Vec<(String, String)>> {

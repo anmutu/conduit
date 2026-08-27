@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { ScrollText, Search } from "lucide-react";
+import { ScrollText, Search, Download } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { Input } from "@/components/ui/input";
 import type { Provider } from "@/types";
@@ -33,6 +33,18 @@ export function LogsPage({
   const [q, setQ] = useState("");
   const [prov, setProv] = useState("");
   const [onlyErrors, setOnlyErrors] = useState(false);
+
+  const exportCsv = async () => {
+    try {
+      const r = await invoke<{ path: string; count: number }>(
+        "export_usage_csv",
+        { appType: app },
+      );
+      onError(t("logs.exportedTo", { path: r.path, n: r.count }));
+    } catch (e) {
+      onError(String(e));
+    }
+  };
 
   const filtered = useMemo(() => {
     if (!entries) return null;
@@ -114,6 +126,15 @@ export function LogsPage({
               />
               {t("logs.onlyErrors")}
             </label>
+            <button
+              type="button"
+              onClick={() => void exportCsv()}
+              className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              title={t("logs.exportTitle")}
+            >
+              <Download className="w-3.5 h-3.5" />
+              CSV
+            </button>
           </div>
         )}
         {entries === null ? (
