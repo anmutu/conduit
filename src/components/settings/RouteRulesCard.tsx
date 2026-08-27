@@ -17,6 +17,7 @@ interface RouteRule {
   provider_id: string;
   enabled: boolean;
   match_type: string;
+  fallback_provider_id: string | null;
 }
 
 /**
@@ -105,6 +106,17 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
     }
   };
 
+  const saveFallback = async (r: RouteRule, pid: string) => {
+    setRules((rs) =>
+      rs.map((x) => (x.id === r.id ? { ...x, fallback_provider_id: pid || null } : x)),
+    );
+    try {
+      await invoke("set_route_rule_fallback", { id: r.id, providerId: pid || null });
+    } catch (e) {
+      onError(String(e));
+    }
+  };
+
   const saveLongctx = async (pid: string) => {
     setLcProvider(pid);
     try {
@@ -173,6 +185,21 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
                 </span>
                 <ArrowRight className="w-3 h-3 text-muted-foreground" />
                 <span className="font-medium">{nameOf(r.provider_id)}</span>
+                <select
+                  value={r.fallback_provider_id ?? ""}
+                  onChange={(e) => void saveFallback(r, e.target.value)}
+                  className="h-6 rounded border border-border bg-background px-1 text-[10px] text-muted-foreground max-w-[110px]"
+                  title={t("route.fallbackTitle")}
+                >
+                  <option value="">{t("route.fallbackNone")}</option>
+                  {providers
+                    .filter((p) => p.id !== r.provider_id)
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        ↩ {p.name}
+                      </option>
+                    ))}
+                </select>
                 <Switch
                   className="ml-auto scale-75"
                   checked={r.enabled}

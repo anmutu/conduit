@@ -15,6 +15,8 @@ pub struct RouteRule {
     pub enabled: bool,
     /// 匹配方式:contains(包含)| starts_with(前缀)
     pub match_type: String,
+    /// 规则级降级供应商(命中供应商 5xx 时优先回退到它;None = 用全局候选链)
+    pub fallback_provider_id: Option<String>,
 }
 
 fn get_conn(pool: &Pool) -> Result<PooledConn> {
@@ -24,8 +26,8 @@ fn get_conn(pool: &Pool) -> Result<PooledConn> {
 pub fn list_by_app(pool: &Pool, app: &str) -> Result<Vec<RouteRule>> {
     let conn = get_conn(pool)?;
     let mut stmt = conn.prepare(
-        "SELECT id, app_type, pattern, provider_id, enabled, match_type FROM route_rules
-         WHERE app_type = ?1 ORDER BY id",
+        "SELECT id, app_type, pattern, provider_id, enabled, match_type, fallback_provider_id
+         FROM route_rules WHERE app_type = ?1 ORDER BY id",
     )?;
     let rows = stmt.query_map(params![app], |r| {
         Ok(RouteRule {
@@ -35,6 +37,7 @@ pub fn list_by_app(pool: &Pool, app: &str) -> Result<Vec<RouteRule>> {
             provider_id: r.get(3)?,
             enabled: r.get::<_, i64>(4)? != 0,
             match_type: r.get(5)?,
+            fallback_provider_id: r.get(6)?,
         })
     })?;
     Ok(rows.flatten().collect())
@@ -70,6 +73,16 @@ pub fn set_enabled(pool: &Pool, id: i64, enabled: bool) -> Result<()> {
     Ok(())
 }
 
+/// 设置规则级降级供应商;None 清除(回退全局候选链)。
+pub fn set_fallback(pool: &Pool, id: i64, fallback: Option<&str>) -> Result<()> {
+    let conn = get_conn(pool)?;
+    conn.execute(
+        "UPDATE route_rules SET fallback_provider_id = ?1 WHERE id = ?2",
+        params![fallback, id],
+    )?;
+    Ok(())
+}
+
 /// 长上下文分流预设(KV 存储,非表):超过 token 阈值的请求优先走指定供应商。
 /// value = JSON {provider_id, threshold}
 pub fn get_longctx(pool: &Pool, app: &str) -> Result<Option<(String, i64)>> {
@@ -97,13 +110,13 @@ pub fn clear_longctx(pool: &Pool, app: &str) -> Result<()> {
 }
 
 /// 命中查找:仅启用规则,contains(包含)/starts_with(前缀)均不区分大小写。
-/// 返回 (provider_id, pattern) —— pattern 供日志侧展示命中来源。
+/// 返回 (provider_id, pattern, fallback_provider_id) —— pattern 供日志侧展示命中来源。
 /// 规则少,内存匹配即可;返回首条命中。
 pub fn match_provider(
     pool: &Pool,
     app: &str,
     model: Option<&str>,
-) -> Result<Option<(String, String)>> {
+) -> Result<Option<(String, String, Option<String>)>> {
     let Some(model) = model else { return Ok(None) };
     let rules = list_by_app(pool, app)?;
     let m = model.to_lowercase();
@@ -118,5 +131,5 @@ pub fn match_provider(
                 m.contains(&p)
             }
         })
-        .map(|r| (r.provider_id, r.pattern)))
+        .map(|r| (r.provider_id, r.pattern, r.fallback_provider_id)))
 }

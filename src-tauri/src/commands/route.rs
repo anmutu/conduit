@@ -53,6 +53,17 @@ pub fn set_route_rule_enabled(
     route_dao::set_enabled(&state.db, id, enabled).map_err(|e| e.to_string())
 }
 
+/// 设置规则级降级供应商;provider_id 为 None/空 = 清除。
+#[tauri::command]
+pub fn set_route_rule_fallback(
+    state: State<'_, AppState>,
+    id: i64,
+    provider_id: Option<String>,
+) -> Result<(), String> {
+    let fb = provider_id.filter(|s| !s.trim().is_empty());
+    route_dao::set_fallback(&state.db, id, fb.as_deref()).map_err(|e| e.to_string())
+}
+
 /// 长上下文分流预设(某 app)。None = 未配置。
 #[tauri::command]
 pub fn get_longctx_preset(

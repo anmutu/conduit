@@ -11,7 +11,7 @@ use rusqlite::{params, Connection};
 
 /// 当前 schema 版本,用于未来迁移校验。
 #[allow(dead_code)]
-pub const SCHEMA_VERSION: u32 = 4;
+pub const SCHEMA_VERSION: u32 = 5;
 
 pub fn create_tables(conn: &Connection) -> Result<()> {
     let version: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
@@ -91,7 +91,10 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
     if version < 4 {
         migrate_v3_to_v4(conn)?;
     }
-    conn.execute_batch("PRAGMA user_version = 4;")?;
+    if version < 5 {
+        migrate_v4_to_v5(conn)?;
+    }
+    conn.execute_batch("PRAGMA user_version = 5;")?;
     Ok(())
 }
 
@@ -111,6 +114,17 @@ fn migrate_v3_to_v4(conn: &Connection) -> Result<()> {
         .is_err()
     {
         conn.execute_batch("ALTER TABLE usage_log ADD COLUMN rule_pattern TEXT;")?;
+    }
+    Ok(())
+}
+
+/// v4 → v5:route_rules 增加 fallback_provider_id(规则级降级;NULL = 用全局候选链)。
+fn migrate_v4_to_v5(conn: &Connection) -> Result<()> {
+    if conn
+        .prepare("SELECT fallback_provider_id FROM route_rules LIMIT 1")
+        .is_err()
+    {
+        conn.execute_batch("ALTER TABLE route_rules ADD COLUMN fallback_provider_id TEXT;")?;
     }
     Ok(())
 }
