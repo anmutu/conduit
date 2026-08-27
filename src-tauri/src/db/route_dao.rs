@@ -70,6 +70,32 @@ pub fn set_enabled(pool: &Pool, id: i64, enabled: bool) -> Result<()> {
     Ok(())
 }
 
+/// 长上下文分流预设(KV 存储,非表):超过 token 阈值的请求优先走指定供应商。
+/// value = JSON {provider_id, threshold}
+pub fn get_longctx(pool: &Pool, app: &str) -> Result<Option<(String, i64)>> {
+    let raw = crate::db::kv::get(pool, &format!("route.longctx.{app}"))?;
+    let Some(json) = raw else { return Ok(None) };
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap_or_default();
+    let pid = v.get("provider_id").and_then(|x| x.as_str()).unwrap_or("");
+    if pid.is_empty() {
+        return Ok(None);
+    }
+    let threshold = v
+        .get("threshold")
+        .and_then(|x| x.as_i64())
+        .unwrap_or(60_000);
+    Ok(Some((pid.to_string(), threshold)))
+}
+
+pub fn set_longctx(pool: &Pool, app: &str, provider_id: &str, threshold: i64) -> Result<()> {
+    let json = serde_json::json!({ "provider_id": provider_id, "threshold": threshold });
+    crate::db::kv::set(pool, &format!("route.longctx.{app}"), &json.to_string())
+}
+
+pub fn clear_longctx(pool: &Pool, app: &str) -> Result<()> {
+    crate::db::kv::del(pool, &format!("route.longctx.{app}"))
+}
+
 /// 命中查找:仅启用规则,contains(包含)/starts_with(前缀)均不区分大小写。
 /// 返回 (provider_id, pattern) —— pattern 供日志侧展示命中来源。
 /// 规则少,内存匹配即可;返回首条命中。

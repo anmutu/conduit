@@ -142,6 +142,8 @@ pub fn run() {
             commands::route::add_route_rule,
             commands::route::delete_route_rule,
             commands::route::set_route_rule_enabled,
+            commands::route::get_longctx_preset,
+            commands::route::set_longctx_preset,
             commands::profile::list_profiles,
             commands::profile::save_profile,
             commands::profile::apply_profile,

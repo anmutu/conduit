@@ -109,9 +109,37 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         .ok()
         .and_then(|v| v.get("model").and_then(|m| m.as_str()).map(str::to_string));
 
+    // 长上下文分流:请求体体量估算 token(bytes/4 粗估)超阈值 → 指定供应商提前。
+    // 优先级低于显式路由规则(后插入者占据首位),仍是候选链一员,5xx 可回退。
+    let mut rule_pattern: Option<String> = None;
+    if let Some((lc_pid, threshold)) = crate::db::route_dao::get_longctx(&state.db, app.as_str())
+        .ok()
+        .flatten()
+    {
+        // threshold 单位 token;请求体除消息外还有工具定义等,粗估整体即可
+        let est_tokens = (bytes.len() / 4) as i64;
+        if est_tokens >= threshold {
+            if let Some(lc) = crate::db::provider_dao::get_by_id(&state.db, &lc_pid)
+                .ok()
+                .flatten()
+            {
+                if let Some(pos) = candidates.iter().position(|p| p.id == lc_pid) {
+                    let p = candidates.remove(pos);
+                    candidates.insert(0, p);
+                } else {
+                    candidates.insert(0, lc);
+                    candidates.truncate(3);
+                }
+                if rule_pattern.is_none() {
+                    rule_pattern = Some("长上下文".into());
+                }
+                info!(est_tokens, threshold, provider = %lc_pid, "长上下文分流命中");
+            }
+        }
+    }
+
     // 模型路由规则:命中则把规则供应商提到候选链最前(优先于当前供应商;
     // 后续仍保留故障转移候选,规则供应商 5xx 时可继续回退)
-    let mut rule_pattern: Option<String> = None;
     if let Some((rule_pid, rule_pat)) =
         crate::db::route_dao::match_provider(&state.db, app.as_str(), model.as_deref())
             .ok()
@@ -244,6 +272,12 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         if let Some(hint) = status_hint(status.as_u16()) {
             if let Ok(val) = HeaderValue::from_str(hint) {
                 out_headers.insert(HeaderName::from_static("x-conduit-hint"), val);
+            }
+        }
+        // 分流可观测:命中路由规则/长上下文时回写标记头
+        if let Some(pat) = &rule_pattern {
+            if let Ok(val) = HeaderValue::from_str(pat) {
+                out_headers.insert(HeaderName::from_static("x-keyway-route"), val);
             }
         }
         let stream = resp

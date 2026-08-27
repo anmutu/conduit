@@ -52,3 +52,30 @@ pub fn set_route_rule_enabled(
 ) -> Result<(), String> {
     route_dao::set_enabled(&state.db, id, enabled).map_err(|e| e.to_string())
 }
+
+/// 长上下文分流预设(某 app)。None = 未配置。
+#[tauri::command]
+pub fn get_longctx_preset(
+    state: State<'_, AppState>,
+    app_type: AppType,
+) -> Result<Option<serde_json::Value>, String> {
+    let raw = crate::db::kv::get(&state.db, &format!("route.longctx.{}", app_type.as_str()))
+        .map_err(|e| e.to_string())?;
+    Ok(raw.and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok()))
+}
+
+/// 保存长上下文预设;provider_id 为空表示清除。
+#[tauri::command]
+pub fn set_longctx_preset(
+    state: State<'_, AppState>,
+    app_type: AppType,
+    provider_id: Option<String>,
+    threshold: Option<i64>,
+) -> Result<(), String> {
+    let pid = provider_id.unwrap_or_default();
+    if pid.is_empty() {
+        return route_dao::clear_longctx(&state.db, app_type.as_str()).map_err(|e| e.to_string());
+    }
+    let th = threshold.unwrap_or(60_000).clamp(1_000, 2_000_000);
+    route_dao::set_longctx(&state.db, app_type.as_str(), &pid, th).map_err(|e| e.to_string())
+}

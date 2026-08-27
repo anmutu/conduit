@@ -33,6 +33,9 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
   const [providerId, setProviderId] = useState("");
   const [matchType, setMatchType] = useState("contains");
   const [adding, setAdding] = useState(false);
+  // 长上下文分流预设
+  const [lcProvider, setLcProvider] = useState("");
+  const [lcThreshold, setLcThreshold] = useState("60000");
 
   const reload = (a: AppType) => {
     invoke<RouteRule[]>("list_route_rules", { appType: a })
@@ -41,6 +44,15 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
     invoke<Provider[]>("list_providers", { appType: a })
       .then(setProviders)
       .catch(() => setProviders([]));
+    invoke<{ provider_id: string; threshold: number } | null>(
+      "get_longctx_preset",
+      { appType: a },
+    )
+      .then((p) => {
+        setLcProvider(p?.provider_id ?? "");
+        setLcThreshold(String(p?.threshold ?? 60000));
+      })
+      .catch(() => setLcProvider(""));
   };
 
   useEffect(() => {
@@ -90,6 +102,19 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
     } catch (e) {
       onError(String(e));
       setRules((rs) => rs.map((x) => (x.id === r.id ? { ...x, enabled: !enabled } : x)));
+    }
+  };
+
+  const saveLongctx = async (pid: string) => {
+    setLcProvider(pid);
+    try {
+      await invoke("set_longctx_preset", {
+        appType: app,
+        providerId: pid,
+        threshold: Number(lcThreshold) || 60000,
+      });
+    } catch (e) {
+      onError(String(e));
     }
   };
 
@@ -199,6 +224,34 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
               >
                 <Plus className="w-3.5 h-3.5" />
               </Button>
+            </div>
+            {/* 长上下文分流预设 */}
+            <div className="flex items-center gap-2 flex-wrap rounded-md border border-dashed border-border px-2.5 py-2 text-xs">
+              <span className="text-muted-foreground">{t("route.longctxLabel")}</span>
+              <select
+                value={lcProvider}
+                onChange={(e) => void saveLongctx(e.target.value)}
+                className="h-7 rounded-md border border-border bg-background px-2 text-xs"
+              >
+                <option value="">{t("route.longctxOff")}</option>
+                {providers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              {lcProvider && (
+                <>
+                  <span className="text-muted-foreground">{t("route.longctxThreshold")}</span>
+                  <Input
+                    value={lcThreshold}
+                    onChange={(e) => setLcThreshold(e.target.value.replace(/\D/g, ""))}
+                    onBlur={() => void saveLongctx(lcProvider)}
+                    className="h-7 w-20 text-xs"
+                  />
+                  <span className="text-muted-foreground">tokens</span>
+                </>
+              )}
             </div>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               {t("route.desc")}
