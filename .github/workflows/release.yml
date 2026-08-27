@@ -45,6 +45,8 @@ jobs:
       - name: Install Linux deps
         if: runner.os == 'Linux'
         run: |
+          # runner 镜像自带的 azure-cli/microsoft 源偶发 403,先摘掉再 update
+          sudo rm -f /etc/apt/sources.list.d/*azure-cli* /etc/apt/sources.list.d/*microsoft*
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
