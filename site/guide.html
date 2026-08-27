@@ -208,6 +208,7 @@
           <li data-i18n="gS4l3">同一供应商可按协议复用到多个 CLI(如一个中转 Key 同时供 Claude Code 和 Codex)。</li>
           <li data-i18n="gS4l4"><b>自动协议转换(全向)</b>:只配置了 OpenAI 兼容或 Gemini 端点的供应商,也能直接给 Claude Code 等 Anthropic 协议 CLI 使用;反过来,只有 Anthropic 或 OpenAI 端点的渠道也能供 Codex、Gemini CLI 使用 —— Keyway 在本地完成请求/响应/流式与工具调用的双向转换,对 CLI 完全透明。</li>
           <li data-i18n="gS4l5"><b>MCP 服务器统一管理</b>:在 Keyway 里定义一次 MCP 服务器,自动写入 Claude Code 与 Codex 的配置;手工配置的条目不受影响。</li>
+          <li data-i18n="gS4l6"><b>Skills 统一管理</b>:本地 vault 集中维护 Skills,一键同步给 Claude Code 与 Codex;CLI 自带或手工添加的 skill 不受影响。</li>
         </ul>
         <div class="terminal">
           <div class="term-bar">
@@ -304,6 +305,7 @@
           gS4l3: "One provider can serve multiple CLIs per protocol (e.g. one relay key for both Claude Code and Codex).",
           gS4l4: "Omnidirectional automatic protocol conversion: providers with only an OpenAI-compatible or Gemini endpoint work directly with Claude Code and other Anthropic-protocol CLIs, and Anthropic- or OpenAI-only channels serve Codex and Gemini CLI as well — Keyway converts requests, responses, streaming and tool calls locally, fully transparent to the CLI.",
         gS4l5: "Unified MCP management: define MCP servers once in Keyway and they are written into Claude Code's and Codex's configs automatically; manually configured entries are untouched.",
+        gS4l6: "Unified Skills management: maintain skills in a local vault and sync them to Claude Code and Codex in one click; built-in or manually added skills are untouched.",
           gS5k: "Advanced", gS5h2: "Routing · failover · logs · profiles",
           gS5p: "Model routing rules — in Settings → Model routing, keep specific models on specific providers:",
           gS5l1: "E.g. rule claude → relay A; rule deepseek → official. Name the model in your CLI and Keyway dispatches it.",
