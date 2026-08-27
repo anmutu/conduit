@@ -562,3 +562,157 @@ async fn convert_streaming_anthropic_sse_to_openai_chunks() {
     );
     let _ = std::fs::remove_dir_all(&db_dir);
 }
+
+/// 反向协议转换:Gemini 客户端(generateContent)→ 只有 OpenAI 端点的供应商(非流式)。
+#[tokio::test]
+async fn convert_gemini_client_to_openai_upstream() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let app = Router::new().route(
+        "/v1/chat/completions",
+        post(|body: String| async move {
+            let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert_eq!(v["model"], "gemini-2", "模型名应取自路径");
+            assert_eq!(v["messages"][0]["role"], "system");
+            assert_eq!(v["messages"][1]["content"], "hi");
+            assert_eq!(v["tools"][0]["function"]["name"], "ls");
+            assert_eq!(v["max_tokens"], 99);
+            axum::Json(serde_json::json!({
+                "id": "chatcmpl-1", "model": "gemini-2",
+                "choices": [{ "finish_reason": "tool_calls", "message": {
+                    "content": "checking",
+                    "tool_calls": [{ "id": "c1", "type": "function",
+                        "function": { "name": "ls", "arguments": "{\"path\":\"/tmp\"}" } }]
+                }}],
+                "usage": { "prompt_tokens": 4, "completion_tokens": 6 }
+            }))
+        }),
+    );
+    tokio::spawn(async move { axum::serve(listener, app).await });
+
+    let key = "ab".repeat(32);
+    let db_dir = std::env::temp_dir().join(format!("conduit_e2e_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&db_dir).unwrap();
+    let pool = db::init_pool(db_dir.join("test.db"), &key).unwrap();
+
+    let mut p = test_provider("px", "OpenAIOnlyG", format!("http://{addr}"));
+    p.endpoints
+        .insert("openai".into(), format!("http://{addr}/v1"));
+    provider_dao::insert(&pool, &p).unwrap();
+    provider_dao::set_current(&pool, "px", AppType::Gemini).unwrap();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let proxy_addr = listener.local_addr().unwrap();
+    tokio::spawn(proxy::server::run_listener(
+        AppState::new(pool.clone()),
+        listener,
+    ));
+
+    let client = reqwest::Client::new();
+    let resp: serde_json::Value = client
+        .post(format!(
+            "http://{proxy_addr}/v1beta/models/gemini-2:generateContent"
+        ))
+        .json(&serde_json::json!({
+            "systemInstruction": { "parts": [{ "text": "brief" }] },
+            "contents": [{ "role": "user", "parts": [{ "text": "hi" }] }],
+            "tools": [{ "functionDeclarations": [
+                { "name": "ls", "description": "d", "parameters": {"type":"object"} }
+            ]}],
+            "generationConfig": { "maxOutputTokens": 99 }
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    assert_eq!(
+        resp.pointer("/candidates/0/content/role"),
+        Some(&serde_json::json!("model")),
+        "应返回 Gemini 形态"
+    );
+    assert_eq!(
+        resp.pointer("/candidates/0/content/parts/0/text"),
+        Some(&serde_json::json!("checking"))
+    );
+    assert_eq!(
+        resp.pointer("/candidates/0/content/parts/1/functionCall/name"),
+        Some(&serde_json::json!("ls"))
+    );
+    assert_eq!(
+        resp.pointer("/usageMetadata/promptTokenCount"),
+        Some(&serde_json::json!(4))
+    );
+    let _ = std::fs::remove_dir_all(&db_dir);
+}
+
+/// 反向协议转换流式:OpenAI SSE → Gemini SSE(candidates 流,无 [DONE])。
+#[tokio::test]
+async fn convert_streaming_openai_sse_to_gemini_sse() {
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let app = Router::new().route(
+        "/v1/chat/completions",
+        post(|| async move {
+            let body = concat!(
+                "data: {\"id\":\"1\",\"model\":\"m\",\"choices\":[{\"delta\":{\"role\":\"assistant\",\"content\":\"Hel\"}}]}\n\n",
+                "data: {\"choices\":[{\"delta\":{\"content\":\"lo\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2}}\n\n",
+                "data: [DONE]\n\n",
+            );
+            ([(axum::http::header::CONTENT_TYPE, "text/event-stream")], body).into_response()
+        }),
+    );
+    tokio::spawn(async move { axum::serve(listener, app).await });
+
+    let key = "ab".repeat(32);
+    let db_dir = std::env::temp_dir().join(format!("conduit_e2e_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&db_dir).unwrap();
+    let pool = db::init_pool(db_dir.join("test.db"), &key).unwrap();
+
+    let mut p = test_provider("py", "OpenAIOnlyS", format!("http://{addr}"));
+    p.endpoints
+        .insert("openai".into(), format!("http://{addr}/v1"));
+    provider_dao::insert(&pool, &p).unwrap();
+    provider_dao::set_current(&pool, "py", AppType::Gemini).unwrap();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let proxy_addr = listener.local_addr().unwrap();
+    tokio::spawn(proxy::server::run_listener(
+        AppState::new(pool.clone()),
+        listener,
+    ));
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!(
+            "http://{proxy_addr}/v1beta/models/m:streamGenerateContent?alt=sse"
+        ))
+        .json(&serde_json::json!({
+            "contents": [{ "role": "user", "parts": [{ "text": "hi" }] }]
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let ct = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    assert!(ct.contains("text/event-stream"), "content-type: {ct}");
+    let body = resp.text().await.unwrap();
+    assert!(body.contains("\"text\":\"Hel\""), "{body}");
+    assert!(body.contains("\"text\":\"lo\""), "{body}");
+    assert!(body.contains("\"role\":\"model\""), "{body}");
+    assert!(body.contains("\"finishReason\":\"STOP\""), "{body}");
+    assert!(body.contains("\"promptTokenCount\":3"), "{body}");
+    assert!(!body.contains("[DONE]"), "不应透传 [DONE]: {body}");
+    let _ = std::fs::remove_dir_all(&db_dir);
+}

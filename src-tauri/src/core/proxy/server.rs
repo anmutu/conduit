@@ -106,14 +106,23 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
 
     // 计量 model(一次提取;usage 归属实际成功的供应商)
     let req_json = serde_json::from_slice::<serde_json::Value>(&bytes).ok();
+    // Gemini 客户端的模型名在路径(/v1beta/models/{m}:verb),不在请求体
+    let gemini_path_model = path
+        .split("/models/")
+        .nth(1)
+        .and_then(|rest| rest.split(':').next())
+        .map(str::to_string)
+        .filter(|m| !m.is_empty());
     let model = req_json
         .as_ref()
-        .and_then(|v| v.get("model").and_then(|m| m.as_str()).map(str::to_string));
-    // 客户端是否请求流式(协议转换时决定回程处理方式)
+        .and_then(|v| v.get("model").and_then(|m| m.as_str()).map(str::to_string))
+        .or(gemini_path_model);
+    // 客户端是否请求流式(协议转换时决定回程处理方式;Gemini 由路径动词决定)
     let wants_stream = req_json
         .as_ref()
         .and_then(|v| v.get("stream").and_then(|s| s.as_bool()))
-        .unwrap_or(false);
+        .unwrap_or(false)
+        || path.contains("streamGenerateContent");
 
     // 长上下文分流:请求体体量估算 token(bytes/4 粗估)超阈值 → 指定供应商提前。
     // 优先级低于显式路由规则(后插入者占据首位),仍是候选链一员,5xx 可回退。
@@ -221,6 +230,8 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             Gemini,
             /// 反向:OpenAI 协议客户端(chat/completions)→ Anthropic 上游
             AnthropicUpstream,
+            /// 反向:Gemini 协议客户端(generateContent)→ OpenAI 上游
+            GeminiClientOpenai,
         }
         let mut conv = Conv::None;
         // /v1/responses 路径的请求体是 Responses API,不在反向转换范围
@@ -245,6 +256,13 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                     } else {
                         provider.base_url.trim_end_matches('/').to_string()
                     }
+                } else if protocol == crate::types::Protocol::Gemini {
+                    if let Some(b) = provider.endpoint(crate::types::Protocol::Openai) {
+                        conv = Conv::GeminiClientOpenai;
+                        b.trim_end_matches('/').to_string()
+                    } else {
+                        provider.base_url.trim_end_matches('/').to_string()
+                    }
                 } else {
                     provider.base_url.trim_end_matches('/').to_string()
                 }
@@ -258,7 +276,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                     "/v1/messages".into()
                 }
             }
-            Conv::Openai => {
+            Conv::Openai | Conv::GeminiClientOpenai => {
                 // 端点一般以 /v1 结尾;没有则补上
                 if base.ends_with("/v1") {
                     "/chat/completions".into()
@@ -298,10 +316,14 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             }
         }
         let mut query_pairs: Vec<String> = Vec::new();
+        // 转到 OpenAI 上游时不透传 Gemini 的 alt=sse 等原查询串
         if let Some(q) = &query {
-            query_pairs.push(q.clone());
+            if conv != Conv::GeminiClientOpenai {
+                query_pairs.push(q.clone());
+            }
         }
-        if protocol == crate::types::Protocol::Gemini || conv == Conv::Gemini {
+        if protocol == crate::types::Protocol::Gemini && conv == Conv::None || conv == Conv::Gemini
+        {
             if let Some(key) = &api_key {
                 query_pairs.push(format!("key={key}"));
             }
@@ -311,10 +333,13 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             upstream.push_str(&query_pairs.join("&"));
         }
 
-        // 凭证注入(Gemini 走 query key;转换到 Gemini 上游同理,上面已处理)
+        // 凭证注入(Gemini 走 query key;转换到 Gemini 上游同理,上面已处理;
+        // Gemini 客户端转到 OpenAI 上游时仍用 Bearer)
         let mut req_headers = base_headers.clone();
         if let Some(key) = &api_key {
-            if protocol != crate::types::Protocol::Gemini && conv != Conv::Gemini {
+            if (protocol != crate::types::Protocol::Gemini || conv == Conv::GeminiClientOpenai)
+                && conv != Conv::Gemini
+            {
                 if let Ok(val) = HeaderValue::from_str(&format!("Bearer {key}")) {
                     req_headers.insert(HeaderName::from_static("authorization"), val);
                 }
@@ -351,6 +376,13 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             },
             Conv::AnthropicUpstream => match serde_json::from_slice::<serde_json::Value>(&bytes) {
                 Ok(v) => bytes::Bytes::from(super::anthropic_upstream::request(&v).to_string()),
+                Err(_) => bytes.clone(),
+            },
+            Conv::GeminiClientOpenai => match serde_json::from_slice::<serde_json::Value>(&bytes) {
+                Ok(v) => bytes::Bytes::from(
+                    super::gemini_client_convert::request(&v, model.as_deref().unwrap_or(""))
+                        .to_string(),
+                ),
                 Err(_) => bytes.clone(),
             },
         };
@@ -433,6 +465,11 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                     let converted = super::anthropic_upstream::AnthropicConvertStream::new(raw);
                     Response::new(Body::from_stream(MeteredStream::new(converted, meter2)))
                 }
+                Conv::GeminiClientOpenai => {
+                    let converted =
+                        super::gemini_client_convert::GeminiClientConvertStream::new(raw);
+                    Response::new(Body::from_stream(MeteredStream::new(converted, meter2)))
+                }
                 _ => {
                     let converted = super::convert::ConvertStream::new(raw);
                     Response::new(Body::from_stream(MeteredStream::new(converted, meter2)))
@@ -461,6 +498,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                 .map(|v| match conv {
                     Conv::Gemini => super::gemini_convert::response(&v),
                     Conv::AnthropicUpstream => super::anthropic_upstream::response(&v),
+                    Conv::GeminiClientOpenai => super::gemini_client_convert::response(&v),
                     _ => super::convert::response(&v),
                 })
                 .map(|v| v.to_string())
