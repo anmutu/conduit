@@ -23,8 +23,10 @@ impl AppState {
 
     pub fn with_handle(db: Pool, app: Option<tauri::AppHandle>) -> Self {
         let http = reqwest::Client::builder()
-            // LLM 流式响应可能很久,放宽超时;代理不主动断流
-            .timeout(std::time::Duration::from_secs(600))
+            // 连接 10s 建不上来即判故障,尽快故障转移(黑洞式上游不再挂 10 分钟)
+            .connect_timeout(std::time::Duration::from_secs(10))
+            // 读空闲超时:流式响应只要还在出数据就不断;300s 无任何字节才判死
+            .read_timeout(std::time::Duration::from_secs(300))
             .build()
             .expect("reqwest client 构建失败");
         Self { db, http, app }
