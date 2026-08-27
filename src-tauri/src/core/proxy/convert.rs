@@ -29,6 +29,24 @@ pub fn request(body: &Value) -> Value {
         out["stream"] = json!(true);
         out["stream_options"] = json!({ "include_usage": true });
     }
+    // thinking.budget_tokens → reasoning_effort 档位(让 GPT 系等上游也能响应深度思考)
+    if body.pointer("/thinking/type").and_then(|v| v.as_str()) == Some("enabled") {
+        let budget = body
+            .pointer("/thinking/budget_tokens")
+            .and_then(|v| v.as_i64());
+        out["reasoning_effort"] = match budget {
+            Some(b) if b >= 8_000 => json!("high"),
+            Some(b) if b >= 4_000 => json!("medium"),
+            _ => json!("low"),
+        };
+    }
+    // 前缀缓存:透传稳定用户标识(OpenRouter 等按 prompt_cache_key 命中缓存路由)
+    if let Some(uid) = body.pointer("/metadata/user_id").and_then(|v| v.as_str()) {
+        if !uid.is_empty() {
+            out["user"] = json!(uid);
+            out["prompt_cache_key"] = json!(uid);
+        }
+    }
 
     let mut messages: Vec<Value> = Vec::new();
     // system:字符串或 content blocks

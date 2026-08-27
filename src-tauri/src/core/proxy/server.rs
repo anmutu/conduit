@@ -511,6 +511,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         let retryable = status.as_u16() == 429 || status.is_server_error();
         if retryable && i + 1 < candidates.len() {
             warn!(upstream = %upstream, %status, "上游故障,切换候选");
+            set_cooldown(&state, &provider.id);
             fallbacks.push(format!(
                 "{}->{}({})",
                 provider.name,
@@ -691,6 +692,15 @@ fn status_hint(code: u16) -> Option<&'static str> {
         429 => Some("Conduit: 限流/额度不足 — 可在 Conduit 中切换其他供应商或开启故障转移"),
         _ => None,
     }
+}
+
+/// 失败冷却时长(秒):期间该供应商在候选链中被后移
+const COOLDOWN_SECS: i64 = 120;
+
+/// 记录供应商失败冷却起点(仅故障转移场景调用;单候选场景无意义)。
+fn set_cooldown(state: &AppState, pid: &str) {
+    let until = chrono::Utc::now().timestamp() + COOLDOWN_SECS;
+    let _ = crate::db::kv::set(&state.db, &format!("cooldown.{pid}"), &until.to_string());
 }
 
 /// 批量通知前端:发生了自动回退
