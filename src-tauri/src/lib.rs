@@ -289,10 +289,15 @@ fn build_tray_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         }
         let mut sub = SubmenuBuilder::new(app, app_type.as_str());
         for p in providers {
+            // 最近测速失败的供应商标注 ✗,便于在托盘里一眼识别
+            let fail_mark = match &p.last_test {
+                Some(t) if !t.ok => " ✗",
+                _ => "",
+            };
             let label = if p.is_current {
-                format!("● {}", p.name)
+                format!("● {}{}", p.name, fail_mark)
             } else {
-                p.name.clone()
+                format!("{}{}", p.name, fail_mark)
             };
             // id 格式:switch:{app_type}:{provider_id}
             let item = MenuItem::with_id(
