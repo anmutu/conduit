@@ -24,6 +24,7 @@ interface ProviderCardProps {
   onError?: (msg: string) => void;
   /** 「全部测速」批量结果(常显徽章;与单卡 hover 测试互不影响) */
   batchResult?: { ok: boolean; latency_ms: number; message: string } | null;
+  testedAt?: number | null;
 }
 
 // 视觉结构复刻 CC Switch 的 ProviderCard:
@@ -42,6 +43,7 @@ export function ProviderCard({
   usage,
   onError,
   batchResult,
+  testedAt,
 }: ProviderCardProps) {
   const { t } = useI18n();
   // 该分组协议的端点;无端点 → 置灰(供应商实体仍在,只是未配置此协议)
@@ -131,6 +133,11 @@ export function ProviderCard({
             <div className="flex items-center gap-1">
               {batchResult && (
                 <span
+                  title={
+                    testedAt
+                      ? new Date(testedAt * 1000).toLocaleString()
+                      : undefined
+                  }
                   className={cn(
                     "text-xs tabular-nums",
                     batchResult.ok

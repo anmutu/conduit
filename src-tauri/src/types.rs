@@ -189,6 +189,9 @@ pub struct Provider {
 pub struct LastTest {
     pub ok: bool,
     pub latency_ms: u64,
+    /// unix 秒
+    #[serde(default)]
+    pub ts: i64,
 }
 
 impl Provider {

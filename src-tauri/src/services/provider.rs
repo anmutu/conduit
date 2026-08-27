@@ -245,7 +245,11 @@ async fn test_provider_impl(pool: &Pool, id: &str, app: AppType) -> Result<TestR
         let _ = provider_dao::set_meta_last_test(
             pool,
             id,
-            &crate::types::LastTest { ok, latency_ms: ms },
+            &crate::types::LastTest {
+                ok,
+                latency_ms: ms,
+                ts: chrono::Utc::now().timestamp(),
+            },
         );
     };
     match resp_result {

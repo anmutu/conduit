@@ -653,6 +653,7 @@ function App() {
                     onDelete={(provider) => setConfirmDelete(provider)}
                     usage={usageMap[p.id]}
                     batchResult={batchResults[p.id] ?? null}
+                    testedAt={p.last_test?.ts ?? null}
                     onError={(m) => toast("error", humanizeError(m, t))}
                     onCopyUrl={(url) => {
                       navigator.clipboard

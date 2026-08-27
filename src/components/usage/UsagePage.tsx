@@ -107,7 +107,10 @@ export function UsagePage({
 }) {
   const { t } = useI18n();
   const [data, setData] = useState<UsageDashboard | null>(null);
-  const [days, setDays] = useState(7);
+  const [days, setDays] = useState(() => {
+    const v = Number(localStorage.getItem("keyway.dash.days"));
+    return [1, 7, 30].includes(v) ? v : 7;
+  });
 
   useEffect(() => {
     if (IS_DEMO) {
@@ -146,14 +149,17 @@ export function UsagePage({
       <div className="rounded-xl border border-border p-4 bg-card">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold">
-            {t("dash.trendN", { n: days })}
+            {days === 1 ? t("dash.trendToday") : t("dash.trendN", { n: days })}
           </h3>
           <div className="flex items-center gap-1 p-0.5 bg-muted rounded-lg">
-            {[7, 30].map((d) => (
+            {[1, 7, 30].map((d) => (
               <button
                 key={d}
                 type="button"
-                onClick={() => setDays(d)}
+                onClick={() => {
+                  setDays(d);
+                  localStorage.setItem("keyway.dash.days", String(d));
+                }}
                 className={
                   "px-2 h-6 rounded-md text-[11px] font-medium transition-all " +
                   (days === d
