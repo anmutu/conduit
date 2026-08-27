@@ -151,6 +151,9 @@ pub struct NamedUsage {
     pub key: String,
     #[serde(flatten)]
     pub summary: UsageSummary,
+    /// 平均耗时毫秒(无记录为 0)
+    #[serde(default)]
+    pub avg_duration_ms: f64,
 }
 
 #[derive(Debug, Serialize)]
@@ -190,7 +193,8 @@ fn app_total(pool: &Pool, app_type: &str) -> Result<UsageSummary> {
 fn group_by(pool: &Pool, app_type: &str, column: &str, limit: i64) -> Result<Vec<NamedUsage>> {
     let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
     let sql = format!(
-        "SELECT {column} AS k, COUNT(*), COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0)
+        "SELECT {column} AS k, COUNT(*), COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0),
+                COALESCE(AVG(CASE WHEN duration_ms > 0 THEN duration_ms END),0)
          FROM usage_log WHERE app_type = ?1 AND {column} IS NOT NULL AND {column} != ''
          GROUP BY k ORDER BY (SUM(input_tokens)+SUM(output_tokens)) DESC LIMIT {limit}"
     );
@@ -204,6 +208,7 @@ fn group_by(pool: &Pool, app_type: &str, column: &str, limit: i64) -> Result<Vec
                 output_tokens: r.get(3)?,
                 errors: 0, // 分组明细暂不统计错误数
             },
+            avg_duration_ms: r.get(4)?,
         })
     })?;
     Ok(rows.flatten().collect())

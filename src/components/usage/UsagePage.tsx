@@ -12,6 +12,7 @@ interface UsageSummary {
 }
 interface NamedUsage extends UsageSummary {
   key: string;
+  avg_duration_ms?: number;
 }
 interface DayUsage {
   date: string;
