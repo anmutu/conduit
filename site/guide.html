@@ -206,7 +206,7 @@
           <li data-i18n="gS4l0">全局快捷键 <b>⌘⇧K</b>(Windows/Linux 为 Ctrl+Shift+K)随时唤起<b>快速切换面板</b>:↑↓ 选择、Enter 切换、Esc 关闭,手不离键盘。</li>
           <li data-i18n="gS4l2"><b>正在运行的 claude / codex 会话无需重启</b>,发下一条消息就已切换。</li>
           <li data-i18n="gS4l3">同一供应商可按协议复用到多个 CLI(如一个中转 Key 同时供 Claude Code 和 Codex)。</li>
-          <li data-i18n="gS4l4"><b>自动协议转换</b>:只配置了 OpenAI 兼容端点的供应商,也能直接给 Claude Code 等 Anthropic 协议 CLI 使用 —— Keyway 会在本地完成请求/响应/流式与工具调用的双向转换,无需上游支持 Anthropic 协议。</li>
+          <li data-i18n="gS4l4"><b>自动协议转换(双向)</b>:只配置了 OpenAI 兼容或 Gemini 端点的供应商,也能直接给 Claude Code 等 Anthropic 协议 CLI 使用;反过来,只有 Anthropic 端点的渠道也能供 Codex 等 OpenAI 协议 CLI 使用 —— Keyway 在本地完成请求/响应/流式与工具调用的双向转换,对 CLI 完全透明。</li>
         </ul>
         <div class="terminal">
           <div class="term-bar">
@@ -301,7 +301,7 @@
           gS4l1: "Click “Switch” on a provider card, or pick from the menu-bar tray — two seconds, done.",
           gS4l2: "Running claude / codex sessions need no restart; the next message already uses the new provider.",
           gS4l3: "One provider can serve multiple CLIs per protocol (e.g. one relay key for both Claude Code and Codex).",
-          gS4l4: "Automatic protocol conversion: providers with only an OpenAI-compatible endpoint work directly with Claude Code and other Anthropic-protocol CLIs — Keyway converts requests, responses, streaming and tool calls locally, no Anthropic support needed upstream.",
+          gS4l4: "Bidirectional automatic protocol conversion: providers with only an OpenAI-compatible or Gemini endpoint work directly with Claude Code and other Anthropic-protocol CLIs, and Anthropic-only channels serve Codex and other OpenAI-protocol CLIs — Keyway converts requests, responses, streaming and tool calls locally, fully transparent to the CLI.",
           gS5k: "Advanced", gS5h2: "Routing · failover · logs · profiles",
           gS5p: "Model routing rules — in Settings → Model routing, keep specific models on specific providers:",
           gS5l1: "E.g. rule claude → relay A; rule deepseek → official. Name the model in your CLI and Keyway dispatches it.",
