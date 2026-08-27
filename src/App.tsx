@@ -124,6 +124,29 @@ function App() {
   const [confirmDelete, setConfirmDelete] = useState<Provider | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
+  // 拖拽排序:被拖卡片 id 与悬停目标 id
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  /** 拖拽落点:本地立即换序,并把完整顺序写回后端 */
+  const dropOn = (targetId: string) => {
+    const from = dragId;
+    setDragId(null);
+    setDragOverId(null);
+    if (!from || from === targetId) return;
+    setProviders((list) => {
+      const next = [...list];
+      const fi = next.findIndex((p) => p.id === from);
+      const ti = next.findIndex((p) => p.id === targetId);
+      if (fi < 0 || ti < 0) return list;
+      const [moved] = next.splice(fi, 1);
+      next.splice(ti, 0, moved);
+      void invoke("reorder_providers", { ids: next.map((p) => p.id) }).catch(
+        () => {},
+      );
+      return next;
+    });
+  };
   const [currentView, setCurrentView] = useState<"providers" | "settings" | "usage" | "logs">("providers");
   // 界面偏好:布局(左侧/顶部)+ 可见分组顺序,设置页可改
   const [layout, setLayoutState] = useState<LayoutMode>(loadLayout);
@@ -511,25 +534,52 @@ function App() {
               )}
 
               {providers.map((p) => (
-                <ProviderCard
+                <div
                   key={p.id}
-                  provider={p}
-                  isCurrent={p.is_current}
-                  app={activeApp}
-                  highlight={p.id === highlightId}
-                  onSwitch={(provider) => void switchProvider(provider)}
-                  onEdit={(provider) => setEditingProvider(provider)}
-                  onDuplicate={(provider) => void duplicateProvider(provider)}
-                  onDelete={(provider) => setConfirmDelete(provider)}
-                  usage={usageMap[p.id]}
-                  onError={(m) => toast("error", humanizeError(m, t))}
-                  onCopyUrl={(url) => {
-                    navigator.clipboard
-                      .writeText(url)
-                      .then(() => toast("success", t("toast.copied")))
-                      .catch(() => toast("error", t("toast.copyFailed")));
+                  draggable
+                  onDragStart={(e) => {
+                    setDragId(p.id);
+                    e.dataTransfer.effectAllowed = "move";
                   }}
-                />
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverId(p.id);
+                  }}
+                  onDragLeave={() => setDragOverId((x) => (x === p.id ? null : x))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    dropOn(p.id);
+                  }}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    setDragOverId(null);
+                  }}
+                  className={cn(
+                    "rounded-xl transition-shadow",
+                    dragId === p.id && "opacity-40",
+                    dragOverId === p.id && dragId !== p.id && "ring-2 ring-blue-500/50",
+                  )}
+                  title={t("provider.dragHint")}
+                >
+                  <ProviderCard
+                    provider={p}
+                    isCurrent={p.is_current}
+                    app={activeApp}
+                    highlight={p.id === highlightId}
+                    onSwitch={(provider) => void switchProvider(provider)}
+                    onEdit={(provider) => setEditingProvider(provider)}
+                    onDuplicate={(provider) => void duplicateProvider(provider)}
+                    onDelete={(provider) => setConfirmDelete(provider)}
+                    usage={usageMap[p.id]}
+                    onError={(m) => toast("error", humanizeError(m, t))}
+                    onCopyUrl={(url) => {
+                      navigator.clipboard
+                        .writeText(url)
+                        .then(() => toast("success", t("toast.copied")))
+                        .catch(() => toast("error", t("toast.copyFailed")));
+                    }}
+                  />
+                </div>
               ))}
             </div>
           </div>

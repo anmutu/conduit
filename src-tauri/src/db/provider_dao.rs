@@ -330,3 +330,17 @@ pub fn failover_candidates(pool: &Pool, app: AppType) -> Result<Vec<Provider>> {
     list.truncate(3);
     Ok(list)
 }
+
+/// 按传入 id 顺序重排(sort_index = 下标)。仅更新存在的 id。
+pub fn reorder(pool: &Pool, ids: &[String]) -> Result<()> {
+    let mut conn = get_conn(pool)?;
+    let tx = conn.transaction()?;
+    for (i, id) in ids.iter().enumerate() {
+        tx.execute(
+            "UPDATE providers SET sort_index = ?1 WHERE id = ?2",
+            params![i as i64, id],
+        )?;
+    }
+    tx.commit()?;
+    Ok(())
+}

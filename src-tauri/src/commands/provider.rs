@@ -105,3 +105,9 @@ pub fn get_provider_balance(
     let _ = (&state.db, &id); // TODO: 接入 CoderPlan 余额接口后实现
     Ok(None)
 }
+
+/// 拖拽排序:按 id 顺序写 sort_index
+#[tauri::command]
+pub fn reorder_providers(state: State<'_, AppState>, ids: Vec<String>) -> Result<(), String> {
+    crate::db::provider_dao::reorder(&state.db, &ids).map_err(|e| e.to_string())
+}

@@ -173,6 +173,7 @@ pub fn run() {
             commands::provider::remove_provider_endpoint,
             commands::provider::set_provider_key,
             commands::provider::test_provider,
+            commands::provider::reorder_providers,
             commands::provider::get_provider_balance,
             commands::settings::get_app_settings,
             commands::settings::set_autostart,
