@@ -87,24 +87,31 @@ pub fn set_provider_key(
 /// 连通性测试:向该供应商对应协议端点发一个最小请求,返回状态/延迟。
 #[tauri::command]
 pub async fn test_provider(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     id: String,
     app_type: AppType,
 ) -> Result<svc::TestResult, String> {
-    svc::test_provider(&state.db, &id, app_type)
+    let r = svc::test_provider(&state.db, &id, app_type)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    // 测速结果落库(meta.last_test)→ 托盘 ✗ 标记即时刷新
+    let _ = crate::rebuild_tray_menu(&app);
+    Ok(r)
 }
 
 /// 批量连通性测试:该分组全部供应商并发测速。
 #[tauri::command]
 pub async fn test_all_providers(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     app_type: AppType,
 ) -> Result<Vec<svc::BatchTestItem>, String> {
-    svc::test_all_providers(&state.db, app_type)
+    let r = svc::test_all_providers(&state.db, app_type)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    let _ = crate::rebuild_tray_menu(&app);
+    Ok(r)
 }
 
 /// 查询供应商余额(骨架:接口未定,统一返回 None,前端不展示)。
