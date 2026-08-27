@@ -25,6 +25,8 @@ pub struct UsageCtx {
     pub status: u16,
     /// 命中的路由规则匹配词(未命中 None;落库供日志页展示)
     pub rule_pattern: Option<String>,
+    /// Tauri 句柄:用量落库后节流刷新托盘摘要(测试环境 None)
+    pub app: Option<tauri::AppHandle>,
 }
 
 pub struct UsageMeter {
@@ -138,6 +140,25 @@ impl UsageMeter {
             self.error_note.as_deref(),
         ) {
             tracing::warn!("usage 落库失败(不影响转发): {e}");
+        }
+        // 托盘「今日用量」摘要节流刷新(60s 一次,避免每请求重建菜单)
+        if let Some(app) = ctx.app.clone() {
+            let pool = ctx.pool.clone();
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
+            let last = crate::db::kv::get(&pool, "tray.refresh_at")
+                .ok()
+                .flatten()
+                .and_then(|v| v.parse::<i64>().ok())
+                .unwrap_or(0);
+            if now - last >= 60 {
+                let _ = crate::db::kv::set(&pool, "tray.refresh_at", &now.to_string());
+                std::thread::spawn(move || {
+                    let _ = crate::rebuild_tray_menu(&app);
+                });
+            }
         }
     }
 }

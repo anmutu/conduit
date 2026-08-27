@@ -704,6 +704,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                 model: model.clone(),
                 status: status.as_u16(),
                 rule_pattern: rule_pattern.clone(),
+                app: state.app.clone(),
             })
         } else {
             UsageMeter::disabled()
@@ -735,6 +736,7 @@ fn meter_for(
             model: model.clone(),
             status,
             rule_pattern: rule_pattern.clone(),
+            app: state.app.clone(),
         })
     } else {
         UsageMeter::disabled()
