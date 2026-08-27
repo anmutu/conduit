@@ -57,10 +57,13 @@ pub fn run() {
                         s.push_str(&uuid::Uuid::new_v4().simple().to_string());
                         s.push_str(&uuid::Uuid::new_v4().simple().to_string());
                         std::fs::write(&key_file, &s)?;
-                        let mut perms = std::fs::metadata(&key_file)?.permissions();
-                        use std::os::unix::fs::PermissionsExt;
-                        perms.set_mode(0o600);
-                        std::fs::set_permissions(&key_file, perms)?;
+                        #[cfg(unix)]
+                        {
+                            use std::os::unix::fs::PermissionsExt;
+                            let mut perms = std::fs::metadata(&key_file)?.permissions();
+                            perms.set_mode(0o600);
+                            std::fs::set_permissions(&key_file, perms)?;
+                        }
                         std::fs::write(&marker, b"1")?;
                         tracing::warn!("keychain 不可用,已回退到本地文件主密钥(0600)");
                         s
