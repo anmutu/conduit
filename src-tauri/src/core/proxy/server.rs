@@ -180,6 +180,41 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         }
     }
 
+    // 深度思考分流:请求体显式开启 thinking,或模型名为 reasoning/thinking 档
+    // (OpenRouter 风格 *-thinking / *-reasoning)→ 走指定推理供应商。
+    if let Some(th_pid) = crate::db::route_dao::get_think(&state.db, app.as_str())
+        .ok()
+        .flatten()
+    {
+        let wants_think = req_json.as_ref().is_some_and(|v| {
+            v.get("thinking")
+                .and_then(|t| t.get("type"))
+                .and_then(|x| x.as_str())
+                == Some("enabled")
+        }) || model.as_deref().is_some_and(|m| {
+            let m = m.to_lowercase();
+            m.contains("reasoning") || m.contains("thinking")
+        });
+        if wants_think {
+            if let Some(th) = crate::db::provider_dao::get_by_id(&state.db, &th_pid)
+                .ok()
+                .flatten()
+            {
+                if let Some(pos) = candidates.iter().position(|p| p.id == th_pid) {
+                    let p = candidates.remove(pos);
+                    candidates.insert(0, p);
+                } else {
+                    candidates.insert(0, th);
+                    candidates.truncate(3);
+                }
+                if rule_pattern.is_none() {
+                    rule_pattern = Some("深度思考".into());
+                }
+                info!(provider = %th_pid, model = ?model, "深度思考分流命中");
+            }
+        }
+    }
+
     // 后台轻量分流:Claude Code 后台小任务等 Haiku 档请求走指定便宜渠道。
     // 判据是模型名档位(haiku/mini/flash/nano),优先级低于显式路由规则。
     if let Some(bg_pid) = crate::db::route_dao::get_background(&state.db, app.as_str())

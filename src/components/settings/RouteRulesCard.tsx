@@ -40,6 +40,8 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
   const [lcThreshold, setLcThreshold] = useState("60000");
   // 后台轻量分流预设
   const [bgProvider, setBgProvider] = useState("");
+  // 深度思考分流预设
+  const [thProvider, setThProvider] = useState("");
 
   const reload = (a: AppType) => {
     invoke<RouteRule[]>("list_route_rules", { appType: a })
@@ -60,6 +62,9 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
     invoke<string | null>("get_background_preset", { appType: a })
       .then((pid) => setBgProvider(pid ?? ""))
       .catch(() => setBgProvider(""));
+    invoke<string | null>("get_think_preset", { appType: a })
+      .then((pid) => setThProvider(pid ?? ""))
+      .catch(() => setThProvider(""));
   };
 
   useEffect(() => {
@@ -128,6 +133,15 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
     );
     try {
       await invoke("set_route_rule_fallback", { id: r.id, providerId: pid || null });
+    } catch (e) {
+      onError(String(e));
+    }
+  };
+
+  const saveThink = async (pid: string) => {
+    setThProvider(pid);
+    try {
+      await invoke("set_think_preset", { appType: app, providerId: pid });
     } catch (e) {
       onError(String(e));
     }
@@ -325,6 +339,23 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
                   <span className="text-muted-foreground">tokens</span>
                 </>
               )}
+            </div>
+            {/* 深度思考分流预设 */}
+            <div className="flex items-center gap-2 flex-wrap rounded-md border border-dashed border-border px-2.5 py-2 text-xs">
+              <span className="text-muted-foreground">{t("route.thinkLabel")}</span>
+              <select
+                value={thProvider}
+                onChange={(e) => void saveThink(e.target.value)}
+                className="h-7 rounded-md border border-border bg-background px-2 text-xs"
+              >
+                <option value="">{t("route.thinkOff")}</option>
+                {providers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <span className="text-muted-foreground">{t("route.thinkHint")}</span>
             </div>
             {/* 后台轻量分流预设 */}
             <div className="flex items-center gap-2 flex-wrap rounded-md border border-dashed border-border px-2.5 py-2 text-xs">

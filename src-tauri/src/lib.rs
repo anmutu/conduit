@@ -200,6 +200,8 @@ pub fn run() {
             commands::route::set_longctx_preset,
             commands::route::get_background_preset,
             commands::route::set_background_preset,
+            commands::route::get_think_preset,
+            commands::route::set_think_preset,
             commands::profile::list_profiles,
             commands::profile::save_profile,
             commands::profile::apply_profile,

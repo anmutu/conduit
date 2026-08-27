@@ -115,6 +115,29 @@ pub fn set_background_preset(
     route_dao::set_background(&state.db, app_type.as_str(), &pid).map_err(|e| e.to_string())
 }
 
+/// 深度思考分流预设(某 app)。None = 未配置。
+#[tauri::command]
+pub fn get_think_preset(
+    state: State<'_, AppState>,
+    app_type: AppType,
+) -> Result<Option<String>, String> {
+    route_dao::get_think(&state.db, app_type.as_str()).map_err(|e| e.to_string())
+}
+
+/// 保存深度思考预设;provider_id 为空表示清除。
+#[tauri::command]
+pub fn set_think_preset(
+    state: State<'_, AppState>,
+    app_type: AppType,
+    provider_id: Option<String>,
+) -> Result<(), String> {
+    let pid = provider_id.unwrap_or_default();
+    if pid.is_empty() {
+        return route_dao::clear_think(&state.db, app_type.as_str()).map_err(|e| e.to_string());
+    }
+    route_dao::set_think(&state.db, app_type.as_str(), &pid).map_err(|e| e.to_string())
+}
+
 /// 上移/下移路由规则(与相邻规则交换优先级)。dir = -1 上移 / +1 下移。
 #[tauri::command]
 pub fn move_route_rule(state: State<'_, AppState>, id: i64, dir: i64) -> Result<(), String> {
