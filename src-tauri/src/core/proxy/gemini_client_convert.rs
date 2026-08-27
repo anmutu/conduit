@@ -85,6 +85,20 @@ pub fn request(body: &Value, model: &str) -> Value {
         if let Some(n) = cfg.get("maxOutputTokens").and_then(|v| v.as_i64()) {
             out["max_tokens"] = json!(n);
         }
+        // thinkingConfig.thinkingBudget → reasoning_effort 档位(GPT 系上游)
+        if let Some(b) = cfg
+            .pointer("/thinkingConfig/thinkingBudget")
+            .and_then(|v| v.as_i64())
+        {
+            let effort = if b >= 8_000 {
+                "high"
+            } else if b >= 4_000 {
+                "medium"
+            } else {
+                "low"
+            };
+            out["reasoning_effort"] = json!(effort);
+        }
         for (src, dst) in [("temperature", "temperature"), ("topP", "top_p")] {
             if let Some(v) = cfg.get(src) {
                 if !v.is_null() {
@@ -477,5 +491,15 @@ data: [DONE]
         assert!(s.contains("\"name\":\"ls\""), "{s}");
         assert!(s.contains("\"path\":\"/\""), "{s}");
         assert!(s.contains("\"finishReason\":\"STOP\""), "{s}");
+    }
+    #[test]
+    fn request_maps_thinking_budget_to_reasoning_effort() {
+        let body: Value = serde_json::json!({
+            "model": "gemini-2.5-pro",
+            "contents": [{ "role": "user", "parts": [{ "text": "hi" }] }],
+            "generationConfig": { "thinkingConfig": { "thinkingBudget": 12000 } }
+        });
+        let out = super::request(&body, "gpt-test");
+        assert_eq!(out["reasoning_effort"], "high");
     }
 }
