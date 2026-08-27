@@ -1,12 +1,13 @@
 //! 配置备份/恢复。
 //!
-//! 导出:全部供应商(名称/端点/模型)→ app 数据目录下的 JSON 文件。
+//! 导出:全部供应商(名称/端点/模型)+ 路由规则/长上下文分流 → app 数据目录下的 JSON 文件。
 //! 出于安全考虑 **不导出 API Key**(keychain 条目与本机绑定,跨机无意义)。
-//! 导入:同名跳过,异名新建(端点/模型还原),Key 需重新粘贴一次。
+//! 导入:同名跳过,异名新建(端点/模型还原),Key 需重新粘贴一次;
+//!       规则按供应商名称重新挂接,已存在的 (app, 匹配词) 跳过。
 
 use anyhow::{anyhow, Result};
 
-use crate::db::{provider_dao, Pool};
+use crate::db::{provider_dao, route_dao, Pool};
 use crate::types::Provider;
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -14,6 +15,12 @@ pub struct BackupFile {
     pub version: u32,
     pub exported_at: i64,
     pub providers: Vec<BackupProvider>,
+    /// v2:路由规则(按供应商名称挂接,导入端解析回 id)
+    #[serde(default)]
+    pub rules: Vec<BackupRule>,
+    /// v2:长上下文分流预设(按 app)
+    #[serde(default)]
+    pub longctx: Vec<BackupLongctx>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -24,11 +31,66 @@ pub struct BackupProvider {
     pub models: Vec<String>,
 }
 
-/// 导出到指定路径,返回导入/导出统计。
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct BackupRule {
+    pub app_type: String,
+    pub pattern: String,
+    pub provider: String,
+    pub match_type: String,
+    pub enabled: bool,
+    #[serde(default)]
+    pub fallback: Option<String>,
+    #[serde(default)]
+    pub priority: i64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct BackupLongctx {
+    pub app_type: String,
+    pub provider: String,
+    pub threshold: i64,
+}
+
+/// 导出到指定路径,返回导出的供应商数量(规则随文件一并带出)。
 pub fn export(pool: &Pool, path: &std::path::Path) -> Result<usize> {
     let list = provider_dao::list_all(pool)?;
+    let id_to_name = |id: &str| -> String {
+        list.iter()
+            .find(|p| p.id == id)
+            .map(|p| p.name.clone())
+            .unwrap_or_default()
+    };
+    let mut rules = Vec::new();
+    let mut longctx = Vec::new();
+    for app in crate::types::AppType::all() {
+        for r in route_dao::list_by_app(pool, app.as_str()).unwrap_or_default() {
+            rules.push(BackupRule {
+                app_type: r.app_type,
+                pattern: r.pattern,
+                provider: id_to_name(&r.provider_id),
+                match_type: r.match_type,
+                enabled: r.enabled,
+                fallback: r
+                    .fallback_provider_id
+                    .as_deref()
+                    .map(id_to_name)
+                    .filter(|n| !n.is_empty()),
+                priority: r.priority,
+            });
+        }
+        if let Some((pid, threshold)) = route_dao::get_longctx(pool, app.as_str()).ok().flatten() {
+            let provider = id_to_name(&pid);
+            if !provider.is_empty() {
+                longctx.push(BackupLongctx {
+                    app_type: app.as_str().to_string(),
+                    provider,
+                    threshold,
+                });
+            }
+        }
+    }
     let file = BackupFile {
-        version: 1,
+        version: 2,
         exported_at: chrono::Utc::now().timestamp(),
         providers: list
             .iter()
@@ -39,6 +101,8 @@ pub fn export(pool: &Pool, path: &std::path::Path) -> Result<usize> {
                 models: p.models.clone(),
             })
             .collect(),
+        rules,
+        longctx,
     };
     let json = serde_json::to_string_pretty(&file)?;
     std::fs::write(path, json)?;
@@ -75,6 +139,41 @@ pub fn import(pool: &Pool, path: &std::path::Path) -> Result<(usize, usize)> {
         };
         provider_dao::insert(pool, &p)?;
         created += 1;
+    }
+    // v2:规则与长上下文预设按供应商名称重新挂接;找不到对应供应商的条目静默跳过
+    let name_to_id = |name: &str| {
+        provider_dao::find_by_name(pool, name)
+            .ok()
+            .flatten()
+            .map(|p| p.id)
+    };
+    for r in &file.rules {
+        let (Some(pid), app) = (name_to_id(&r.provider), r.app_type.as_str()) else {
+            continue;
+        };
+        let exists = route_dao::list_by_app(pool, app)
+            .map(|rs| {
+                rs.iter()
+                    .any(|x| x.pattern.eq_ignore_ascii_case(&r.pattern))
+            })
+            .unwrap_or(true);
+        if exists {
+            continue;
+        }
+        let id = route_dao::insert(pool, app, &r.pattern, &pid, &r.match_type).unwrap_or(-1);
+        if id >= 0 {
+            let _ = route_dao::set_enabled(pool, id, r.enabled);
+            let _ = route_dao::set_fallback(
+                pool,
+                id,
+                r.fallback.as_deref().and_then(name_to_id).as_deref(),
+            );
+        }
+    }
+    for lc in &file.longctx {
+        if let Some(pid) = name_to_id(&lc.provider) {
+            let _ = route_dao::set_longctx(pool, &lc.app_type, &pid, lc.threshold);
+        }
     }
     Ok((created, skipped))
 }
