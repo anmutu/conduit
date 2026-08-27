@@ -893,3 +893,97 @@ async fn responses_bridge_streaming() {
     assert!(body.contains("response.completed"), "缺 completed:\n{body}");
     assert!(body.contains("\"input_tokens\":3"), "缺 usage:\n{body}");
 }
+
+/// 故障冷却:5xx 触发后 120s 内失败的供应商被挪到候选链末尾,不再优先尝试;冷却过期后恢复。
+#[tokio::test]
+async fn cooldown_demotes_failed_provider_within_window() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    let hits = Arc::new(AtomicUsize::new(0));
+    let a = {
+        let hits = hits.clone();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let app = Router::new().route(
+            "/v1/messages",
+            post(move || {
+                let hits = hits.clone();
+                async move {
+                    hits.fetch_add(1, Ordering::SeqCst);
+                    (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "boom")
+                }
+            }),
+        );
+        tokio::spawn(async move { axum::serve(listener, app).await });
+        format!("http://{addr}")
+    };
+    let b = spawn_mock_upstream("mock-b").await;
+
+    let key = "ef".repeat(32);
+    let db_dir = std::env::temp_dir().join(format!("conduit_cd_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&db_dir).unwrap();
+    let pool = db::init_pool(db_dir.join("t.db"), &key).unwrap();
+    provider_dao::insert(&pool, &test_provider("ca", "A", a)).unwrap();
+    let mut pb = test_provider("cb", "B", b);
+    pb.keychain_id = Some("cb".into());
+    provider_dao::insert(&pool, &pb).unwrap();
+    provider_dao::set_current(&pool, "ca", AppType::Claude).unwrap();
+    db::kv::set(&pool, "failover:claude", "1").unwrap();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let proxy_addr = listener.local_addr().unwrap();
+    tokio::spawn(proxy::server::run_listener(
+        conduit_lib::state::AppState::new(pool.clone()),
+        listener,
+    ));
+
+    let url = format!("http://{proxy_addr}/v1/messages");
+    let client = reqwest::Client::new();
+
+    // 第一次:A 500 → 回退 B,同时 A 进入冷却
+    let r: serde_json::Value = client
+        .post(&url)
+        .json(&serde_json::json!({"x":1}))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(r["via"], "mock-b");
+    assert_eq!(hits.load(Ordering::SeqCst), 1, "第一次应尝试过 A");
+
+    // 第二次:A 在冷却窗口内被降级到链尾,B 直接成功 → A 不再被打
+    let r: serde_json::Value = client
+        .post(&url)
+        .json(&serde_json::json!({"x":2}))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(r["via"], "mock-b");
+    assert_eq!(hits.load(Ordering::SeqCst), 1, "冷却期内 A 不应被再次尝试");
+
+    // 冷却过期(手工回拨时间戳)→ A 恢复优先,再次被尝试
+    let past = (chrono::Utc::now().timestamp() - 1).to_string();
+    db::kv::set(&pool, "cooldown.ca", &past).unwrap();
+    let r: serde_json::Value = client
+        .post(&url)
+        .json(&serde_json::json!({"x":3}))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(r["via"], "mock-b");
+    assert_eq!(
+        hits.load(Ordering::SeqCst),
+        2,
+        "冷却过期后 A 应恢复优先尝试"
+    );
+    let _ = std::fs::remove_dir_all(&db_dir);
+}

@@ -308,6 +308,31 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         );
     }
 
+    // 3.5 故障冷却:窗口内刚失败过的供应商挪到链尾(仍有健康候选时);
+    // 全员冷却则保持原序(fail-open,不能因为冷却把整条链判死)。
+    {
+        let now = chrono::Utc::now().timestamp();
+        let mut cooled: Vec<crate::types::Provider> = Vec::new();
+        candidates.retain(|p| {
+            let until = crate::db::kv::get(&state.db, &format!("cooldown.{}", p.id))
+                .ok()
+                .flatten()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(0);
+            if until > now {
+                cooled.push(p.clone());
+                false
+            } else {
+                true
+            }
+        });
+        if !candidates.is_empty() {
+            candidates.append(&mut cooled);
+        } else {
+            candidates = cooled;
+        }
+    }
+
     // 4. 候选链逐个转发:连接失败 / 5xx / 429 视为故障,自动尝试下一个
     // 逐条 "A→B(原因)",供前端通知与 x-keyway-fallback 响应头
     let mut fallbacks: Vec<String> = Vec::new();

@@ -13,6 +13,15 @@ pub fn request(body: &Value) -> Value {
     if let Some(n) = body.get("max_tokens").and_then(|v| v.as_i64()) {
         cfg["maxOutputTokens"] = json!(n);
     }
+    // thinking.budget_tokens → Gemini 2.5 thinkingConfig(预算直传,上限 32k)
+    if body.pointer("/thinking/type").and_then(|v| v.as_str()) == Some("enabled") {
+        let budget = body
+            .pointer("/thinking/budget_tokens")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(8_000)
+            .clamp(0, 32_767);
+        cfg["thinkingConfig"] = json!({ "thinkingBudget": budget, "includeThoughts": true });
+    }
     for (src, dst) in [("temperature", "temperature"), ("top_p", "topP")] {
         if let Some(v) = body.get(src) {
             if !v.is_null() {
@@ -426,5 +435,27 @@ mod tests {
         );
         let s = String::from_utf8(out).unwrap();
         assert!(s.contains("input_json_delta"), "{s}");
+    }
+    #[test]
+    fn request_maps_thinking_to_thinking_config() {
+        let out = request(&json!({
+            "model": "gemini-2.5-pro", "max_tokens": 1024,
+            "thinking": { "type": "enabled", "budget_tokens": 10000 },
+            "messages": [{ "role": "user", "content": "hi" }]
+        }));
+        assert_eq!(
+            out["generationConfig"]["thinkingConfig"]["thinkingBudget"],
+            10000
+        );
+        assert_eq!(
+            out["generationConfig"]["thinkingConfig"]["includeThoughts"],
+            true
+        );
+        // 未开启 thinking 时不注入
+        let plain = request(&json!({
+            "model": "gemini-2.5-flash", "max_tokens": 64,
+            "messages": [{ "role": "user", "content": "hi" }]
+        }));
+        assert!(plain["generationConfig"].get("thinkingConfig").is_none());
     }
 }
