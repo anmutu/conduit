@@ -1,3 +1,4 @@
+pub mod anthropic_upstream;
 pub mod convert;
 pub mod gemini_convert;
 pub mod meter;

@@ -408,3 +408,157 @@ async fn convert_anthropic_client_to_gemini_upstream() {
     assert_eq!(resp["usage"]["input_tokens"], 3);
     assert_eq!(resp["usage"]["output_tokens"], 4);
 }
+
+/// 反向协议转换:Codex(OpenAI 协议)→ 只有 Anthropic 端点的供应商(非流式)。
+#[tokio::test]
+async fn convert_openai_client_to_anthropic_upstream() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let app = Router::new().route(
+        "/v1/messages",
+        post(|body: String| async move {
+            let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert_eq!(v["system"], "be brief", "system 应合并为字符串");
+            assert_eq!(v["messages"][0]["content"], "hi");
+            assert_eq!(v["tools"][0]["name"], "ls");
+            assert!(
+                v["max_tokens"].as_u64().unwrap() > 0,
+                "Anthropic 必须有 max_tokens"
+            );
+            axum::Json(serde_json::json!({
+                "id": "msg_1", "type": "message", "role": "assistant", "model": "test-model",
+                "stop_reason": "tool_use",
+                "content": [
+                    { "type": "text", "text": "let me check" },
+                    { "type": "tool_use", "id": "toolu_1", "name": "ls", "input": {"path": "/tmp"} }
+                ],
+                "usage": { "input_tokens": 11, "output_tokens": 7 }
+            }))
+        }),
+    );
+    tokio::spawn(async move { axum::serve(listener, app).await });
+
+    let key = "ab".repeat(32);
+    let db_dir = std::env::temp_dir().join(format!("conduit_e2e_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&db_dir).unwrap();
+    let pool = db::init_pool(db_dir.join("test.db"), &key).unwrap();
+
+    let mut p = test_provider("pr", "AnthropicOnly", format!("http://{addr}"));
+    p.endpoints
+        .insert("anthropic".into(), format!("http://{addr}"));
+    provider_dao::insert(&pool, &p).unwrap();
+    provider_dao::set_current(&pool, "pr", AppType::Codex).unwrap();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let proxy_addr = listener.local_addr().unwrap();
+    tokio::spawn(proxy::server::run_listener(
+        AppState::new(pool.clone()),
+        listener,
+    ));
+
+    let client = reqwest::Client::new();
+    let resp: serde_json::Value = client
+        .post(format!("http://{proxy_addr}/v1/chat/completions"))
+        .json(&serde_json::json!({
+            "model": "test-model", "stream": false,
+            "messages": [
+                { "role": "system", "content": "be brief" },
+                { "role": "user", "content": "hi" }
+            ],
+            "tools": [{ "type": "function", "function": {
+                "name": "ls", "description": "list",
+                "parameters": {"type":"object"} }}]
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    assert_eq!(resp["choices"][0]["message"]["content"], "let me check");
+    assert_eq!(resp["choices"][0]["finish_reason"], "tool_calls");
+    assert_eq!(
+        resp["choices"][0]["message"]["tool_calls"][0]["function"]["name"],
+        "ls"
+    );
+    assert_eq!(resp["usage"]["prompt_tokens"], 11);
+    assert_eq!(resp["usage"]["completion_tokens"], 7);
+}
+
+/// 反向协议转换流式:Anthropic SSE → OpenAI chunk 流(以 [DONE] 结尾)。
+#[tokio::test]
+async fn convert_streaming_anthropic_sse_to_openai_chunks() {
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let app = Router::new().route(
+        "/v1/messages",
+        post(|| async move {
+            let body = concat!(
+                "event: message_start\n",
+                "data: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":5}}}\n\n",
+                "event: content_block_delta\n",
+                "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Hel\"}}\n\n",
+                "event: content_block_delta\n",
+                "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"lo\"}}\n\n",
+                "event: message_delta\n",
+                "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":2}}\n\n",
+                "event: message_stop\n",
+                "data: {\"type\":\"message_stop\"}\n\n",
+            );
+            ([(axum::http::header::CONTENT_TYPE, "text/event-stream")], body).into_response()
+        }),
+    );
+    tokio::spawn(async move { axum::serve(listener, app).await });
+
+    let key = "ab".repeat(32);
+    let db_dir = std::env::temp_dir().join(format!("conduit_e2e_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&db_dir).unwrap();
+    let pool = db::init_pool(db_dir.join("test.db"), &key).unwrap();
+
+    let mut p = test_provider("pr2", "AnthropicOnly2", format!("http://{addr}"));
+    p.endpoints
+        .insert("anthropic".into(), format!("http://{addr}"));
+    provider_dao::insert(&pool, &p).unwrap();
+    provider_dao::set_current(&pool, "pr2", AppType::Codex).unwrap();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let proxy_addr = listener.local_addr().unwrap();
+    tokio::spawn(proxy::server::run_listener(
+        AppState::new(pool.clone()),
+        listener,
+    ));
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("http://{proxy_addr}/v1/chat/completions"))
+        .json(&serde_json::json!({
+            "model": "m", "stream": true,
+            "messages": [{ "role": "user", "content": "hi" }]
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let ct = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    assert!(ct.contains("text/event-stream"), "content-type: {ct}");
+    let body = resp.text().await.unwrap();
+    assert!(body.contains("\"role\":\"assistant\""), "{body}");
+    assert!(body.contains("Hel") && body.contains("lo"), "{body}");
+    assert!(body.contains("\"finish_reason\":\"stop\""), "{body}");
+    assert!(body.trim_end().ends_with("data: [DONE]"), "{body}");
+    assert!(
+        !body.contains("message_start"),
+        "不应残留 Anthropic 事件: {body}"
+    );
+    let _ = std::fs::remove_dir_all(&db_dir);
+}

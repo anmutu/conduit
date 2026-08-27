@@ -219,8 +219,12 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             None,
             Openai,
             Gemini,
+            /// 反向:OpenAI 协议客户端(chat/completions)→ Anthropic 上游
+            AnthropicUpstream,
         }
         let mut conv = Conv::None;
+        // /v1/responses 路径的请求体是 Responses API,不在反向转换范围
+        let reversible_path = path.contains("chat/completions");
         let base = match provider.endpoint(protocol) {
             Some(b) => b.trim_end_matches('/').to_string(),
             None => {
@@ -234,12 +238,26 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                     } else {
                         provider.base_url.trim_end_matches('/').to_string()
                     }
+                } else if protocol == crate::types::Protocol::Openai && reversible_path {
+                    if let Some(b) = provider.endpoint(crate::types::Protocol::Anthropic) {
+                        conv = Conv::AnthropicUpstream;
+                        b.trim_end_matches('/').to_string()
+                    } else {
+                        provider.base_url.trim_end_matches('/').to_string()
+                    }
                 } else {
                     provider.base_url.trim_end_matches('/').to_string()
                 }
             }
         };
         let path: String = match conv {
+            Conv::AnthropicUpstream => {
+                if base.ends_with("/v1") {
+                    "/messages".into()
+                } else {
+                    "/v1/messages".into()
+                }
+            }
             Conv::Openai => {
                 // 端点一般以 /v1 结尾;没有则补上
                 if base.ends_with("/v1") {
@@ -306,7 +324,21 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             }
         }
 
-        // 协议转换:请求体 Anthropic → OpenAI / Gemini
+        // 反向转换:Anthropic 上游需要版本头(客户端是 OpenAI 协议,不会自带)
+        if conv == Conv::AnthropicUpstream {
+            req_headers.insert(
+                HeaderName::from_static("anthropic-version"),
+                HeaderValue::from_static("2023-06-01"),
+            );
+            req_headers.remove("x-api-key");
+            if let Some(key) = &api_key {
+                if let Ok(val) = HeaderValue::from_str(key) {
+                    req_headers.insert(HeaderName::from_static("x-api-key"), val);
+                }
+            }
+        }
+
+        // 协议转换:请求体双向映射(Anthropic↔OpenAI / Anthropic↔Gemini)
         let send_body = match conv {
             Conv::None => bytes.clone(),
             Conv::Openai => match serde_json::from_slice::<serde_json::Value>(&bytes) {
@@ -315,6 +347,10 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             },
             Conv::Gemini => match serde_json::from_slice::<serde_json::Value>(&bytes) {
                 Ok(v) => bytes::Bytes::from(super::gemini_convert::request(&v).to_string()),
+                Err(_) => bytes.clone(),
+            },
+            Conv::AnthropicUpstream => match serde_json::from_slice::<serde_json::Value>(&bytes) {
+                Ok(v) => bytes::Bytes::from(super::anthropic_upstream::request(&v).to_string()),
                 Err(_) => bytes.clone(),
             },
         };
@@ -393,6 +429,10 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                     let converted = super::gemini_convert::GeminiConvertStream::new(raw);
                     Response::new(Body::from_stream(MeteredStream::new(converted, meter2)))
                 }
+                Conv::AnthropicUpstream => {
+                    let converted = super::anthropic_upstream::AnthropicConvertStream::new(raw);
+                    Response::new(Body::from_stream(MeteredStream::new(converted, meter2)))
+                }
                 _ => {
                     let converted = super::convert::ConvertStream::new(raw);
                     Response::new(Body::from_stream(MeteredStream::new(converted, meter2)))
@@ -420,6 +460,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                 .ok()
                 .map(|v| match conv {
                     Conv::Gemini => super::gemini_convert::response(&v),
+                    Conv::AnthropicUpstream => super::anthropic_upstream::response(&v),
                     _ => super::convert::response(&v),
                 })
                 .map(|v| v.to_string())
