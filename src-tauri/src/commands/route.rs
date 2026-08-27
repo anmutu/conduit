@@ -90,3 +90,9 @@ pub fn set_longctx_preset(
     let th = threshold.unwrap_or(60_000).clamp(1_000, 2_000_000);
     route_dao::set_longctx(&state.db, app_type.as_str(), &pid, th).map_err(|e| e.to_string())
 }
+
+/// 上移/下移路由规则(与相邻规则交换优先级)。dir = -1 上移 / +1 下移。
+#[tauri::command]
+pub fn move_route_rule(state: State<'_, AppState>, id: i64, dir: i64) -> Result<(), String> {
+    route_dao::move_rule(&state.db, id, dir).map_err(|e| e.to_string())
+}

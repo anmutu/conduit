@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { ArrowRight, Plus, Route, X } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronUp, Plus, Route, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -18,6 +18,7 @@ interface RouteRule {
   enabled: boolean;
   match_type: string;
   fallback_provider_id: string | null;
+  priority: number;
 }
 
 /**
@@ -83,6 +84,16 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
       onError(String(e));
     } finally {
       setAdding(false);
+    }
+  };
+
+  /** 上移/下移(与相邻规则交换优先级,列表即匹配顺序) */
+  const move = async (id: number, dir: number) => {
+    try {
+      await invoke("move_route_rule", { id, dir });
+      setRules(await invoke<RouteRule[]>("list_route_rules", { appType: app }));
+    } catch (e) {
+      onError(String(e));
     }
   };
 
@@ -169,7 +180,7 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
           )}
 
           <div className="space-y-2">
-            {rules.map((r) => (
+            {rules.map((r, i) => (
               <div
                 key={r.id}
                 className={cn(
@@ -200,8 +211,26 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
                       </option>
                     ))}
                 </select>
+                <div className="ml-auto flex items-center gap-0.5" title={t("route.orderTitle")}>
+                  <button
+                    type="button"
+                    disabled={i === 0}
+                    onClick={() => void move(r.id, -1)}
+                    className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={i === rules.length - 1}
+                    onClick={() => void move(r.id, 1)}
+                    className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
                 <Switch
-                  className="ml-auto scale-75"
+                  className="scale-75"
                   checked={r.enabled}
                   onCheckedChange={(v) => void toggle(r, v)}
                 />

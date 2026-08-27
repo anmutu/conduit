@@ -17,6 +17,8 @@ pub struct RouteRule {
     pub match_type: String,
     /// 规则级降级供应商(命中供应商 5xx 时优先回退到它;None = 用全局候选链)
     pub fallback_provider_id: Option<String>,
+    /// 匹配优先级(小者靠前,首条命中生效)
+    pub priority: i64,
 }
 
 fn get_conn(pool: &Pool) -> Result<PooledConn> {
@@ -26,8 +28,8 @@ fn get_conn(pool: &Pool) -> Result<PooledConn> {
 pub fn list_by_app(pool: &Pool, app: &str) -> Result<Vec<RouteRule>> {
     let conn = get_conn(pool)?;
     let mut stmt = conn.prepare(
-        "SELECT id, app_type, pattern, provider_id, enabled, match_type, fallback_provider_id
-         FROM route_rules WHERE app_type = ?1 ORDER BY id",
+        "SELECT id, app_type, pattern, provider_id, enabled, match_type, fallback_provider_id, priority
+         FROM route_rules WHERE app_type = ?1 ORDER BY priority, id",
     )?;
     let rows = stmt.query_map(params![app], |r| {
         Ok(RouteRule {
@@ -38,6 +40,7 @@ pub fn list_by_app(pool: &Pool, app: &str) -> Result<Vec<RouteRule>> {
             enabled: r.get::<_, i64>(4)? != 0,
             match_type: r.get(5)?,
             fallback_provider_id: r.get(6)?,
+            priority: r.get(7)?,
         })
     })?;
     Ok(rows.flatten().collect())
@@ -51,9 +54,18 @@ pub fn insert(
     match_type: &str,
 ) -> Result<i64> {
     let conn = get_conn(pool)?;
+    // 新规则排到该分组末尾(priority 取当前最大值 +1)
     conn.execute(
-        "INSERT INTO route_rules (app_type, pattern, provider_id, match_type, created_at) VALUES (?1,?2,?3,?4,?5)",
-        params![app, pattern, provider_id, match_type, chrono::Utc::now().timestamp()],
+        "INSERT INTO route_rules (app_type, pattern, provider_id, match_type, priority, created_at)
+         VALUES (?1,?2,?3,?4,
+                 COALESCE((SELECT MAX(priority)+1 FROM route_rules WHERE app_type = ?1), 0), ?5)",
+        params![
+            app,
+            pattern,
+            provider_id,
+            match_type,
+            chrono::Utc::now().timestamp()
+        ],
     )?;
     Ok(conn.last_insert_rowid())
 }
@@ -80,6 +92,71 @@ pub fn set_fallback(pool: &Pool, id: i64, fallback: Option<&str>) -> Result<()> 
         "UPDATE route_rules SET fallback_provider_id = ?1 WHERE id = ?2",
         params![fallback, id],
     )?;
+    Ok(())
+}
+
+/// 上移/下移规则:与相邻规则(priority 序)交换 priority。
+/// dir = -1 上移 / +1 下移;到头时静默成功(no-op)。
+pub fn move_rule(pool: &Pool, id: i64, dir: i64) -> Result<()> {
+    let mut conn = get_conn(pool)?;
+    let app: String = conn
+        .query_row(
+            "SELECT app_type FROM route_rules WHERE id = ?1",
+            params![id],
+            |r| r.get(0),
+        )
+        .map_err(|_| anyhow!("规则不存在"))?;
+    let rules: Vec<(i64, i64)> = conn
+        .prepare("SELECT id, priority FROM route_rules WHERE app_type = ?1 ORDER BY priority, id")?
+        .query_map(params![app], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .flatten()
+        .collect();
+    let pos = rules.iter().position(|(rid, _)| *rid == id);
+    let Some(pos) = pos else { return Ok(()) };
+    let target = if dir < 0 {
+        pos.checked_sub(1)
+    } else {
+        Some(pos + 1).filter(|&t| t < rules.len())
+    };
+    let Some(target) = target else { return Ok(()) };
+    let (id_a, p_a) = rules[pos];
+    let (id_b, p_b) = rules[target];
+    // 两条 priority 可能相同(历史数据),交换前先归一化为互不相同的值
+    let tx = conn.transaction()?;
+    if p_a == p_b {
+        tx.execute(
+            "UPDATE route_rules SET priority = priority + ROWID WHERE app_type = ?1",
+            params![app],
+        )?;
+        let p_a: i64 = tx.query_row(
+            "SELECT priority FROM route_rules WHERE id = ?1",
+            params![id_a],
+            |r| r.get(0),
+        )?;
+        let p_b: i64 = tx.query_row(
+            "SELECT priority FROM route_rules WHERE id = ?1",
+            params![id_b],
+            |r| r.get(0),
+        )?;
+        tx.execute(
+            "UPDATE route_rules SET priority = ?2 WHERE id = ?1",
+            params![id_a, p_b],
+        )?;
+        tx.execute(
+            "UPDATE route_rules SET priority = ?2 WHERE id = ?1",
+            params![id_b, p_a],
+        )?;
+    } else {
+        tx.execute(
+            "UPDATE route_rules SET priority = ?2 WHERE id = ?1",
+            params![id_a, p_b],
+        )?;
+        tx.execute(
+            "UPDATE route_rules SET priority = ?2 WHERE id = ?1",
+            params![id_b, p_a],
+        )?;
+    }
+    tx.commit()?;
     Ok(())
 }
 

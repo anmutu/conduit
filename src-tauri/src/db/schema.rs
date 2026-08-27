@@ -11,7 +11,7 @@ use rusqlite::{params, Connection};
 
 /// 当前 schema 版本,用于未来迁移校验。
 #[allow(dead_code)]
-pub const SCHEMA_VERSION: u32 = 5;
+pub const SCHEMA_VERSION: u32 = 6;
 
 pub fn create_tables(conn: &Connection) -> Result<()> {
     let version: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
@@ -71,6 +71,8 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             provider_id TEXT NOT NULL,
             enabled     INTEGER NOT NULL DEFAULT 1,
             match_type  TEXT NOT NULL DEFAULT 'contains',
+            fallback_provider_id TEXT,
+            priority    INTEGER NOT NULL DEFAULT 0,
             created_at  INTEGER NOT NULL DEFAULT 0
         );
 
@@ -94,7 +96,10 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
     if version < 5 {
         migrate_v4_to_v5(conn)?;
     }
-    conn.execute_batch("PRAGMA user_version = 5;")?;
+    if version < 6 {
+        migrate_v5_to_v6(conn)?;
+    }
+    conn.execute_batch("PRAGMA user_version = 6;")?;
     Ok(())
 }
 
@@ -125,6 +130,24 @@ fn migrate_v4_to_v5(conn: &Connection) -> Result<()> {
         .is_err()
     {
         conn.execute_batch("ALTER TABLE route_rules ADD COLUMN fallback_provider_id TEXT;")?;
+    }
+    Ok(())
+}
+
+/// v5 → v6:route_rules 增加 priority(排序优先级,小者靠前;首条命中生效)。
+/// 旧行按 id 顺序回填,保持既有匹配次序不变。
+fn migrate_v5_to_v6(conn: &Connection) -> Result<()> {
+    if conn
+        .prepare("SELECT priority FROM route_rules LIMIT 1")
+        .is_err()
+    {
+        conn.execute_batch(
+            "ALTER TABLE route_rules ADD COLUMN priority INTEGER NOT NULL DEFAULT 0;",
+        )?;
+        conn.execute_batch(
+            "UPDATE route_rules SET priority = (SELECT COUNT(*) FROM route_rules r2
+             WHERE r2.app_type = route_rules.app_type AND r2.id < route_rules.id);",
+        )?;
     }
     Ok(())
 }

@@ -181,6 +181,7 @@ pub fn run() {
             commands::route::delete_route_rule,
             commands::route::set_route_rule_enabled,
             commands::route::set_route_rule_fallback,
+            commands::route::move_route_rule,
             commands::route::get_longctx_preset,
             commands::route::set_longctx_preset,
             commands::profile::list_profiles,
