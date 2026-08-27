@@ -193,7 +193,7 @@ export function Sidebar({
         <RailItem
           active={currentView === "skills"}
           onClick={() => onViewChange("skills")}
-          title={t("sk.title")}
+          title={`${t("sk.title")} (⌘⇧S)`}
           edge={edge}
         >
           <Sparkles className="w-[18px] h-[18px]" />
@@ -201,7 +201,7 @@ export function Sidebar({
         <RailItem
           active={currentView === "mcp"}
           onClick={() => onViewChange("mcp")}
-          title={t("mcp.title")}
+          title={`${t("mcp.title")} (⌘⇧M)`}
           edge={edge}
         >
           <Plug className="w-[18px] h-[18px]" />

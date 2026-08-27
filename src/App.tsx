@@ -298,6 +298,20 @@ function App() {
         setIsAddOpen(true);
         return;
       }
+      // Cmd/Ctrl+Shift+M → MCP;Cmd/Ctrl+Shift+S → Skills
+      if (e.shiftKey) {
+        const k = e.key.toLowerCase();
+        if (k === "m") {
+          e.preventDefault();
+          setCurrentView("mcp");
+          return;
+        }
+        if (k === "s") {
+          e.preventDefault();
+          setCurrentView("skills");
+          return;
+        }
+      }
       const idx = Number(e.key) - 1;
       if (Number.isInteger(idx) && idx >= 0 && idx < appsOrder.length) {
         e.preventDefault();

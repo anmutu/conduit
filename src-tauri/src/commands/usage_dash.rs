@@ -68,7 +68,7 @@ pub fn export_usage_csv(
             })
             .unwrap_or_default();
         csv.push_str(&format!(
-            "{},{},{},{},{},{},{},{}\n",
+            "{},{},{},{},{},{},{},{},{}\n",
             time,
             esc(&e.provider_id),
             esc(e.model.as_deref().unwrap_or("")),
@@ -77,6 +77,7 @@ pub fn export_usage_csv(
             e.status,
             e.duration_ms,
             esc(e.rule_pattern.as_deref().unwrap_or("")),
+            esc(e.error_note.as_deref().unwrap_or("")),
         ));
     }
     // BOM 头:让 Excel 正确识别 UTF-8
