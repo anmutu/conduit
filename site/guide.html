@@ -229,7 +229,7 @@
         <ul>
           <li data-i18n="gS5l1">例:规则 <code>claude</code> → 中转站 A;规则 <code>deepseek</code> → 官方。CLI 里指定模型名,Keyway 自动分发。</li>
           <li data-i18n="gS5l2">匹配方式可选「包含」或「前缀」:前缀更精准,避免关键词误命中。</li>
-          <li data-i18n="gS5l3">每条规则可临时停用(开关),保留配置不删除。</li>
+          <li data-i18n="gS5l3">每条规则可临时停用(开关),保留配置不删除;规则从上到下匹配,首条命中生效,可用 ↑↓ 调整顺序。</li>
           <li data-i18n="gS5l4">命中规则的请求会在「日志」页打上蓝色标记,分流效果一目了然。</li>
           <li data-i18n="gS5l5"><b>长上下文分流</b>:超大数据量的请求(阈值可调,默认 6 万 token 估算)自动改走指定供应商 —— 大上下文走便宜渠道,日常对话不受影响。命中时响应头带 <code>x-keyway-route</code>。</li>
         </ul>
@@ -304,7 +304,7 @@
           gS5p: "Model routing rules — in Settings → Model routing, keep specific models on specific providers:",
           gS5l1: "E.g. rule claude → relay A; rule deepseek → official. Name the model in your CLI and Keyway dispatches it.",
           gS5l2: "Match by “contains” or “starts with” — the prefix mode is more precise and avoids accidental keyword hits.",
-          gS5l3: "Each rule can be temporarily disabled with a toggle, keeping its config.",
+          gS5l3: "Each rule can be temporarily disabled with a toggle, keeping its config. Rules match top to bottom (first match wins); reorder with ↑↓.",
           gS5l4: "Requests that matched a rule are tagged blue in the Logs page, so routing is visible at a glance.",
           gS5l5: "Long-context split: requests above a size threshold (adjustable, ~60k tokens estimated by default) automatically go to a designated provider — big contexts on the cheap channel, daily chats unaffected. Matched responses carry an x-keyway-route header.",
           gS5p2: "Automatic failover — on upstream 5xx or timeouts, requests retry backup providers automatically. Add providers to the candidate chain to enable it.",
