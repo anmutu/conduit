@@ -205,6 +205,11 @@ pub fn run() {
             commands::takeover::apply_takeover,
             commands::takeover::restore_takeover,
             commands::takeover::set_failover,
+            commands::mcp::list_mcp_servers,
+            commands::mcp::save_mcp_server,
+            commands::mcp::delete_mcp_server,
+            commands::mcp::set_mcp_server_enabled,
+            commands::mcp::sync_mcp_servers,
         ])
         .run(tauri::generate_context!())
         .expect("运行 Keyway 时出错");

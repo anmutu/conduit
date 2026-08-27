@@ -11,7 +11,7 @@ use rusqlite::{params, Connection};
 
 /// 当前 schema 版本,用于未来迁移校验。
 #[allow(dead_code)]
-pub const SCHEMA_VERSION: u32 = 6;
+pub const SCHEMA_VERSION: u32 = 7;
 
 pub fn create_tables(conn: &Connection) -> Result<()> {
     let version: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
@@ -81,6 +81,18 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             provider_id TEXT PRIMARY KEY,
             key         TEXT NOT NULL
         );
+
+        -- v7:MCP 服务器统一管理(一处定义,同步到各 CLI 配置)
+        -- config: JSON,stdio 形如 {"command":"npx","args":[...],"env":{...}};
+        -- 远程形如 {"type":"http","url":"https://..."}(仅 Claude 支持)
+        CREATE TABLE IF NOT EXISTS mcp_servers (
+            id         TEXT PRIMARY KEY,
+            name       TEXT NOT NULL,
+            config     TEXT NOT NULL DEFAULT '{}',
+            apps       TEXT NOT NULL DEFAULT '["claude","codex"]',
+            enabled    INTEGER NOT NULL DEFAULT 1,
+            created_at INTEGER NOT NULL DEFAULT 0
+        );
         "#,
     )?;
 
@@ -99,7 +111,7 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
     if version < 6 {
         migrate_v5_to_v6(conn)?;
     }
-    conn.execute_batch("PRAGMA user_version = 6;")?;
+    conn.execute_batch("PRAGMA user_version = 7;")?;
     Ok(())
 }
 

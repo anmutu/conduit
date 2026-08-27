@@ -9,6 +9,7 @@
 
 pub mod api_key_dao;
 pub mod kv;
+pub mod mcp_dao;
 pub mod provider_dao;
 pub mod route_dao;
 mod schema;
