@@ -105,9 +105,15 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
     };
 
     // 计量 model(一次提取;usage 归属实际成功的供应商)
-    let model = serde_json::from_slice::<serde_json::Value>(&bytes)
-        .ok()
+    let req_json = serde_json::from_slice::<serde_json::Value>(&bytes).ok();
+    let model = req_json
+        .as_ref()
         .and_then(|v| v.get("model").and_then(|m| m.as_str()).map(str::to_string));
+    // 客户端是否请求流式(协议转换时决定回程处理方式)
+    let wants_stream = req_json
+        .as_ref()
+        .and_then(|v| v.get("stream").and_then(|s| s.as_bool()))
+        .unwrap_or(false);
 
     // 长上下文分流:请求体体量估算 token(bytes/4 粗估)超阈值 → 指定供应商提前。
     // 优先级低于显式路由规则(后插入者占据首位),仍是候选链一员,5xx 可回退。
@@ -205,11 +211,35 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         // Key 读取:加密库优先;旧数据走 keychain 一次性迁移(带超时,弹窗无人响应也不挂请求)
         let api_key = crate::services::keys::load_async(&state.db, provider).await;
 
-        // 端点选择:优先该协议端点(v2),退回 base_url(旧数据)
-        let base = provider
-            .endpoint(protocol)
-            .unwrap_or(provider.base_url.as_str())
-            .trim_end_matches('/');
+        // 端点选择:优先该协议端点(v2),退回 base_url(旧数据)。
+        // 协议转换:app 是 Anthropic 协议但供应商只有 OpenAI 端点时,
+        // 自动改走 /chat/completions 并做 Anthropic↔OpenAI 双向转换。
+        let mut convert_to_openai = false;
+        let base = match provider.endpoint(protocol) {
+            Some(b) => b.trim_end_matches('/').to_string(),
+            None => {
+                if protocol == crate::types::Protocol::Anthropic {
+                    if let Some(b) = provider.endpoint(crate::types::Protocol::Openai) {
+                        convert_to_openai = true;
+                        b.trim_end_matches('/').to_string()
+                    } else {
+                        provider.base_url.trim_end_matches('/').to_string()
+                    }
+                } else {
+                    provider.base_url.trim_end_matches('/').to_string()
+                }
+            }
+        };
+        let path = if convert_to_openai {
+            // 端点一般以 /v1 结尾;没有则补上
+            if base.ends_with("/v1") {
+                "/chat/completions"
+            } else {
+                "/v1/chat/completions"
+            }
+        } else {
+            path.as_str()
+        };
         let mut upstream = format!("{base}{path}");
         for prefix in ["/v1", "/v1beta"] {
             let doubled = format!("{prefix}{prefix}/");
@@ -245,11 +275,21 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             }
         }
 
+        // 协议转换:请求体 Anthropic → OpenAI
+        let send_body = if convert_to_openai {
+            match serde_json::from_slice::<serde_json::Value>(&bytes) {
+                Ok(v) => bytes::Bytes::from(super::convert::request(&v).to_string()),
+                Err(_) => bytes.clone(),
+            }
+        } else {
+            bytes.clone()
+        };
+
         let send_result = state
             .http
             .request(method.clone(), &upstream)
             .headers(req_headers)
-            .body(bytes.clone())
+            .body(send_body)
             .send()
             .await;
 
@@ -295,6 +335,71 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                 out_headers.insert(HeaderName::from_static("x-keyway-route"), val);
             }
         }
+        // 协议转换回程:流式包 ConvertStream,非流式整读后转换 JSON
+        let upstream_is_sse = resp
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .map(|v| v.contains("text/event-stream"))
+            .unwrap_or(false);
+        if convert_to_openai && status.is_success() && (wants_stream || upstream_is_sse) {
+            let raw = resp
+                .bytes_stream()
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+            let meter2 = meter_for(
+                &state,
+                app,
+                provider,
+                &model,
+                status.as_u16(),
+                &rule_pattern,
+            );
+            let converted = super::convert::ConvertStream::new(raw);
+            let mut out = Response::new(Body::from_stream(MeteredStream::new(converted, meter2)));
+            *out.status_mut() = status;
+            out_headers.remove("content-length");
+            out_headers.insert(
+                HeaderName::from_static("content-type"),
+                HeaderValue::from_static("text/event-stream"),
+            );
+            *out.headers_mut() = out_headers;
+            return out;
+        }
+        if convert_to_openai && status.is_success() {
+            // 非流式:读全量 → JSON 转换
+            let body_bytes = match resp.bytes().await {
+                Ok(b) => b,
+                Err(e) => {
+                    warn!("读取上游响应失败: {e}");
+                    return text_resp(StatusCode::BAD_GATEWAY, "读取上游响应失败");
+                }
+            };
+            let converted = serde_json::from_slice::<serde_json::Value>(&body_bytes)
+                .ok()
+                .map(|v| super::convert::response(&v))
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| String::from_utf8_lossy(&body_bytes).into_owned());
+            let mut meter3 = meter_for(
+                &state,
+                app,
+                provider,
+                &model,
+                status.as_u16(),
+                &rule_pattern,
+            );
+            meter3.observe(converted.as_bytes());
+            meter3.finish();
+            out_headers.remove("content-length");
+            out_headers.insert(
+                HeaderName::from_static("content-type"),
+                HeaderValue::from_static("application/json"),
+            );
+            let mut out = Response::new(Body::from(converted));
+            *out.status_mut() = status;
+            *out.headers_mut() = out_headers;
+            return out;
+        }
+
         let stream = resp
             .bytes_stream()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
@@ -319,6 +424,29 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
 
     // 候选为空(理论不可达)
     text_resp(StatusCode::BAD_GATEWAY, "无可用供应商")
+}
+
+/// 构造用量计量器(归实际服务的供应商;协议转换路径复用)
+fn meter_for(
+    state: &AppState,
+    app: AppType,
+    provider: &crate::types::Provider,
+    model: &Option<String>,
+    status: u16,
+    rule_pattern: &Option<String>,
+) -> UsageMeter {
+    if matches!(app, AppType::Claude | AppType::Codex | AppType::Gemini) {
+        UsageMeter::new(UsageCtx {
+            pool: state.db.clone(),
+            app_type: app.as_str().to_string(),
+            provider_id: provider.id.clone(),
+            model: model.clone(),
+            status,
+            rule_pattern: rule_pattern.clone(),
+        })
+    } else {
+        UsageMeter::disabled()
+    }
 }
 
 /// 常见错误的 actionable 提示(附在响应头 x-conduit-hint)。
