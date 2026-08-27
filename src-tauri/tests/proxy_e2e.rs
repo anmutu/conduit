@@ -717,3 +717,26 @@ async fn convert_streaming_openai_sse_to_gemini_sse() {
     assert!(!body.contains("[DONE]"), "不应透传 [DONE]: {body}");
     let _ = std::fs::remove_dir_all(&db_dir);
 }
+
+/// /healthz:本地探活端点(状态 + 版本),不经过转发逻辑。
+#[tokio::test]
+async fn healthz_reports_status_and_version() {
+    let key = "ab".repeat(32);
+    let db_dir = std::env::temp_dir().join(format!("conduit_e2e_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&db_dir).unwrap();
+    let pool = db::init_pool(db_dir.join("test.db"), &key).unwrap();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let proxy_addr = listener.local_addr().unwrap();
+    tokio::spawn(proxy::server::run_listener(AppState::new(pool), listener));
+
+    let resp: serde_json::Value = reqwest::get(format!("http://{proxy_addr}/healthz"))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(resp["status"], "ok");
+    assert_eq!(resp["app"], "keyway");
+    assert!(resp["version"].as_str().is_some_and(|v| !v.is_empty()));
+}

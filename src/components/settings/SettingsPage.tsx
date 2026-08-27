@@ -34,6 +34,7 @@ import type { AppType } from "@/types";
 interface AppSettings {
   autostart: boolean;
   retention_days?: number;
+  days_since_backup?: number | null;
   db_path: string;
   proxy_addr: string;
 }
@@ -46,7 +47,7 @@ function Row({
 }: {
   icon: React.ReactNode;
   title: string;
-  desc: string;
+  desc: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -458,7 +459,20 @@ export function SettingsPage({
       <Row
         icon={<Save className="w-4 h-4" />}
         title={t("settings.backupRow")}
-        desc={t("settings.backupRowDesc")}
+        desc={
+          <>
+            {t("settings.backupRowDesc")}
+            {settings &&
+              (settings.days_since_backup == null ||
+                settings.days_since_backup >= 7) && (
+                <span className="block mt-1 text-amber-600 dark:text-amber-400">
+                  {settings.days_since_backup == null
+                    ? t("settings.backupNever")
+                    : t("settings.backupStale", { n: settings.days_since_backup })}
+                </span>
+              )}
+          </>
+        }
       >
         <div className="flex items-center gap-2">
           <Button

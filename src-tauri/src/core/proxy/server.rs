@@ -36,7 +36,19 @@ pub async fn run(state: AppState, addr: &str) -> Result<()> {
 
 /// 在既有 listener 上启动代理(测试用随机端口)。
 pub async fn run_listener(state: AppState, listener: tokio::net::TcpListener) -> Result<()> {
-    let app = Router::new().fallback(proxy_handler).with_state(state);
+    let app = Router::new()
+        .route(
+            "/healthz",
+            axum::routing::get(|| async {
+                axum::Json(serde_json::json!({
+                    "status": "ok",
+                    "app": "keyway",
+                    "version": env!("CARGO_PKG_VERSION"),
+                }))
+            }),
+        )
+        .fallback(proxy_handler)
+        .with_state(state);
     axum::serve(listener, app).await?;
     Ok(())
 }

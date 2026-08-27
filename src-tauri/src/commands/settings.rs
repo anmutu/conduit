@@ -16,12 +16,19 @@ pub struct AppSettings {
     pub proxy_addr: String,
     /// 请求日志保留天数
     pub retention_days: i64,
+    /// 距上次备份天数(None=从未备份)
+    pub days_since_backup: Option<i64>,
 }
 
 #[tauri::command]
 pub fn get_app_settings(app: AppHandle, state: State<'_, AppState>) -> Result<AppSettings, String> {
     let autostart = app.autolaunch().is_enabled().unwrap_or(false);
     let retention_days = usage_retention_days(&state.db);
+    let days_since_backup = crate::db::kv::get(&state.db, "backup.last_at")
+        .ok()
+        .flatten()
+        .and_then(|v| v.parse::<i64>().ok())
+        .map(|ts| (chrono::Utc::now().timestamp() - ts) / 86400);
     let db_path = app
         .path()
         .app_data_dir()
@@ -32,6 +39,7 @@ pub fn get_app_settings(app: AppHandle, state: State<'_, AppState>) -> Result<Ap
         db_path,
         proxy_addr: crate::core::proxy::PROXY_ADDR.to_string(),
         retention_days,
+        days_since_backup,
     })
 }
 
