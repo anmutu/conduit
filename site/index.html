@@ -149,11 +149,14 @@
       .step p { font-size: 15px; color: var(--fg-2); margin-top: 6px; }
 
       /* 截图双联 */
-      .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 52px; }
-      @media (max-width: 720px) { .shots { grid-template-columns: 1fr; } }
-      .shot { border-radius: 14px; overflow: hidden; border: 1px solid var(--hair); background: var(--bg-alt); }
+      .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 56px; }
+      @media (max-width: 720px) { .shots { grid-template-columns: 1fr; gap: 28px; } }
+      .shot { margin: 0; border-radius: 16px; overflow: hidden; border: 1px solid var(--hair);
+        background: var(--bg-alt); box-shadow: 0 18px 44px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.06);
+        transition: transform .25s ease, box-shadow .25s ease; }
+      .shot:hover { transform: translateY(-4px); box-shadow: 0 26px 60px rgba(0,0,0,.18), 0 4px 12px rgba(0,0,0,.08); }
       .shot img { display: block; width: 100%; }
-      .shot figcaption { font-size: 13px; color: var(--fg-3); padding: 10px 0 12px; }
+      .shot figcaption { font-size: 13.5px; color: var(--fg-3); padding: 13px 0 15px; text-align: center; letter-spacing: .04em; }
 
       /* 对比:Apple spec 风格线表 */
       .table-wrap { max-width: 700px; margin: 0 auto; }
