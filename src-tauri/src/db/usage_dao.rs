@@ -258,3 +258,25 @@ pub fn dashboard(pool: &Pool, app_type: &str, days: i64) -> Result<UsageDashboar
         by_day,
     })
 }
+
+/// 今日汇总(托盘摘要):(input_tokens, output_tokens, requests)。
+pub fn today_total(pool: &Pool) -> Result<(i64, i64, i64)> {
+    let conn = pool.get().map_err(|e| anyhow::anyhow!("{e}"))?;
+    let day_start = {
+        use chrono::{Datelike, TimeZone};
+        let now = chrono::Local::now();
+        now.timezone()
+            .with_ymd_and_hms(now.year(), now.month(), now.day(), 0, 0, 0)
+            .earliest()
+            .map(|t| t.timestamp())
+            .unwrap_or(0)
+    };
+    let mut stmt = conn.prepare(
+        "SELECT IFNULL(SUM(input_tokens),0), IFNULL(SUM(output_tokens),0), COUNT(*)
+         FROM usage_log WHERE created_at >= ?1",
+    )?;
+    let mut rows = stmt.query_map(rusqlite::params![day_start], |r| {
+        Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+    })?;
+    Ok(rows.next().and_then(|r| r.ok()).unwrap_or((0, 0, 0)))
+}

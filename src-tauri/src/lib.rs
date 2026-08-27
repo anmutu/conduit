@@ -243,6 +243,17 @@ pub fn run() {
 
 /// 构建托盘菜单:每个有供应商的应用一个子菜单,点击即切换。
 /// 当前项以 "●" 标注。供应商增删改后调用 [`rebuild_tray_menu`] 刷新。
+/// token 数缩写:1234 → 1.2k
+fn fmt_tokens(n: i64) -> String {
+    if n >= 1_000_000 {
+        format!("{:.1}M", n as f64 / 1_000_000.0)
+    } else if n >= 1_000 {
+        format!("{:.1}k", n as f64 / 1_000.0)
+    } else {
+        n.to_string()
+    }
+}
+
 fn build_tray_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let state = app.state::<state::AppState>();
     // 托盘文案随语言(默认中文;en 由前端设置页切换写入)
@@ -255,6 +266,20 @@ fn build_tray_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let show = MenuItem::with_id(app, "show", show_text, true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", quit_text, true, None::<&str>)?;
     let mut builder = MenuBuilder::new(app).item(&show);
+
+    // 今日用量摘要(禁用项,纯展示)
+    if let Ok((tin, tout, reqs)) = db::usage_dao::today_total(&state.db) {
+        if reqs > 0 {
+            let fmt = fmt_tokens(tin + tout);
+            let text = if zh {
+                format!("今日:{fmt} tok · {reqs} 次请求")
+            } else {
+                format!("Today: {fmt} tok · {reqs} reqs")
+            };
+            let summary = MenuItem::with_id(app, "today-usage", text, false, None::<&str>)?;
+            builder = builder.item(&summary);
+        }
+    }
 
     // 最近使用:按最近请求排序的前几个供应商(点击即切到该分组的它)
     let recents: std::collections::HashMap<String, String> = db::provider_dao::list_all(&state.db)
