@@ -38,6 +38,8 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
   // 长上下文分流预设
   const [lcProvider, setLcProvider] = useState("");
   const [lcThreshold, setLcThreshold] = useState("60000");
+  // 后台轻量分流预设
+  const [bgProvider, setBgProvider] = useState("");
 
   const reload = (a: AppType) => {
     invoke<RouteRule[]>("list_route_rules", { appType: a })
@@ -55,6 +57,9 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
         setLcThreshold(String(p?.threshold ?? 60000));
       })
       .catch(() => setLcProvider(""));
+    invoke<string | null>("get_background_preset", { appType: a })
+      .then((pid) => setBgProvider(pid ?? ""))
+      .catch(() => setBgProvider(""));
   };
 
   useEffect(() => {
@@ -123,6 +128,18 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
     );
     try {
       await invoke("set_route_rule_fallback", { id: r.id, providerId: pid || null });
+    } catch (e) {
+      onError(String(e));
+    }
+  };
+
+  const saveBackground = async (pid: string) => {
+    setBgProvider(pid);
+    try {
+      await invoke("set_background_preset", {
+        appType: app,
+        providerId: pid,
+      });
     } catch (e) {
       onError(String(e));
     }
@@ -308,6 +325,23 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
                   <span className="text-muted-foreground">tokens</span>
                 </>
               )}
+            </div>
+            {/* 后台轻量分流预设 */}
+            <div className="flex items-center gap-2 flex-wrap rounded-md border border-dashed border-border px-2.5 py-2 text-xs">
+              <span className="text-muted-foreground">{t("route.bgLabel")}</span>
+              <select
+                value={bgProvider}
+                onChange={(e) => void saveBackground(e.target.value)}
+                className="h-7 rounded-md border border-border bg-background px-2 text-xs"
+              >
+                <option value="">{t("route.bgOff")}</option>
+                {providers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <span className="text-muted-foreground">{t("route.bgHint")}</span>
             </div>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               {t("route.desc")}

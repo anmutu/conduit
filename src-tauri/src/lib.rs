@@ -198,6 +198,8 @@ pub fn run() {
             commands::route::move_route_rule,
             commands::route::get_longctx_preset,
             commands::route::set_longctx_preset,
+            commands::route::get_background_preset,
+            commands::route::set_background_preset,
             commands::profile::list_profiles,
             commands::profile::save_profile,
             commands::profile::apply_profile,

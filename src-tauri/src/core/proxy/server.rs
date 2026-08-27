@@ -180,6 +180,38 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         }
     }
 
+    // 后台轻量分流:Claude Code 后台小任务等 Haiku 档请求走指定便宜渠道。
+    // 判据是模型名档位(haiku/mini/flash/nano),优先级低于显式路由规则。
+    if let Some(bg_pid) = crate::db::route_dao::get_background(&state.db, app.as_str())
+        .ok()
+        .flatten()
+    {
+        let is_lite = model.as_deref().is_some_and(|m| {
+            let m = m.to_lowercase();
+            ["haiku", "-mini", "mini-", "flash", "nano"]
+                .iter()
+                .any(|k| m.contains(k))
+        });
+        if is_lite {
+            if let Some(bg) = crate::db::provider_dao::get_by_id(&state.db, &bg_pid)
+                .ok()
+                .flatten()
+            {
+                if let Some(pos) = candidates.iter().position(|p| p.id == bg_pid) {
+                    let p = candidates.remove(pos);
+                    candidates.insert(0, p);
+                } else {
+                    candidates.insert(0, bg);
+                    candidates.truncate(3);
+                }
+                if rule_pattern.is_none() {
+                    rule_pattern = Some("后台轻量".into());
+                }
+                info!(provider = %bg_pid, model = ?model, "后台轻量分流命中");
+            }
+        }
+    }
+
     // 模型路由规则:命中则把规则供应商提到候选链最前(优先于当前供应商;
     // 后续仍保留故障转移候选,规则供应商 5xx 时可继续回退)
     if let Some((rule_pid, rule_pat, rule_fallback)) =
@@ -242,7 +274,8 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
     }
 
     // 4. 候选链逐个转发:连接失败 / 5xx / 429 视为故障,自动尝试下一个
-    let mut fallbacks: Vec<(String, String)> = Vec::new();
+    // 逐条 "A→B(原因)",供前端通知与 x-keyway-fallback 响应头
+    let mut fallbacks: Vec<String> = Vec::new();
     for (i, provider) in candidates.iter().enumerate() {
         // Key 读取:加密库优先;旧数据走 keychain 一次性迁移(带超时,弹窗无人响应也不挂请求)
         let api_key = crate::services::keys::load_async(&state.db, provider).await;
@@ -427,7 +460,11 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             Err(e) => {
                 warn!(upstream = %upstream, "上游连接失败: {e}");
                 if i + 1 < candidates.len() {
-                    fallbacks.push((provider.name.clone(), candidates[i + 1].name.clone()));
+                    fallbacks.push(format!(
+                        "{}->{}(conn)",
+                        provider.name,
+                        candidates[i + 1].name
+                    ));
                     continue;
                 }
                 notify_fallbacks(&state, &fallbacks);
@@ -439,7 +476,12 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         let retryable = status.as_u16() == 429 || status.is_server_error();
         if retryable && i + 1 < candidates.len() {
             warn!(upstream = %upstream, %status, "上游故障,切换候选");
-            fallbacks.push((provider.name.clone(), candidates[i + 1].name.clone()));
+            fallbacks.push(format!(
+                "{}->{}({})",
+                provider.name,
+                candidates[i + 1].name,
+                status.as_u16()
+            ));
             continue; // 响应体丢弃,试下一个
         }
 
@@ -462,6 +504,12 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         if let Some(pat) = &rule_pattern {
             if let Ok(val) = HeaderValue::from_str(pat) {
                 out_headers.insert(HeaderName::from_static("x-keyway-route"), val);
+            }
+        }
+        // 降级可观测:发生过自动回退时回写链路与原因(参考 x-ccr-fallback-attempts)
+        if !fallbacks.is_empty() {
+            if let Ok(val) = HeaderValue::from_str(&fallbacks.join(",")) {
+                out_headers.insert(HeaderName::from_static("x-keyway-fallback"), val);
             }
         }
         // 协议转换回程:流式包 ConvertStream,非流式整读后转换 JSON
@@ -611,19 +659,15 @@ fn status_hint(code: u16) -> Option<&'static str> {
 }
 
 /// 批量通知前端:发生了自动回退
-fn notify_fallbacks(state: &AppState, fallbacks: &[(String, String)]) {
+fn notify_fallbacks(state: &AppState, fallbacks: &[String]) {
     if fallbacks.is_empty() {
         return;
     }
     if let Some(app_handle) = &state.app {
         use tauri::Emitter;
-        let chain: Vec<String> = fallbacks
-            .iter()
-            .map(|(a, b)| format!("{a} → {b}"))
-            .collect();
         let _ = app_handle.emit(
             "provider-fallback",
-            serde_json::json!({ "chain": chain.join(", ") }),
+            serde_json::json!({ "chain": fallbacks.join(", ") }),
         );
     }
 }

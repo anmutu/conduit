@@ -186,6 +186,27 @@ pub fn clear_longctx(pool: &Pool, app: &str) -> Result<()> {
     crate::db::kv::del(pool, &format!("route.longctx.{app}"))
 }
 
+/// 后台轻量分流预设(某 app):Claude Code 后台小任务等 Haiku 档请求走指定供应商。
+pub fn get_background(pool: &Pool, app: &str) -> Result<Option<String>> {
+    let pid = crate::db::kv::get(pool, &format!("route.background.{app}"))
+        .ok()
+        .flatten()
+        .unwrap_or_default();
+    if pid.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(pid))
+    }
+}
+
+pub fn set_background(pool: &Pool, app: &str, provider_id: &str) -> Result<()> {
+    crate::db::kv::set(pool, &format!("route.background.{app}"), provider_id)
+}
+
+pub fn clear_background(pool: &Pool, app: &str) -> Result<()> {
+    crate::db::kv::del(pool, &format!("route.background.{app}"))
+}
+
 /// 命中查找:仅启用规则,contains(包含)/starts_with(前缀)均不区分大小写。
 /// 返回 (provider_id, pattern, fallback_provider_id) —— pattern 供日志侧展示命中来源。
 /// 规则少,内存匹配即可;返回首条命中。

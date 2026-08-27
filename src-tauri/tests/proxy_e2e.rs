@@ -162,15 +162,21 @@ async fn failover_switches_to_backup_on_5xx() {
         listener,
     ));
 
-    let resp: serde_json::Value = reqwest::Client::new()
+    let resp = reqwest::Client::new()
         .post(format!("http://{proxy_addr}/v1/messages"))
         .json(&serde_json::json!({"x":1}))
         .send()
         .await
-        .unwrap()
-        .json()
-        .await
         .unwrap();
+    // 降级可观测:回写链路与原因
+    let fb = resp
+        .headers()
+        .get("x-keyway-fallback")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default()
+        .to_string();
+    assert!(fb.contains("(500)"), "应含触发状态码: {fb}");
+    let resp: serde_json::Value = resp.json().await.unwrap();
     assert_eq!(resp["via"], "mock-b", "主供应商 5xx 应自动回退到备用");
     let _ = std::fs::remove_dir_all(&db_dir);
 }
