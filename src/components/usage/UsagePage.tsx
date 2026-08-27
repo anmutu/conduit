@@ -106,17 +106,18 @@ export function UsagePage({
 }) {
   const { t } = useI18n();
   const [data, setData] = useState<UsageDashboard | null>(null);
+  const [days, setDays] = useState(7);
 
   useEffect(() => {
     if (IS_DEMO) {
       setData(DEMO);
       return;
     }
-    invoke<UsageDashboard>("get_usage_dashboard", { appType: app })
+    invoke<UsageDashboard>("get_usage_dashboard", { appType: app, days })
       .then(setData)
       .catch((e) => onError(String(e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [app]);
+  }, [app, days]);
 
   const nameOf = (id: string) =>
     providers.find((p) => p.id === id)?.name ?? id.slice(0, 8);
@@ -142,7 +143,28 @@ export function UsagePage({
 
       {/* 近 7 日趋势 */}
       <div className="rounded-xl border border-border p-4 bg-card">
-        <h3 className="text-sm font-semibold mb-4">{t("dash.trend")}</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold">
+            {t("dash.trendN", { n: days })}
+          </h3>
+          <div className="flex items-center gap-1 p-0.5 bg-muted rounded-lg">
+            {[7, 30].map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setDays(d)}
+                className={
+                  "px-2 h-6 rounded-md text-[11px] font-medium transition-all " +
+                  (days === d
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground")
+                }
+              >
+                {d}d
+              </button>
+            ))}
+          </div>
+        </div>
         {data && data.by_day.length > 0 ? (
           <div className="flex items-end gap-2 h-28">
             {data.by_day.map((d) => (

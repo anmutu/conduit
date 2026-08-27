@@ -10,8 +10,10 @@ use crate::types::AppType;
 pub fn get_usage_dashboard(
     state: State<'_, AppState>,
     app_type: AppType,
+    days: Option<i64>,
 ) -> Result<UsageDashboard, String> {
-    crate::db::usage_dao::dashboard(&state.db, app_type.as_str()).map_err(|e| e.to_string())
+    let days = days.unwrap_or(7).clamp(1, 90);
+    crate::db::usage_dao::dashboard(&state.db, app_type.as_str(), days).map_err(|e| e.to_string())
 }
 
 /// 最近请求日志(请求浏览器)

@@ -191,9 +191,9 @@ fn group_by(pool: &Pool, app_type: &str, column: &str, limit: i64) -> Result<Vec
     Ok(rows.flatten().collect())
 }
 
-pub fn dashboard(pool: &Pool, app_type: &str) -> Result<UsageDashboard> {
+pub fn dashboard(pool: &Pool, app_type: &str, days: i64) -> Result<UsageDashboard> {
     let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
-    let week_ago = chrono::Utc::now().timestamp() - 7 * 86400;
+    let week_ago = chrono::Utc::now().timestamp() - days * 86400;
     let mut stmt = conn.prepare(
         "SELECT date(created_at,'unixepoch','localtime') AS d, COUNT(*),
                 COALESCE(SUM(input_tokens)+SUM(output_tokens),0)
