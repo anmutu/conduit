@@ -22,6 +22,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ProviderIcon } from "@/components/ProviderIcon";
+import { RouteRulesCard } from "@/components/settings/RouteRulesCard";
 import { useTheme, type Theme } from "@/components/theme-provider";
 import { useI18n, type LocaleSetting } from "@/i18n";
 import { FlagCN, FlagGB, GlobeAuto } from "@/components/LanguageBadges";
@@ -322,6 +323,9 @@ export function SettingsPage({
           </div>
         </div>
       </div>
+
+      {/* 模型路由:按模型名自动分流到指定供应商 */}
+      <RouteRulesCard onError={onError} />
 
       <Row
         icon={<Database className="w-4 h-4" />}

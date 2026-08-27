@@ -17,7 +17,6 @@ import { TakeoverDialog } from "@/components/TakeoverDialog";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 import { UsagePage } from "@/components/usage/UsagePage";
 import { LogsPage } from "@/components/usage/LogsPage";
-import { RouteRules } from "@/components/providers/RouteRules";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
@@ -456,15 +455,6 @@ function App() {
         <div className="px-6 pt-6 flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="flex-1 overflow-y-auto overflow-x-hidden pb-12 px-1">
             <div className="max-w-[760px] mx-auto w-full h-full flex flex-col space-y-4 animate-fade-in" key={activeApp}>
-              {/* 模型路由规则(折叠条) */}
-              {hasCache && providers.length > 0 && !IS_DEMO && (
-                <RouteRules
-                  app={activeApp}
-                  providers={providers}
-                  onChanged={() => {/* 规则即时生效,无需刷新列表 */}}
-                  onError={(m) => toast("error", humanizeError(m, t))}
-                />
-              )}
               {/* 首次加载:骨架屏占位 */}
               {!hasCache && providers.length === 0 && (
                 <>
