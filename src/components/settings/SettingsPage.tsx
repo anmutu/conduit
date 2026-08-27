@@ -7,6 +7,7 @@ import {
   ChevronUp,
   CalendarClock,
   Database,
+  FileJson,
   Languages,
   LayoutGrid,
   Monitor,
@@ -527,6 +528,56 @@ export function SettingsPage({
             }}
           >
             {t("settings.backupImport")}
+          </Button>
+        </div>
+      </Row>
+
+      <Row
+        icon={<FileJson className="w-4 h-4" />}
+        title={t("settings.configRow")}
+        desc={t("settings.configRowDesc")}
+      >
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={async () => {
+              try {
+                const target = await save({
+                  defaultPath: "keyway-config.json",
+                  filters: [{ name: "JSON", extensions: ["json"] }],
+                });
+                if (!target) return;
+                const path = await invoke<string>("export_config", { target });
+                onSuccess(t("settings.configExported", { path }));
+              } catch (e) {
+                onError(String(e));
+              }
+            }}
+          >
+            {t("settings.configExport")}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={async () => {
+              try {
+                const picked = await open({
+                  multiple: false,
+                  filters: [{ name: "JSON", extensions: ["json"] }],
+                });
+                if (typeof picked !== "string") return;
+                const [created, rules] = await invoke<[number, number]>(
+                  "import_config",
+                  { path: picked },
+                );
+                onSuccess(t("settings.configImported", { p: created, r: rules }));
+              } catch (e) {
+                onError(String(e));
+              }
+            }}
+          >
+            {t("settings.configImport")}
           </Button>
         </div>
       </Row>

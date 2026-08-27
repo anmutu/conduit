@@ -27,3 +27,11 @@ pub fn del(pool: &Pool, key: &str) -> Result<()> {
     )?;
     Ok(())
 }
+
+/// 全量 KV(配置导出用:路由预设 / responses 桥接开关等带前缀筛选)。
+pub fn all(pool: &Pool) -> Result<Vec<(String, String)>> {
+    let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
+    let mut stmt = conn.prepare("SELECT key, value FROM settings ORDER BY key")?;
+    let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
+    Ok(rows.filter_map(|r| r.ok()).collect())
+}
