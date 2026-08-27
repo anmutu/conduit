@@ -216,7 +216,12 @@ export function UsagePage({
             rows={data.by_model.map((m) => ({
               label: m.key,
               value: m.input_tokens + m.output_tokens,
-              sub: `${m.requests} ${t("dash.reqUnit")}`,
+              sub:
+                `${m.requests} ${t("dash.reqUnit")}` +
+                ((m.errors ?? 0) > 0 ? ` · ${t("dash.fails", { n: m.errors ?? 0 })}` : "") +
+                (m.avg_duration_ms && m.avg_duration_ms > 0
+                  ? ` · ${(m.avg_duration_ms / 1000).toFixed(1)}s`
+                  : ""),
             }))}
             format={fmt}
           />

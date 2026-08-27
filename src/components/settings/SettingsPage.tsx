@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   ChevronDown,
   ChevronUp,
+  CalendarClock,
   Database,
   Languages,
   LayoutGrid,
@@ -32,6 +33,7 @@ import type { AppType } from "@/types";
 
 interface AppSettings {
   autostart: boolean;
+  retention_days?: number;
   db_path: string;
   proxy_addr: string;
 }
@@ -103,6 +105,20 @@ export function SettingsPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const saveRetention = async (days: number) => {
+    if (!Number.isInteger(days) || days < 1 || days > 365) {
+      onError(t("settings.retentionBad"));
+      return;
+    }
+    try {
+      await invoke("set_usage_retention", { days });
+      setSettings((s) => (s ? { ...s, retention_days: days } : s));
+      onSuccess(t("settings.retentionSaved", { n: days }));
+    } catch (e) {
+      onError(String(e));
+    }
+  };
+
   const toggleAutostart = async (enabled: boolean) => {
     try {
       await invoke("set_autostart", { enabled });
@@ -157,6 +173,25 @@ export function SettingsPage({
           checked={settings?.autostart ?? false}
           disabled={!settings}
           onCheckedChange={(v) => void toggleAutostart(v)}
+        />
+      </Row>
+
+      <Row
+        icon={<CalendarClock className="w-4 h-4" />}
+        title={t("settings.retention")}
+        desc={t("settings.retentionDesc")}
+      >
+        <Input
+          type="number"
+          min={1}
+          max={365}
+          defaultValue={settings?.retention_days ?? 30}
+          key={settings?.retention_days}
+          onBlur={(e) => void saveRetention(Number(e.target.value))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+          className="w-20 h-8 text-xs tabular-nums text-right"
         />
       </Row>
 

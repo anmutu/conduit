@@ -99,9 +99,10 @@ pub fn run() {
             let db_path = db_dir.join("conduit.db");
             tracing::info!("数据库路径: {}", db_path.display());
             let pool = db::init_pool(&db_path, &master_key)?;
-            // 请求日志只用于本地观察,保留 30 天即可;启动时清理过期行
-            match db::usage_dao::prune(&pool, 30) {
-                Ok(n) if n > 0 => tracing::info!("清理 {n} 条过期请求日志(>30 天)"),
+            // 请求日志只用于本地观察,按设置的保留天数清理过期行
+            let retention = commands::settings::usage_retention_days(&pool);
+            match db::usage_dao::prune(&pool, retention) {
+                Ok(n) if n > 0 => tracing::info!("清理 {n} 条过期请求日志(>{retention} 天)"),
                 Ok(_) => {}
                 Err(e) => tracing::warn!("清理过期请求日志失败: {e}"),
             }
@@ -186,6 +187,7 @@ pub fn run() {
             commands::usage_dash::get_recent_usage,
             commands::usage_dash::export_usage_csv,
             commands::usage_dash::clear_usage,
+            commands::settings::set_usage_retention,
             commands::update::check_update,
             commands::route::list_route_rules,
             commands::route::add_route_rule,
