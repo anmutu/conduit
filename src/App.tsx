@@ -12,6 +12,7 @@ import { EditProviderDialog } from "@/components/providers/EditProviderDialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ToastStack, type ToastItem, type ToastType } from "@/components/Toast";
 import { AboutDialog } from "@/components/AboutDialog";
+import { QuickSwitchPanel } from "@/components/QuickSwitchPanel";
 import { OnboardingDialog, ONBOARD_KEY } from "@/components/OnboardingDialog";
 import { TakeoverDialog } from "@/components/TakeoverDialog";
 import { SettingsPage } from "@/components/settings/SettingsPage";
@@ -122,6 +123,7 @@ function App() {
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Provider | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
   const [currentView, setCurrentView] = useState<"providers" | "settings" | "usage" | "logs">("providers");
   // 界面偏好:布局(左侧/顶部)+ 可见分组顺序,设置页可改
   const [layout, setLayoutState] = useState<LayoutMode>(loadLayout);
@@ -281,6 +283,15 @@ function App() {
     ).then((fn) => (un = fn));
     return () => un?.();
   }, [refresh, toast]);
+
+  // 全局快捷键 ⌘⇧K:唤起快速切换面板(演示模式同样可用,纯前端交互)
+  useEffect(() => {
+    let un: (() => void) | undefined;
+    void listen("quick-switch", () => setQuickOpen(true)).then(
+      (fn) => (un = fn),
+    );
+    return () => un?.();
+  }, []);
 
   /** 首启导入:扫描现有 CLI 配置建供应商 */
   const [importing, setImporting] = useState(false);
@@ -564,6 +575,14 @@ function App() {
       <ToastStack items={toasts} onDismiss={dismissToast} />
 
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+
+      <QuickSwitchPanel
+        open={quickOpen}
+        onClose={() => setQuickOpen(false)}
+        app={activeApp}
+        providers={providers}
+        onPick={(p) => void switchProvider(p)}
+      />
 
       <OnboardingDialog
         open={onboardingOpen}

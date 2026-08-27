@@ -24,8 +24,31 @@ pub fn run() {
         )
         .init();
 
+    // 快速切换快捷键:⌘⇧K(macOS)/ Ctrl+Shift+K —— 唤起主窗口并打开切换面板
+    let quick = tauri_plugin_global_shortcut::Shortcut::new(
+        Some(
+            tauri_plugin_global_shortcut::Modifiers::SUPER
+                | tauri_plugin_global_shortcut::Modifiers::SHIFT,
+        ),
+        tauri_plugin_global_shortcut::Code::KeyK,
+    );
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(move |app, sc, event| {
+                    if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed
+                        && *sc == quick
+                    {
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                        }
+                        let _ = app.emit("quick-switch", ());
+                    }
+                })
+                .build(),
+        )
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
@@ -88,7 +111,22 @@ pub fn run() {
             });
             app.manage(state);
 
-            // 4. 系统托盘:供应商快速切换 + 显示主界面 / 退出
+            // 4. 全局快捷键注册(⌘⇧K 快速切换;注册失败不阻塞启动)
+            use tauri_plugin_global_shortcut::GlobalShortcutExt;
+            if let Err(e) =
+                app.global_shortcut()
+                    .register(tauri_plugin_global_shortcut::Shortcut::new(
+                        Some(
+                            tauri_plugin_global_shortcut::Modifiers::SUPER
+                                | tauri_plugin_global_shortcut::Modifiers::SHIFT,
+                        ),
+                        tauri_plugin_global_shortcut::Code::KeyK,
+                    ))
+            {
+                tracing::warn!("全局快捷键注册失败(可能被其他应用占用): {e}");
+            }
+
+            // 5. 系统托盘:供应商快速切换 + 显示主界面 / 退出
             let menu = build_tray_menu(app.handle())?;
             TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().expect("缺少应用图标").clone())
