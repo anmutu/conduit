@@ -14,5 +14,6 @@ pub mod route;
 pub mod settings;
 pub mod takeover;
 pub mod tray;
+pub mod update;
 pub mod usage;
 pub mod usage_dash;
