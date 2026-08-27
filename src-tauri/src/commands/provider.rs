@@ -96,6 +96,17 @@ pub async fn test_provider(
         .map_err(|e| e.to_string())
 }
 
+/// 批量连通性测试:该分组全部供应商并发测速。
+#[tauri::command]
+pub async fn test_all_providers(
+    state: State<'_, AppState>,
+    app_type: AppType,
+) -> Result<Vec<svc::BatchTestItem>, String> {
+    svc::test_all_providers(&state.db, app_type)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// 查询供应商余额(骨架:接口未定,统一返回 None,前端不展示)。
 #[tauri::command]
 pub fn get_provider_balance(

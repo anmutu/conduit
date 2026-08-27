@@ -272,3 +272,30 @@ async fn test_provider_impl(pool: &Pool, id: &str, app: AppType) -> Result<TestR
 pub async fn test_provider(pool: &Pool, id: &str, app: AppType) -> Result<TestResult> {
     test_provider_impl(pool, id, app).await
 }
+
+/// 批量连通性测试:某分组的全部供应商并发测一遍,返回 id → 结果。
+#[derive(serde::Serialize)]
+pub struct BatchTestItem {
+    pub provider_id: String,
+    #[serde(flatten)]
+    pub result: TestResult,
+}
+
+pub async fn test_all_providers(pool: &Pool, app: AppType) -> Result<Vec<BatchTestItem>> {
+    let providers = crate::db::provider_dao::list_by_app(pool, app)?;
+    let futs = providers.iter().map(|p| async move {
+        let r = test_provider_impl(pool, &p.id, app)
+            .await
+            .unwrap_or(TestResult {
+                ok: false,
+                status: None,
+                latency_ms: 0,
+                message: "测试失败".into(),
+            });
+        BatchTestItem {
+            provider_id: p.id.clone(),
+            result: r,
+        }
+    });
+    Ok(futures::future::join_all(futs).await)
+}

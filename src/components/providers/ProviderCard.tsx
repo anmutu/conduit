@@ -22,6 +22,8 @@ interface ProviderCardProps {
   usage?: UsageSummary;
   /** 连通性测试失败等错误提示 */
   onError?: (msg: string) => void;
+  /** 「全部测速」批量结果(常显徽章;与单卡 hover 测试互不影响) */
+  batchResult?: { ok: boolean; latency_ms: number; message: string } | null;
 }
 
 // 视觉结构复刻 CC Switch 的 ProviderCard:
@@ -39,6 +41,7 @@ export function ProviderCard({
   onCopyUrl,
   usage,
   onError,
+  batchResult,
 }: ProviderCardProps) {
   const { t } = useI18n();
   // 该分组协议的端点;无端点 → 置灰(供应商实体仍在,只是未配置此协议)
@@ -125,7 +128,22 @@ export function ProviderCard({
             </div>
           )}
           <div className="ml-auto">
-            <div className="flex items-center gap-1" />
+            <div className="flex items-center gap-1">
+              {batchResult && (
+                <span
+                  className={cn(
+                    "text-xs tabular-nums",
+                    batchResult.ok
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-red-500",
+                  )}
+                >
+                  {batchResult.ok
+                    ? `✓ ${batchResult.latency_ms}ms`
+                    : `✗ ${batchResult.message || "不可达"}`}
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 pointer-events-none group-hover:opacity-100 group-focus-within:opacity-100 group-hover:pointer-events-auto group-focus-within:pointer-events-auto transition-opacity duration-200">
             <ProviderActions

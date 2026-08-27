@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Boxes, Download, Plus } from "lucide-react";
+import { Activity, Boxes, Download, Plus } from "lucide-react";
 import type { AppType, Provider, ProxyStatus, UsageSummary } from "@/types";
 import { APP_PROTOCOL } from "@/types";
 import { Sidebar } from "@/components/Sidebar";
@@ -128,6 +128,31 @@ function App() {
   // 拖拽排序:被拖卡片 id 与悬停目标 id
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  // 全部测速:批量结果 + 进行中标记
+  const [batchResults, setBatchResults] = useState<Record<string, { ok: boolean; latency_ms: number; message: string }>>({});
+  const [testingAll, setTestingAll] = useState(false);
+
+  const runTestAll = async () => {
+    setTestingAll(true);
+    try {
+      const items = await invoke<{ provider_id: string; ok: boolean; latency_ms: number; message: string }[]>(
+        "test_all_providers",
+        { appType: activeApp },
+      );
+      const map: Record<string, { ok: boolean; latency_ms: number; message: string }> = {};
+      for (const it of items) {
+        map[it.provider_id] = { ok: it.ok, latency_ms: it.latency_ms, message: it.message };
+      }
+      setBatchResults(map);
+      const okN = items.filter((i) => i.ok).length;
+      toast(okN === items.length ? "success" : "error",
+        t("provider.testAllDone", { ok: okN, total: items.length }));
+    } catch (e) {
+      toast("error", humanizeError(String(e), t));
+    } finally {
+      setTestingAll(false);
+    }
+  };
 
   /** 拖拽落点:本地立即换序,并把完整顺序写回后端 */
   const dropOn = (targetId: string) => {
@@ -229,6 +254,7 @@ function App() {
   }, [toast]);
 
   useEffect(() => {
+    setBatchResults({});
     void refresh(activeApp);
   }, [activeApp, refresh]);
 
@@ -542,6 +568,15 @@ function App() {
                 </div>
               )}
 
+              {providers.length > 0 && (
+                <div className="flex justify-end -mb-2">
+                  <Button variant="ghost" size="sm" disabled={testingAll} onClick={() => void runTestAll()}>
+                    <Activity className={cn("w-4 h-4 mr-1", testingAll && "animate-pulse")} />
+                    {testingAll ? t("provider.testingAll") : t("provider.testAll")}
+                  </Button>
+                </div>
+              )}
+
               {providers.map((p) => (
                 <div
                   key={p.id}
@@ -580,6 +615,7 @@ function App() {
                     onDuplicate={(provider) => void duplicateProvider(provider)}
                     onDelete={(provider) => setConfirmDelete(provider)}
                     usage={usageMap[p.id]}
+                    batchResult={batchResults[p.id] ?? null}
                     onError={(m) => toast("error", humanizeError(m, t))}
                     onCopyUrl={(url) => {
                       navigator.clipboard
