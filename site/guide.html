@@ -319,7 +319,7 @@
           gS5l4: "Requests that matched a rule are tagged blue in the Logs page, so routing is visible at a glance.",
           gS5l5: "Long-context split: requests above a size threshold (adjustable, ~60k tokens estimated by default) automatically go to a designated provider — big contexts on the cheap channel, daily chats unaffected. Matched responses carry an x-keyway-route header.",
           gS5l6: "Scene-based split: besides long-context, designate providers for deep-think (thinking enabled or reasoning/thinking tier models) and background-lite (haiku / mini / flash / nano tier tasks) — premium models where they matter, cheap channels for small jobs.",
-          gS5p2: "Automatic failover — on upstream 5xx or timeouts, requests retry backup providers automatically. Add providers to the candidate chain to enable it.",
+          gS5p2: "Automatic failover — on upstream 5xx or timeouts, requests retry backup providers automatically. Add providers to the candidate chain to enable it. Failed-over responses carry an x-keyway-fallback header (chain and reason, e.g. A->B(502)).",
           gS5p3: "Usage & logs — the Usage page aggregates tokens and success rates by CLI and provider; Logs shows the last 100 requests (model, tokens in/out, status) for easy debugging.",
           gS5p4: "Profiles & backup — save the current provider set as a profile (work / personal / testing, one-tap switching) and export a JSON backup via the system save dialog (keys excluded) for moving machines.",
           gFaqK: "Troubleshooting", gFaqH2: "Having trouble?",
