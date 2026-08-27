@@ -95,6 +95,7 @@ fn scan_gemini() -> Option<(String, Option<String>)> {
 pub fn import_existing(pool: &Pool) -> Result<Vec<ImportedProvider>> {
     let mut imported = Vec::new();
 
+    #[allow(clippy::type_complexity)]
     let scanners: Vec<(&str, AppType, fn() -> Option<(String, Option<String>)>)> = vec![
         ("导入的 Claude 配置", AppType::Claude, scan_claude),
         ("导入的 Codex 配置", AppType::Codex, scan_codex),

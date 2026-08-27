@@ -294,8 +294,7 @@ fn gemini_effective(path: &Path) -> bool {
         .map(|raw| {
             raw.lines().any(|l| {
                 let t = l.trim_start();
-                t.starts_with(&format!("{GEMINI_VAR}="))
-                    && t == &format!("{GEMINI_VAR}={PROXY_URL}")
+                t.starts_with(&format!("{GEMINI_VAR}=")) && t == format!("{GEMINI_VAR}={PROXY_URL}")
             })
         })
         .unwrap_or(false)

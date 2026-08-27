@@ -36,9 +36,8 @@ pub async fn load_async(pool: &Pool, provider: &Provider) -> Option<String> {
         crate::services::keychain::load_provider_key(&kid)
             .ok()
             .flatten()
-            .map(|k| {
-                let _ = api_key_dao::set(&pool2, &pid, &k);
-                k
+            .inspect(|k| {
+                let _ = api_key_dao::set(&pool2, &pid, k);
             })
     })
     .await;

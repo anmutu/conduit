@@ -234,6 +234,12 @@ struct ToolAgg {
     args_buf: String,
 }
 
+impl Default for SseConverter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SseConverter {
     pub fn new() -> Self {
         Self {

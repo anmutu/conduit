@@ -185,6 +185,12 @@ pub struct AnthropicSseConverter {
     sent_done: bool,
 }
 
+impl Default for AnthropicSseConverter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AnthropicSseConverter {
     pub fn new() -> Self {
         Self {
@@ -296,11 +302,9 @@ impl AnthropicSseConverter {
                 }
                 self.emit_chunk(out, chunk);
             }
-            "message_stop" => {
-                if !self.sent_done {
-                    self.sent_done = true;
-                    out.extend_from_slice(b"data: [DONE]\n\n");
-                }
+            "message_stop" if !self.sent_done => {
+                self.sent_done = true;
+                out.extend_from_slice(b"data: [DONE]\n\n");
             }
             _ => {}
         }

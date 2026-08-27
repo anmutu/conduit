@@ -15,6 +15,7 @@ pub struct UsageSummary {
     pub errors: i64,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn insert(
     pool: &Pool,
     app_type: &str,
@@ -177,7 +178,7 @@ fn app_total(pool: &Pool, app_type: &str) -> Result<UsageSummary> {
             })
         },
     )
-    .map_err(|e| anyhow!("{e}").into())
+    .map_err(|e| anyhow!("{e}"))
 }
 
 fn group_by(pool: &Pool, app_type: &str, column: &str, limit: i64) -> Result<Vec<NamedUsage>> {

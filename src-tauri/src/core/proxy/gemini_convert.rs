@@ -161,6 +161,12 @@ pub struct GeminiSseConverter {
     line_buf: String,
 }
 
+impl Default for GeminiSseConverter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GeminiSseConverter {
     pub fn new() -> Self {
         Self {

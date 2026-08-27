@@ -447,7 +447,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         if conv != Conv::None && status.is_success() && (wants_stream || upstream_is_sse) {
             let raw = resp
                 .bytes_stream()
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+                .map_err(|e| std::io::Error::other(e.to_string()));
             let meter2 = meter_for(
                 &state,
                 app,
@@ -526,7 +526,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
 
         let stream = resp
             .bytes_stream()
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+            .map_err(|e| std::io::Error::other(e.to_string()));
         // 用量计量:归属实际服务的供应商
         let meter = if matches!(app, AppType::Claude | AppType::Codex | AppType::Gemini) {
             UsageMeter::new(UsageCtx {

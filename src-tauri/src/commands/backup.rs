@@ -46,10 +46,11 @@ pub fn import_backup(
             let entries = std::fs::read_dir(&dir).map_err(|e| e.to_string())?;
             for e in entries.flatten() {
                 let name = e.file_name().to_string_lossy().into_owned();
-                if name.starts_with("conduit-backup-") && name.ends_with(".json") {
-                    if newest.as_ref().is_none_or(|n| e.path() > n.clone()) {
-                        newest = Some(e.path());
-                    }
+                if name.starts_with("conduit-backup-")
+                    && name.ends_with(".json")
+                    && newest.as_ref().is_none_or(|n| e.path() > n.clone())
+                {
+                    newest = Some(e.path());
                 }
             }
             newest.ok_or_else(|| "未找到备份文件,请先导出".to_string())?

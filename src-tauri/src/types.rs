@@ -53,6 +53,7 @@ impl AppType {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "claude" => Some(AppType::Claude),
@@ -135,6 +136,7 @@ impl Protocol {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "anthropic" => Some(Protocol::Anthropic),

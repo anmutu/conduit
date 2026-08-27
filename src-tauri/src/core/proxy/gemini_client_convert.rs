@@ -189,6 +189,12 @@ pub struct GeminiClientSseConverter {
     finished: bool,
 }
 
+impl Default for GeminiClientSseConverter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GeminiClientSseConverter {
     pub fn new() -> Self {
         Self {
