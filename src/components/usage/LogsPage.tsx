@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { ScrollText } from "lucide-react";
+import { ScrollText, Search } from "lucide-react";
 import { useI18n } from "@/i18n";
+import { Input } from "@/components/ui/input";
 import type { Provider } from "@/types";
 
 interface UsageEntry {
@@ -29,6 +30,24 @@ export function LogsPage({
 }) {
   const { t } = useI18n();
   const [entries, setEntries] = useState<UsageEntry[] | null>(null);
+  const [q, setQ] = useState("");
+  const [prov, setProv] = useState("");
+  const [onlyErrors, setOnlyErrors] = useState(false);
+
+  const filtered = useMemo(() => {
+    if (!entries) return null;
+    const kw = q.trim().toLowerCase();
+    return entries.filter(
+      (e) =>
+        (!prov || e.provider_id === prov) &&
+        (!onlyErrors || e.status >= 400) &&
+        (!kw ||
+          (e.model ?? "").toLowerCase().includes(kw) ||
+          nameOf(e.provider_id).toLowerCase().includes(kw) ||
+          (e.rule_pattern ?? "").toLowerCase().includes(kw)),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, q, prov, onlyErrors, providers]);
 
   useEffect(() => {
     if (IS_DEMO) {
@@ -56,14 +75,52 @@ export function LogsPage({
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h3 className="text-sm font-semibold">{t("logs.title")}</h3>
           <span className="text-xs text-muted-foreground">
-            {t("logs.count", { n: entries?.length ?? 0 })}
+            {t("logs.count", {
+              n: filtered?.length ?? 0,
+              total: entries?.length ?? 0,
+            })}
           </span>
         </div>
+        {/* 筛选行:关键词 / 供应商 / 仅看失败 */}
+        {entries !== null && entries.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-border flex-wrap">
+            <div className="relative flex-1 min-w-[140px] max-w-[220px]">
+              <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={t("logs.searchPh")}
+                className="h-7 pl-7 text-xs"
+              />
+            </div>
+            <select
+              value={prov}
+              onChange={(e) => setProv(e.target.value)}
+              className="h-7 rounded-md border border-border bg-background px-1.5 text-xs"
+            >
+              <option value="">{t("logs.allProviders")}</option>
+              {providers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={onlyErrors}
+                onChange={(e) => setOnlyErrors(e.target.checked)}
+                className="accent-red-500"
+              />
+              {t("logs.onlyErrors")}
+            </label>
+          </div>
+        )}
         {entries === null ? (
           <p className="text-sm text-muted-foreground text-center py-8">
             {t("common.loading")}
           </p>
-        ) : entries.length === 0 ? (
+        ) : (filtered?.length ?? 0) === 0 ? (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
             <ScrollText className="w-8 h-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">{t("logs.empty")}</p>
@@ -82,7 +139,7 @@ export function LogsPage({
                 </tr>
               </thead>
               <tbody className="tabular-nums">
-                {entries.map((e) => (
+                {filtered?.map((e) => (
                   <tr
                     key={e.id}
                     className="border-b border-border/50 hover:bg-accent/50"
