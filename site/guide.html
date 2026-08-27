@@ -121,24 +121,25 @@
           <span style="font-weight:600;color:#fff;">Keyway</span>
         </a>
         <div class="nav-links">
-          <a href="./index.html">首页</a>
-          <a href="https://github.com/anmutu/keyway/releases" target="_blank" rel="noreferrer">下载</a>
+          <a href="./index.html" data-i18n="gNavHome">首页</a>
+          <a href="https://github.com/anmutu/keyway/releases" target="_blank" rel="noreferrer" data-i18n="gNavDl">下载</a>
+          <a href="#" id="langToggle">EN</a>
         </div>
       </div>
     </nav>
 
     <header class="hero container">
-      <h1>使用指南。</h1>
-      <p class="sub">从安装到进阶,5 分钟掌握 Keyway 的全部。</p>
+      <h1 data-i18n="gH1">使用指南。</h1>
+      <p class="sub" data-i18n="gSub">从安装到进阶,5 分钟掌握 Keyway 的全部。</p>
       <div class="toc">
-        <b>本页内容</b>
+        <b data-i18n="gToc">本页内容</b>
         <ol>
-          <li><a href="#install">下载与安装</a></li>
-          <li><a href="#add">添加供应商</a></li>
-          <li><a href="#takeover">一键接管 CLI</a></li>
-          <li><a href="#switch">切换:秒生效,不重启</a></li>
-          <li><a href="#advanced">进阶:路由 · 故障转移 · 日志 · 档案</a></li>
-          <li><a href="#faq">遇到问题?</a></li>
+          <li><a href="#install" data-i18n="gToc1">下载与安装</a></li>
+          <li><a href="#add" data-i18n="gToc2">添加供应商</a></li>
+          <li><a href="#takeover" data-i18n="gToc3">一键接管 CLI</a></li>
+          <li><a href="#switch" data-i18n="gToc4">切换:秒生效,不重启</a></li>
+          <li><a href="#advanced" data-i18n="gToc5">进阶:路由 · 故障转移 · 日志 · 档案</a></li>
+          <li><a href="#faq" data-i18n="gToc6">遇到问题?</a></li>
         </ol>
       </div>
     </header>
@@ -147,40 +148,40 @@
 
       <section class="step" id="install">
         <span class="stepnum">1</span>
-        <div class="kicker">准备</div>
-        <h2>下载与安装</h2>
-        <p>Keyway 是一个免费的 macOS 桌面应用。从 GitHub Releases 下载 <code>.dmg</code>,拖入「应用程序」即可,无需其他依赖。</p>
+        <div class="kicker" data-i18n="gS1k">准备</div>
+        <h2 data-i18n="gS1h2">下载与安装</h2>
+        <p data-i18n="gS1p">Keyway 是一个免费的 macOS 桌面应用。从 GitHub Releases 下载 <code>.dmg</code>,拖入「应用程序」即可,无需其他依赖。</p>
         <ul>
-          <li>首次打开若提示「无法验证开发者」,请在 <b>系统设置 → 隐私与安全性</b> 中点击「仍要打开」。</li>
-          <li>启动后 Keyway 会常驻<b>菜单栏(托盘)</b>,关闭窗口不影响代理运行。</li>
-          <li>本地代理默认监听 <code>127.0.0.1:9527</code>,只接受本机请求。</li>
+          <li data-i18n="gS1l1">首次打开若提示「无法验证开发者」,请在 <b>系统设置 → 隐私与安全性</b> 中点击「仍要打开」。</li>
+          <li data-i18n="gS1l2">启动后 Keyway 会常驻<b>菜单栏(托盘)</b>,关闭窗口不影响代理运行。</li>
+          <li data-i18n="gS1l3">本地代理默认监听 <code>127.0.0.1:9527</code>,只接受本机请求。</li>
         </ul>
-        <div class="tip blue"><b>它怎么工作?</b>Keyway 接管各 AI CLI 的 API 地址后,所有请求先到本地代理,再转发到你选定的供应商。切换只改本地状态、不重写 CLI 配置 —— 这就是"免重启"的原因。</div>
+        <div class="tip blue" data-i18n="gTip1"><b>它怎么工作?</b>Keyway 接管各 AI CLI 的 API 地址后,所有请求先到本地代理,再转发到你选定的供应商。切换只改本地状态、不重写 CLI 配置 —— 这就是"免重启"的原因。</div>
       </section>
 
       <section class="step" id="add">
         <span class="stepnum">2</span>
-        <div class="kicker">配置</div>
-        <h2>添加供应商</h2>
-        <p>打开主界面,按 CLI 分组(Claude Code、Codex、Gemini CLI 等)添加你要用的模型供应商:</p>
+        <div class="kicker" data-i18n="gS2k">配置</div>
+        <h2 data-i18n="gS2h2">添加供应商</h2>
+        <p data-i18n="gS2p">打开主界面,按 CLI 分组(Claude Code、Codex、Gemini CLI 等)添加你要用的模型供应商:</p>
         <ul>
-          <li><b>预设直选</b>:内置常见供应商与中转站,填入 API Key 即可用。</li>
-          <li><b>从现有配置导入</b>:已在 CLI 里配过?一键导入,不用重新填。</li>
-          <li><b>自定义</b>:填名称、Base URL、API Key,任意中转/自建网关都支持。</li>
+          <li data-i18n="gS2l1"><b>预设直选</b>:内置常见供应商与中转站,填入 API Key 即可用。</li>
+          <li data-i18n="gS2l2"><b>从现有配置导入</b>:已在 CLI 里配过?一键导入,不用重新填。</li>
+          <li data-i18n="gS2l3"><b>自定义</b>:填名称、Base URL、API Key,任意中转/自建网关都支持。</li>
         </ul>
-        <div class="tip"><b>密钥安全</b>:API Key 存入系统钥匙串 + 整库加密的本地数据库,不会明文写进任何 CLI 配置文件,导出备份也不含密钥。</div>
-        <p style="margin-top:18px;">添加完成后,可点击供应商卡片上的 <b>测速按钮</b> 检查连通性与延迟,再决定用谁。</p>
+        <div class="tip" data-i18n="gTip2"><b>密钥安全</b>:API Key 存入系统钥匙串 + 整库加密的本地数据库,不会明文写进任何 CLI 配置文件,导出备份也不含密钥。</div>
+        <p style="margin-top:18px;" data-i18n="gS2p2">添加完成后,可点击供应商卡片上的 <b>测速按钮</b> 检查连通性与延迟,再决定用谁。</p>
       </section>
 
       <section class="step" id="takeover">
         <span class="stepnum">3</span>
-        <div class="kicker">接管</div>
-        <h2>一键接管 CLI</h2>
-        <p>在分组页点击 <b>「接管」</b>,Keyway 会把该 CLI 的配置指向本地代理:</p>
+        <div class="kicker" data-i18n="gS3k">接管</div>
+        <h2 data-i18n="gS3h2">一键接管 CLI</h2>
+        <p data-i18n="gS3p">在分组页点击 <b>「接管」</b>,Keyway 会把该 CLI 的配置指向本地代理:</p>
         <ul>
-          <li>接管前<b>自动备份原配置</b>,随时可一键还原,不留残留。</li>
-          <li>接管后 CLI 照常使用 —— 你不需要改变任何使用习惯。</li>
-          <li>也可以不接管,手动给 CLI 设置环境变量指向 <code>127.0.0.1:9527</code>(应用内有可复制的变量)。</li>
+          <li data-i18n="gS3l1">接管前<b>自动备份原配置</b>,随时可一键还原,不留残留。</li>
+          <li data-i18n="gS3l2">接管后 CLI 照常使用 —— 你不需要改变任何使用习惯。</li>
+          <li data-i18n="gS3l3">也可以不接管,手动给 CLI 设置环境变量指向 <code>127.0.0.1:9527</code>(应用内有可复制的变量)。</li>
         </ul>
         <div class="terminal">
           <div class="term-bar">
@@ -197,13 +198,13 @@
 
       <section class="step" id="switch">
         <span class="stepnum">4</span>
-        <div class="kicker">日常</div>
-        <h2>切换:秒生效,不重启</h2>
-        <p>这是 Keyway 与"改配置文件"类工具最大的不同 —— <b>切换只改本地状态,下一个请求立即走新供应商</b>:</p>
+        <div class="kicker" data-i18n="gS4k">日常</div>
+        <h2 data-i18n="gS4h2">切换:秒生效,不重启</h2>
+        <p data-i18n="gS4p">这是 Keyway 与"改配置文件"类工具最大的不同 —— <b>切换只改本地状态,下一个请求立即走新供应商</b>:</p>
         <ul>
-          <li>主界面点供应商卡片上的 <b>「切换」</b>,或直接在<b>菜单栏托盘</b>里选,两秒钟完成。</li>
-          <li><b>正在运行的 claude / codex 会话无需重启</b>,发下一条消息就已切换。</li>
-          <li>同一供应商可按协议复用到多个 CLI(如一个中转 Key 同时供 Claude Code 和 Codex)。</li>
+          <li data-i18n="gS4l1">主界面点供应商卡片上的 <b>「切换」</b>,或直接在<b>菜单栏托盘</b>里选,两秒钟完成。</li>
+          <li data-i18n="gS4l2"><b>正在运行的 claude / codex 会话无需重启</b>,发下一条消息就已切换。</li>
+          <li data-i18n="gS4l3">同一供应商可按协议复用到多个 CLI(如一个中转 Key 同时供 Claude Code 和 Codex)。</li>
         </ul>
         <div class="terminal">
           <div class="term-bar">
@@ -221,29 +222,29 @@
 
       <section class="step" id="advanced">
         <span class="stepnum">5</span>
-        <div class="kicker">进阶</div>
-        <h2>路由 · 故障转移 · 日志 · 档案</h2>
-        <p><b>模型路由规则</b> —— 在「设置 → 模型路由」里,让特定模型永远走特定供应商:</p>
+        <div class="kicker" data-i18n="gS5k">进阶</div>
+        <h2 data-i18n="gS5h2">路由 · 故障转移 · 日志 · 档案</h2>
+        <p data-i18n="gS5p"><b>模型路由规则</b> —— 在「设置 → 模型路由」里,让特定模型永远走特定供应商:</p>
         <ul>
-          <li>例:规则 <code>claude</code> → 中转站 A;规则 <code>deepseek</code> → 官方。CLI 里指定模型名,Keyway 自动分发。</li>
-          <li>匹配方式可选「包含」或「前缀」:前缀更精准,避免关键词误命中。</li>
-          <li>每条规则可临时停用(开关),保留配置不删除。</li>
-          <li>命中规则的请求会在「日志」页打上蓝色标记,分流效果一目了然。</li>
+          <li data-i18n="gS5l1">例:规则 <code>claude</code> → 中转站 A;规则 <code>deepseek</code> → 官方。CLI 里指定模型名,Keyway 自动分发。</li>
+          <li data-i18n="gS5l2">匹配方式可选「包含」或「前缀」:前缀更精准,避免关键词误命中。</li>
+          <li data-i18n="gS5l3">每条规则可临时停用(开关),保留配置不删除。</li>
+          <li data-i18n="gS5l4">命中规则的请求会在「日志」页打上蓝色标记,分流效果一目了然。</li>
         </ul>
-        <p style="margin-top:18px;"><b>自动故障转移</b> —— 上游 5xx 或超时时,自动重试备用供应商,长任务不中断。把多个供应商加入候选链即可。</p>
-        <p style="margin-top:18px;"><b>用量与日志</b> —— 侧栏「用量」按 CLI / 供应商汇总 token 与成功率;「日志」可查最近 100 条请求(模型、上下行 token、状态码),排障一目了然。</p>
-        <p style="margin-top:18px;"><b>配置档案与备份</b> —— 「设置」里可将当前供应商组合保存为档案(工作 / 个人 / 测试一键整组切换),也可导出 JSON 备份(不含密钥),换机无忧。</p>
+        <p style="margin-top:18px;" data-i18n="gS5p2"><b>自动故障转移</b> —— 上游 5xx 或超时时,自动重试备用供应商,长任务不中断。把多个供应商加入候选链即可。</p>
+        <p style="margin-top:18px;" data-i18n="gS5p3"><b>用量与日志</b> —— 侧栏「用量」按 CLI / 供应商汇总 token 与成功率;「日志」可查最近 100 条请求(模型、上下行 token、状态码),排障一目了然。</p>
+        <p style="margin-top:18px;" data-i18n="gS5p4"><b>配置档案与备份</b> —— 「设置」里可将当前供应商组合保存为档案(工作 / 个人 / 测试一键整组切换),也可导出 JSON 备份(不含密钥),换机无忧。</p>
       </section>
 
       <section class="step" id="faq">
         <span class="stepnum">?</span>
-        <div class="kicker">排障</div>
-        <h2>遇到问题?</h2>
+        <div class="kicker" data-i18n="gFaqK">排障</div>
+        <h2 data-i18n="gFaqH2">遇到问题?</h2>
         <ul>
-          <li><b>请求 401 / 403</b>:响应头带 <code>x-keyway-hint</code>,按提示检查 Key 是否有效、额度是否充足。</li>
-          <li><b>切换没生效</b>:确认该 CLI 已被接管(分组页有接管状态),或环境变量指向 <code>127.0.0.1:9527</code>。</li>
-          <li><b>想恢复原样</b>:分组页「还原」即可,原配置在接管时已备份。</li>
-          <li><b>数据在哪</b>:全部在本机加密数据库,不上传任何服务器;卸载即彻底清除。</li>
+          <li data-i18n="gFaqL1"><b>请求 401 / 403</b>:响应头带 <code>x-keyway-hint</code>,按提示检查 Key 是否有效、额度是否充足。</li>
+          <li data-i18n="gFaqL2"><b>切换没生效</b>:确认该 CLI 已被接管(分组页有接管状态),或环境变量指向 <code>127.0.0.1:9527</code>。</li>
+          <li data-i18n="gFaqL3"><b>想恢复原样</b>:分组页「还原」即可,原配置在接管时已备份。</li>
+          <li data-i18n="gFaqL4"><b>数据在哪</b>:全部在本机加密数据库,不上传任何服务器;卸载即彻底清除。</li>
         </ul>
       </section>
 
@@ -251,10 +252,10 @@
 
     <section class="cta">
       <div class="container">
-        <h2>准备好了吗?</h2>
-        <p class="sub">免费、开源,五分钟接管你的每一个 AI CLI。</p>
+        <h2 data-i18n="gCtaH2">准备好了吗?</h2>
+        <p class="sub" data-i18n="gCtaSub">免费、开源,五分钟接管你的每一个 AI CLI。</p>
         <div class="links">
-          <a class="alink" href="https://github.com/anmutu/keyway/releases" target="_blank" rel="noreferrer">免费下载</a>
+          <a class="alink" href="https://github.com/anmutu/keyway/releases" target="_blank" rel="noreferrer" data-i18n="gCtaDl">免费下载</a>
           <a class="alink" href="https://github.com/anmutu/keyway" target="_blank" rel="noreferrer">GitHub</a>
         </div>
       </div>
@@ -263,5 +264,88 @@
     <footer class="container">
       <span>Copyright © 2026 Keyway. MIT License. · <a href="./index.html">返回首页</a></span>
     </footer>
+
+    <script>
+      var I18N = {
+        en: {
+          gNavHome: "Home", gNavDl: "Download",
+          gH1: "The guide.",
+          gSub: "From install to advanced routing — everything about Keyway in 5 minutes.",
+          gToc: "On this page",
+          gToc1: "Download & install", gToc2: "Add providers", gToc3: "One-click takeover",
+          gToc4: "Switch instantly, no restarts", gToc5: "Advanced: routing · failover · logs · profiles", gToc6: "Troubleshooting",
+          gS1k: "Get ready", gS1h2: "Download & install",
+          gS1p: "Keyway is a free macOS desktop app. Download the .dmg from GitHub Releases and drag it into Applications — no other dependencies.",
+          gS1l1: "If macOS says the developer cannot be verified, open System Settings → Privacy & Security and click “Open Anyway”.",
+          gS1l2: "Keyway lives in the menu bar (tray); closing the window keeps the proxy running.",
+          gS1l3: "The local proxy listens on 127.0.0.1:9527 and accepts local requests only.",
+          gTip1: "How does it work? After taking over each CLI's API endpoint, every request hits the local proxy first, then forwards to your chosen provider. Switching only changes local state — no CLI config rewriting. That's why there are no restarts.",
+          gS2k: "Set up", gS2h2: "Add providers",
+          gS2p: "Open the main window and add model providers per CLI group (Claude Code, Codex, Gemini CLI and more):",
+          gS2l1: "Presets: common providers and relays built in — just paste an API key.",
+          gS2l2: "Import from existing configs: already configured a CLI? Import in one click, no retyping.",
+          gS2l3: "Custom: name, Base URL and API Key — any relay or self-hosted gateway works.",
+          gTip2: "Key safety: API keys live in the system keychain plus a fully encrypted local database. They are never written in plain text to CLI configs, and exports exclude them.",
+          gS2p2: "After adding, hit the test button on a provider card to check reachability and latency before committing.",
+          gS3k: "Takeover", gS3h2: "One-click CLI takeover",
+          gS3p: "Click “Take over” on a group page and Keyway points that CLI's config at the local proxy:",
+          gS3l1: "Original configs are backed up automatically before takeover — restore anytime, no leftovers.",
+          gS3l2: "Your CLIs keep working exactly as before — no habit change required.",
+          gS3l3: "Prefer manual? Set the CLI's environment variables to 127.0.0.1:9527 instead (copyable from the app).",
+          gS4k: "Daily", gS4h2: "Switching: instant, no restarts",
+          gS4p: "This is the biggest difference from config-file tools — switching only changes local state; the very next request follows:",
+          gS4l1: "Click “Switch” on a provider card, or pick from the menu-bar tray — two seconds, done.",
+          gS4l2: "Running claude / codex sessions need no restart; the next message already uses the new provider.",
+          gS4l3: "One provider can serve multiple CLIs per protocol (e.g. one relay key for both Claude Code and Codex).",
+          gS5k: "Advanced", gS5h2: "Routing · failover · logs · profiles",
+          gS5p: "Model routing rules — in Settings → Model routing, keep specific models on specific providers:",
+          gS5l1: "E.g. rule claude → relay A; rule deepseek → official. Name the model in your CLI and Keyway dispatches it.",
+          gS5l2: "Match by “contains” or “starts with” — the prefix mode is more precise and avoids accidental keyword hits.",
+          gS5l3: "Each rule can be temporarily disabled with a toggle, keeping its config.",
+          gS5l4: "Requests that matched a rule are tagged blue in the Logs page, so routing is visible at a glance.",
+          gS5p2: "Automatic failover — on upstream 5xx or timeouts, requests retry backup providers automatically. Add providers to the candidate chain to enable it.",
+          gS5p3: "Usage & logs — the Usage page aggregates tokens and success rates by CLI and provider; Logs shows the last 100 requests (model, tokens in/out, status) for easy debugging.",
+          gS5p4: "Profiles & backup — save the current provider set as a profile (work / personal / testing, one-tap switching) and export a JSON backup (keys excluded) for moving machines.",
+          gFaqK: "Troubleshooting", gFaqH2: "Having trouble?",
+          gFaqL1: "401 / 403 responses carry an x-keyway-hint header — follow it to check key validity and quota.",
+          gFaqL2: "Switch not taking effect: make sure the CLI is taken over (see the badge on its group page), or that env vars point to 127.0.0.1:9527.",
+          gFaqL3: "Want your original setup back? Click “Restore” on the group page — the original config was backed up at takeover.",
+          gFaqL4: "Where's my data? Everything stays in an encrypted local database, nothing is uploaded; uninstalling removes it entirely.",
+          gCtaH2: "Ready when you are.",
+          gCtaSub: "Free and open source — take over every AI CLI in five minutes.",
+          gCtaDl: "Download free"
+        },
+        zh: {}
+      };
+      (function () {
+        var root = document.documentElement;
+        var toggle = document.getElementById("langToggle");
+        var zhOrig = {};
+        document.querySelectorAll("[data-i18n]").forEach(function (el) {
+          zhOrig[el.getAttribute("data-i18n")] = el.innerHTML;
+        });
+        var zhTitle = document.title;
+        function apply(lang) {
+          var dict = lang === "zh" ? {} : (I18N[lang] || {});
+          document.querySelectorAll("[data-i18n]").forEach(function (el) {
+            var k = el.getAttribute("data-i18n");
+            var v = dict[k] !== undefined ? dict[k] : zhOrig[k];
+            if (v !== undefined) el.innerHTML = v;
+          });
+          root.setAttribute("lang", lang === "en" ? "en" : "zh-CN");
+          document.title = lang === "en" ? "Keyway Guide — master every AI CLI in 5 minutes" : zhTitle;
+          toggle.textContent = lang === "en" ? "中文" : "EN";
+          try { localStorage.setItem("site-lang", lang); } catch (e) {}
+        }
+        var saved = null;
+        try { saved = localStorage.getItem("site-lang"); } catch (e) {}
+        if (!saved) saved = /^en/i.test(navigator.language) ? "en" : "zh";
+        apply(saved);
+        toggle.addEventListener("click", function (e) {
+          e.preventDefault();
+          apply(root.getAttribute("lang") === "en" ? "zh" : "en");
+        });
+      })();
+    </script>
   </body>
 </html>
