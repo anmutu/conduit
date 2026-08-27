@@ -45,6 +45,7 @@ pub fn export_usage_csv(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     app_type: AppType,
+    target: Option<String>,
 ) -> Result<CsvResult, String> {
     let entries = crate::db::usage_dao::recent(&state.db, app_type.as_str(), 5000)
         .map_err(|e| e.to_string())?;
@@ -54,7 +55,11 @@ pub fn export_usage_csv(
         .map_err(|e| format!("无法定位数据目录: {e}"))?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let ts = chrono::Local::now().format("%Y%m%d-%H%M%S");
-    let path = dir.join(format!("keyway-usage-{ts}.csv"));
+    let path = match target {
+        // 前端保存对话框选定的路径
+        Some(t) if !t.trim().is_empty() => std::path::PathBuf::from(t),
+        _ => dir.join(format!("keyway-usage-{ts}.csv")),
+    };
 
     let esc = |s: &str| {
         if s.contains([',', '"', '\n']) {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
 import { ScrollText, Search, Download, Trash2 } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { Input } from "@/components/ui/input";
@@ -38,9 +39,15 @@ export function LogsPage({
 
   const exportCsv = async () => {
     try {
+      // 先弹系统保存对话框;取消则回落到应用数据目录默认路径
+      const ts = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const target = await save({
+        defaultPath: `keyway-usage-${ts}.csv`,
+        filters: [{ name: "CSV", extensions: ["csv"] }],
+      });
       const r = await invoke<{ path: string; count: number }>(
         "export_usage_csv",
-        { appType: app },
+        { appType: app, target },
       );
       onError(t("logs.exportedTo", { path: r.path, n: r.count }));
     } catch (e) {

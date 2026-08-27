@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
 import {
   ChevronDown,
   ChevronUp,
@@ -482,8 +483,14 @@ export function SettingsPage({
             onClick={async () => {
               setBackupBusy(true);
               try {
+                const ts = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+                const target = await save({
+                  defaultPath: `keyway-backup-${ts}.json`,
+                  filters: [{ name: "JSON", extensions: ["json"] }],
+                });
                 const r = await invoke<{ path: string; count: number }>(
                   "export_backup",
+                  { target },
                 );
                 onSuccess(t("settings.backupDone", { n: r.count, path: r.path }));
               } catch (e) {

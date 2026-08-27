@@ -7,13 +7,21 @@ use crate::state::AppState;
 
 /// 导出全部供应商配置到 app 数据目录,返回文件路径与数量。
 #[tauri::command]
-pub fn export_backup(app: AppHandle, state: State<'_, AppState>) -> Result<ExportResult, String> {
+pub fn export_backup(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    target: Option<String>,
+) -> Result<ExportResult, String> {
     let dir = app
         .path()
         .app_data_dir()
         .map_err(|e| format!("无法定位数据目录: {e}"))?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let path = svc::default_backup_path(&dir);
+    let path = match target {
+        // 前端保存对话框选定的路径
+        Some(t) if !t.trim().is_empty() => std::path::PathBuf::from(t),
+        _ => svc::default_backup_path(&dir),
+    };
     let count = svc::export(&state.db, &path).map_err(|e| e.to_string())?;
     Ok(ExportResult {
         path: path.to_string_lossy().into_owned(),
