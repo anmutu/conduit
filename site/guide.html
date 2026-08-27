@@ -236,9 +236,10 @@
           <li data-i18n="gS5l2">匹配方式可选「包含」或「前缀」:前缀更精准,避免关键词误命中。</li>
           <li data-i18n="gS5l3">每条规则可临时停用(开关),保留配置不删除;规则从上到下匹配,首条命中生效,可用 ↑↓ 调整顺序。</li>
           <li data-i18n="gS5l4">命中规则的请求会在「日志」页打上蓝色标记,分流效果一目了然。</li>
+          <li data-i18n="gS5l6"><b>场景分流</b>:除长上下文外,还可为「深度思考」(请求开启 thinking 或 reasoning/thinking 档模型)与「后台轻量」(haiku / mini / flash / nano 档小任务)各指定一个供应商 —— 贵模型用在刀刃上,小任务走便宜渠道。</li>
           <li data-i18n="gS5l5"><b>长上下文分流</b>:超大数据量的请求(阈值可调,默认 6 万 token 估算)自动改走指定供应商 —— 大上下文走便宜渠道,日常对话不受影响。命中时响应头带 <code>x-keyway-route</code>。</li>
         </ul>
-        <p style="margin-top:18px;" data-i18n="gS5p2"><b>自动故障转移</b> —— 上游 5xx 或超时时,自动重试备用供应商,长任务不中断。把多个供应商加入候选链即可。</p>
+        <p style="margin-top:18px;" data-i18n="gS5p2"><b>自动故障转移</b> —— 上游 5xx 或超时时,自动重试备用供应商,长任务不中断。把多个供应商加入候选链即可。发生回退时响应头带 <code>x-keyway-fallback</code>(链路与原因,如 A-&gt;B(502))。</p>
         <p style="margin-top:18px;" data-i18n="gS5p3"><b>用量与日志</b> —— 侧栏「用量」按 CLI / 供应商汇总 token 与成功率;「日志」可查最近 100 条请求(模型、上下行 token、状态码),排障一目了然。</p>
         <p style="margin-top:18px;" data-i18n="gS5p4"><b>配置档案与备份</b> —— 「设置」里可将当前供应商组合保存为档案(工作 / 个人 / 测试一键整组切换),也可导出 JSON 备份(不含密钥,系统保存对话框自选位置),换机无忧。</p>
       </section>
@@ -317,6 +318,7 @@
           gS5l3: "Each rule can be temporarily disabled with a toggle, keeping its config. Rules match top to bottom (first match wins); reorder with ↑↓.",
           gS5l4: "Requests that matched a rule are tagged blue in the Logs page, so routing is visible at a glance.",
           gS5l5: "Long-context split: requests above a size threshold (adjustable, ~60k tokens estimated by default) automatically go to a designated provider — big contexts on the cheap channel, daily chats unaffected. Matched responses carry an x-keyway-route header.",
+          gS5l6: "Scene-based split: besides long-context, designate providers for deep-think (thinking enabled or reasoning/thinking tier models) and background-lite (haiku / mini / flash / nano tier tasks) — premium models where they matter, cheap channels for small jobs.",
           gS5p2: "Automatic failover — on upstream 5xx or timeouts, requests retry backup providers automatically. Add providers to the candidate chain to enable it.",
           gS5p3: "Usage & logs — the Usage page aggregates tokens and success rates by CLI and provider; Logs shows the last 100 requests (model, tokens in/out, status) for easy debugging.",
           gS5p4: "Profiles & backup — save the current provider set as a profile (work / personal / testing, one-tap switching) and export a JSON backup via the system save dialog (keys excluded) for moving machines.",
