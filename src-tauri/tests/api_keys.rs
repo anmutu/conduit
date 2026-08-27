@@ -34,10 +34,16 @@ fn api_key_roundtrip_and_delete() {
     assert!(api_key_dao::get(&pool, "p1").unwrap().is_none());
     // 写入 → 读回
     api_key_dao::set(&pool, "p1", "sk-test").unwrap();
-    assert_eq!(api_key_dao::get(&pool, "p1").unwrap().as_deref(), Some("sk-test"));
+    assert_eq!(
+        api_key_dao::get(&pool, "p1").unwrap().as_deref(),
+        Some("sk-test")
+    );
     // 覆盖更新
     api_key_dao::set(&pool, "p1", "sk-new").unwrap();
-    assert_eq!(api_key_dao::get(&pool, "p1").unwrap().as_deref(), Some("sk-new"));
+    assert_eq!(
+        api_key_dao::get(&pool, "p1").unwrap().as_deref(),
+        Some("sk-new")
+    );
     // 删除
     api_key_dao::delete(&pool, "p1").unwrap();
     assert!(api_key_dao::get(&pool, "p1").unwrap().is_none());

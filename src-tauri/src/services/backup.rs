@@ -48,7 +48,8 @@ pub fn export(pool: &Pool, path: &std::path::Path) -> Result<usize> {
 /// 从指定路径导入:同名跳过,异名新建。返回 (新建数, 跳过数)。
 pub fn import(pool: &Pool, path: &std::path::Path) -> Result<(usize, usize)> {
     let raw = std::fs::read_to_string(path).map_err(|e| anyhow!("读取备份失败: {e}"))?;
-    let file: BackupFile = serde_json::from_str(&raw).map_err(|e| anyhow!("备份文件格式错误: {e}"))?;
+    let file: BackupFile =
+        serde_json::from_str(&raw).map_err(|e| anyhow!("备份文件格式错误: {e}"))?;
     let mut created = 0;
     let mut skipped = 0;
     for bp in file.providers {

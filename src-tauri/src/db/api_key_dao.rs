@@ -31,6 +31,9 @@ pub fn set(pool: &Pool, provider_id: &str, key: &str) -> Result<()> {
 
 pub fn delete(pool: &Pool, provider_id: &str) -> Result<()> {
     let conn = get_conn(pool)?;
-    conn.execute("DELETE FROM api_keys WHERE provider_id = ?1", params![provider_id])?;
+    conn.execute(
+        "DELETE FROM api_keys WHERE provider_id = ?1",
+        params![provider_id],
+    )?;
     Ok(())
 }

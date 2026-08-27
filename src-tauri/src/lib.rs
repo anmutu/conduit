@@ -47,8 +47,7 @@ pub fn run() {
             //     否则换钥匙会打不开旧库。签名发布后 keychain 稳定可迁回)。
             let key_file = db_dir.join("master.key");
             let marker = db_dir.join("master.key.in-use");
-            let use_file_key = marker.exists()
-                || keychain::get_or_create_master_key().is_err();
+            let use_file_key = marker.exists() || keychain::get_or_create_master_key().is_err();
             let master_key = if use_file_key {
                 let key = match std::fs::read_to_string(&key_file) {
                     Ok(k) if k.trim().len() == 64 => k.trim().to_string(),
@@ -173,13 +172,11 @@ fn build_tray_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let mut builder = MenuBuilder::new(app).item(&show);
 
     // 最近使用:按最近请求排序的前几个供应商(点击即切到该分组的它)
-    let recents: std::collections::HashMap<String, String> = db::provider_dao::list_all(
-        &state.db,
-    )
-    .unwrap_or_default()
-    .into_iter()
-    .map(|p| (p.id.clone(), p.name.clone()))
-    .collect();
+    let recents: std::collections::HashMap<String, String> = db::provider_dao::list_all(&state.db)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|p| (p.id.clone(), p.name.clone()))
+        .collect();
     let recent_items: Vec<(String, String, String)> = db::usage_dao::recent_providers(&state.db, 5)
         .unwrap_or_default()
         .into_iter()

@@ -9,8 +9,8 @@
 
 pub mod api_key_dao;
 pub mod kv;
-pub mod route_dao;
 pub mod provider_dao;
+pub mod route_dao;
 mod schema;
 pub mod usage_dao;
 
@@ -61,10 +61,7 @@ pub fn init_pool<P: AsRef<Path>>(db_path: P, cipher_key_hex: &str) -> Result<Poo
             if !backup.exists() {
                 // 仅在仍是 v1 时备份,避免每次启动都覆盖
                 if let Ok(conn) = Connection::open(p) {
-                    let _ = conn.execute_batch(&format!(
-                        "PRAGMA key = \"x'{}'\";",
-                        cipher_key_hex
-                    ));
+                    let _ = conn.execute_batch(&format!("PRAGMA key = \"x'{}'\";", cipher_key_hex));
                     let version: i64 = conn
                         .query_row("PRAGMA user_version", [], |r| r.get(0))
                         .unwrap_or(0);

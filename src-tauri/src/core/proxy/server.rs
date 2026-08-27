@@ -43,10 +43,10 @@ pub async fn run_listener(state: AppState, listener: tokio::net::TcpListener) ->
 
 /// 从 URL 路径推断 AppType。
 fn infer_app_type(path: &str) -> Option<AppType> {
-        for app in AppType::all() {
-            for prefix in app.path_prefixes() {
-                if path.starts_with(prefix) {
-                    return Some(*app);
+    for app in AppType::all() {
+        for prefix in app.path_prefixes() {
+            if path.starts_with(prefix) {
+                return Some(*app);
             }
         }
     }
@@ -112,16 +112,14 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
     // 模型路由规则:命中则把规则供应商提到候选链最前(优先于当前供应商;
     // 后续仍保留故障转移候选,规则供应商 5xx 时可继续回退)
     let mut rule_pattern: Option<String> = None;
-    if let Some((rule_pid, rule_pat)) = crate::db::route_dao::match_provider(
-        &state.db,
-        app.as_str(),
-        model.as_deref(),
-    )
-    .ok()
-    .flatten()
+    if let Some((rule_pid, rule_pat)) =
+        crate::db::route_dao::match_provider(&state.db, app.as_str(), model.as_deref())
+            .ok()
+            .flatten()
     {
-        if let Some(rule_provider) =
-            crate::db::provider_dao::get_by_id(&state.db, &rule_pid).ok().flatten()
+        if let Some(rule_provider) = crate::db::provider_dao::get_by_id(&state.db, &rule_pid)
+            .ok()
+            .flatten()
         {
             if let Some(pos) = candidates.iter().position(|p| p.id == rule_pid) {
                 let p = candidates.remove(pos);

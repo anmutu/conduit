@@ -65,7 +65,13 @@ pub fn list_by_app(pool: &Pool, app: AppType) -> Result<Vec<Provider>> {
             |r| r.get(0),
         )
         .map(Some)
-        .or_else(|e| if e == rusqlite::Error::QueryReturnedNoRows { Ok(None) } else { Err(e) })?;
+        .or_else(|e| {
+            if e == rusqlite::Error::QueryReturnedNoRows {
+                Ok(None)
+            } else {
+                Err(e)
+            }
+        })?;
     let mut stmt = conn.prepare(&format!(
         "SELECT {PROVIDER_COLS} FROM providers ORDER BY sort_index, created_at"
     ))?;
@@ -154,12 +160,7 @@ pub fn find_by_name(pool: &Pool, name: &str) -> Result<Option<Provider>> {
 }
 
 /// 新增/更新某协议的端点(写 endpoints JSON;base_url 同步为首个端点)
-pub fn upsert_endpoint(
-    pool: &Pool,
-    id: &str,
-    protocol: Protocol,
-    base_url: &str,
-) -> Result<()> {
+pub fn upsert_endpoint(pool: &Pool, id: &str, protocol: Protocol, base_url: &str) -> Result<()> {
     let conn = get_conn(pool)?;
     let mut p = {
         let mut stmt = conn.prepare(&format!(
@@ -170,7 +171,8 @@ pub fn upsert_endpoint(
             .and_then(|r| r.ok())
             .ok_or_else(|| anyhow!("供应商不存在: {id}"))?
     };
-    p.endpoints.insert(protocol.as_str().to_string(), base_url.to_string());
+    p.endpoints
+        .insert(protocol.as_str().to_string(), base_url.to_string());
     let endpoints_json = serde_json::to_string(&p.endpoints)?;
     let primary = p
         .endpoints
@@ -268,8 +270,16 @@ pub fn get_current(pool: &Pool, app: AppType) -> Result<Option<Provider>> {
             |r| r.get(0),
         )
         .map(Some)
-        .or_else(|e| if e == rusqlite::Error::QueryReturnedNoRows { Ok(None) } else { Err(e) })?;
-    let Some(id) = current_id else { return Ok(None) };
+        .or_else(|e| {
+            if e == rusqlite::Error::QueryReturnedNoRows {
+                Ok(None)
+            } else {
+                Err(e)
+            }
+        })?;
+    let Some(id) = current_id else {
+        return Ok(None);
+    };
     let mut stmt = conn.prepare(&format!(
         "SELECT {PROVIDER_COLS} FROM providers WHERE id = ?1"
     ))?;
@@ -291,7 +301,13 @@ pub fn failover_candidates(pool: &Pool, app: AppType) -> Result<Vec<Provider>> {
             |r| r.get(0),
         )
         .map(Some)
-        .or_else(|e| if e == rusqlite::Error::QueryReturnedNoRows { Ok(None) } else { Err(e) })?;
+        .or_else(|e| {
+            if e == rusqlite::Error::QueryReturnedNoRows {
+                Ok(None)
+            } else {
+                Err(e)
+            }
+        })?;
     let mut stmt = conn.prepare(&format!(
         "SELECT {PROVIDER_COLS}
          FROM providers

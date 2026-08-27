@@ -7,10 +7,7 @@ use crate::state::AppState;
 
 /// 导出全部供应商配置到 app 数据目录,返回文件路径与数量。
 #[tauri::command]
-pub fn export_backup(
-    app: AppHandle,
-    state: State<'_, AppState>,
-) -> Result<ExportResult, String> {
+pub fn export_backup(app: AppHandle, state: State<'_, AppState>) -> Result<ExportResult, String> {
     let dir = app
         .path()
         .app_data_dir()

@@ -157,12 +157,7 @@ pub fn update(pool: &Pool, id: &str, name: &str) -> Result<()> {
 }
 
 /// 新增/更新某协议端点。
-pub fn upsert_endpoint(
-    pool: &Pool,
-    id: &str,
-    protocol: Protocol,
-    base_url: &str,
-) -> Result<()> {
+pub fn upsert_endpoint(pool: &Pool, id: &str, protocol: Protocol, base_url: &str) -> Result<()> {
     provider_dao::upsert_endpoint(pool, id, protocol, base_url)
 }
 
@@ -190,8 +185,8 @@ pub struct TestResult {
 /// - openai:GET {base}/models(最便宜)
 /// - anthropic:POST {base}/v1/messages max_tokens=1(需要至少一个模型名)
 async fn test_provider_impl(pool: &Pool, id: &str, app: AppType) -> Result<TestResult> {
-    let p = provider_dao::get_by_id(pool, id)?
-        .ok_or_else(|| anyhow::anyhow!("供应商不存在: {id}"))?;
+    let p =
+        provider_dao::get_by_id(pool, id)?.ok_or_else(|| anyhow::anyhow!("供应商不存在: {id}"))?;
     let protocol = app.protocol();
     let base = p
         .endpoint(protocol)

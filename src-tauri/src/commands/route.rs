@@ -29,8 +29,14 @@ pub fn add_route_rule(
     if !matches!(mt, "contains" | "starts_with") {
         return Err("match_type 仅支持 contains / starts_with".into());
     }
-    route_dao::insert(&state.db, app_type.as_str(), pattern.trim(), &provider_id, mt)
-        .map_err(|e| e.to_string())
+    route_dao::insert(
+        &state.db,
+        app_type.as_str(),
+        pattern.trim(),
+        &provider_id,
+        mt,
+    )
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

@@ -56,8 +56,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: "Conduit ${{ github.ref_name }}"
-          releaseBody: "见 Assets 下载对应平台安装包。"
+          releaseName: "Keyway ${{ github.ref_name }}"
+          releaseBody: "见 Assets 下载对应平台安装包。macOS 未公证签名,首次打开请右键→打开。"
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

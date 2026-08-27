@@ -97,16 +97,20 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
 
 /// v3 → v4:route_rules 增加 enabled/match_type;usage_log 增加 rule_pattern(命中规则可观测)。
 fn migrate_v3_to_v4(conn: &Connection) -> Result<()> {
-    if conn.prepare("SELECT enabled FROM route_rules LIMIT 1").is_err() {
+    if conn
+        .prepare("SELECT enabled FROM route_rules LIMIT 1")
+        .is_err()
+    {
         conn.execute_batch(
             "ALTER TABLE route_rules ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1;
              ALTER TABLE route_rules ADD COLUMN match_type TEXT NOT NULL DEFAULT 'contains';",
         )?;
     }
-    if conn.prepare("SELECT rule_pattern FROM usage_log LIMIT 1").is_err() {
-        conn.execute_batch(
-            "ALTER TABLE usage_log ADD COLUMN rule_pattern TEXT;",
-        )?;
+    if conn
+        .prepare("SELECT rule_pattern FROM usage_log LIMIT 1")
+        .is_err()
+    {
+        conn.execute_batch("ALTER TABLE usage_log ADD COLUMN rule_pattern TEXT;")?;
     }
     Ok(())
 }
@@ -128,9 +132,13 @@ fn migrate_v2_to_v3(conn: &Connection) -> Result<()> {
 /// 注意:调用前已确认 user_version < 2,且外层(db/mod.rs)在启动时仅执行一次。
 fn migrate_v1_to_v2(conn: &Connection) -> Result<()> {
     // 旧库可能没有 endpoints 列(新装库由 CREATE TABLE 直接带上)
-    let has_endpoints = conn.prepare("SELECT endpoints FROM providers LIMIT 1").is_ok();
+    let has_endpoints = conn
+        .prepare("SELECT endpoints FROM providers LIMIT 1")
+        .is_ok();
     if !has_endpoints {
-        conn.execute_batch("ALTER TABLE providers ADD COLUMN endpoints TEXT NOT NULL DEFAULT '{}';")?;
+        conn.execute_batch(
+            "ALTER TABLE providers ADD COLUMN endpoints TEXT NOT NULL DEFAULT '{}';",
+        )?;
     }
 
     #[derive(Debug)]
@@ -167,9 +175,12 @@ fn migrate_v1_to_v2(conn: &Connection) -> Result<()> {
 
     // 主体 = 同名组里最早创建的行;归集端点与各分组 current
     let mut master: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-    let mut endpoints: std::collections::HashMap<String, std::collections::HashMap<String, String>> =
-        std::collections::HashMap::new();
-    let mut current_of: std::collections::HashMap<String, String> = std::collections::HashMap::new(); // app_type -> master id(后写覆盖,保留最近切换)
+    let mut endpoints: std::collections::HashMap<
+        String,
+        std::collections::HashMap<String, String>,
+    > = std::collections::HashMap::new();
+    let mut current_of: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new(); // app_type -> master id(后写覆盖,保留最近切换)
     for row in &rows {
         let key = normalize(&row.name);
         let mid = master.entry(key).or_insert_with(|| row.id.clone());
@@ -184,7 +195,8 @@ fn migrate_v1_to_v2(conn: &Connection) -> Result<()> {
 
     // 1) 主体的 endpoints 写库(同步 base_url 为首个端点,保持旧字段可用)
     {
-        let mut up = conn.prepare("UPDATE providers SET endpoints = ?1, base_url = ?2 WHERE id = ?3")?;
+        let mut up =
+            conn.prepare("UPDATE providers SET endpoints = ?1, base_url = ?2 WHERE id = ?3")?;
         for (mid, eps) in &endpoints {
             let json = serde_json::to_string(eps)?;
             let primary = eps.values().next().cloned().unwrap_or_default();
@@ -194,14 +206,18 @@ fn migrate_v1_to_v2(conn: &Connection) -> Result<()> {
     // 2) 删除非主体同名行;usage_log 的 provider_id 归并到主体
     {
         let master_ids: std::collections::HashSet<&String> = master.values().collect();
-        let del: Vec<&OldRow> = rows.iter().filter(|r| !master_ids.contains(&r.id)).collect();
+        let del: Vec<&OldRow> = rows
+            .iter()
+            .filter(|r| !master_ids.contains(&r.id))
+            .collect();
         {
             let mut st = conn.prepare("DELETE FROM providers WHERE id = ?1")?;
             for r in &del {
                 st.execute(params![r.id])?;
             }
         }
-        let mut re = conn.prepare("UPDATE usage_log SET provider_id = ?1 WHERE provider_id = ?2")?;
+        let mut re =
+            conn.prepare("UPDATE usage_log SET provider_id = ?1 WHERE provider_id = ?2")?;
         for r in &del {
             let mid = &master[&normalize(&r.name)];
             re.execute(params![mid, r.id])?;

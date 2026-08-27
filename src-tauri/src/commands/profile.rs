@@ -11,10 +11,7 @@ pub fn list_profiles(state: State<'_, AppState>) -> Result<Vec<String>, String> 
 }
 
 #[tauri::command]
-pub fn save_profile(
-    state: State<'_, AppState>,
-    name: String,
-) -> Result<usize, String> {
+pub fn save_profile(state: State<'_, AppState>, name: String) -> Result<usize, String> {
     svc::save(&state.db, &name)
         .map(|apps| apps.len())
         .map_err(|e| e.to_string())

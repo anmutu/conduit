@@ -53,7 +53,9 @@ pub fn apply(pool: &Pool, name: &str) -> Result<usize> {
         .ok_or_else(|| anyhow!("Profile 不存在: {name}"))?;
     let mut applied = 0;
     for (app, pid) in map {
-        let Some(app) = crate::types::AppType::from_str(app) else { continue };
+        let Some(app) = crate::types::AppType::from_str(app) else {
+            continue;
+        };
         if provider_dao::get_by_id(pool, pid)?.is_some() {
             provider_dao::set_current(pool, pid, app)?;
             applied += 1;
