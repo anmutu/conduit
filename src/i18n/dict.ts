@@ -504,7 +504,7 @@ export const en: Dict = {
   "sk.add": "New skill",
   "sk.edit": "Edit skill",
   "sk.saved": "Saved and synced",
-  "sk.needFm": "SKILL.md must start with a frontmatter block containing a name field, e.g.\\n---\\nname: my-skill\\ndescription: …\\n---",
+  "sk.needFm": "SKILL.md must start with a frontmatter block containing a name field, e.g.:\n---\nname: my-skill\ndescription: …\n---",
   "sk.deleted": "Deleted (vault and CLI copies)",
   "sk.imported": "Imported and synced",
   "sk.fId": "ID",
