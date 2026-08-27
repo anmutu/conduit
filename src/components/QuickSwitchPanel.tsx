@@ -137,6 +137,18 @@ export function QuickSwitchPanel({
             >
               <ProviderIcon icon={p.base_url} name={p.name} size={18} />
               <span className="flex-1 truncate">{p.name}</span>
+              {p.last_test && (
+                <span
+                  className={
+                    "text-[10px] tabular-nums " +
+                    (p.last_test.ok
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-red-500")
+                  }
+                >
+                  {p.last_test.ok ? `${p.last_test.latency_ms}ms` : "✗"}
+                </span>
+              )}
               {p.is_current && (
                 <span className="text-[10px] rounded bg-blue-500/15 px-1.5 py-px text-blue-600 dark:text-blue-400">
                   {t("qs.current")}

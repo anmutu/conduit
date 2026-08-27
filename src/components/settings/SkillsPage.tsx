@@ -49,6 +49,13 @@ export function SkillsPage({
   useEffect(() => reload(), [reload]);
 
   const save = (s: { id: string; content: string; apps: string[] }) => {
+    // SKILL.md 头部需含 frontmatter name(同步依赖它作为 skill 名)
+    const m = s.content.match(/^---\n([\s\S]*?)\n---/);
+    const hasName = m?.[1].split("\n").some((l) => /^name:\s*\S/.test(l));
+    if (!hasName) {
+      onError(t("sk.needFm"));
+      return;
+    }
     invoke("save_skill", s)
       .then(() => {
         reload();
