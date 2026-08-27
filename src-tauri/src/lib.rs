@@ -103,6 +103,8 @@ pub fn run() {
                     } = event
                     {
                         let app = tray.app_handle();
+                        // 每次唤起主界面时刷新托盘菜单(「最近使用」随请求变化)
+                        let _ = rebuild_tray_menu(app);
                         if let Some(w) = app.get_webview_window("main") {
                             let _ = w.show();
                             let _ = w.set_focus();
@@ -161,14 +163,49 @@ fn build_tray_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let state = app.state::<state::AppState>();
     // 托盘文案随语言(默认中文;en 由前端设置页切换写入)
     let zh = db::kv::get(&state.db, "locale").ok().flatten().as_deref() != Some("en");
-    let (show_text, quit_text) = if zh {
-        ("显示主界面", "退出 Keyway")
+    let (show_text, quit_text, recent_text) = if zh {
+        ("显示主界面", "退出 Keyway", "最近使用")
     } else {
-        ("Show Main Window", "Quit Keyway")
+        ("Show Main Window", "Quit Keyway", "Recent")
     };
     let show = MenuItem::with_id(app, "show", show_text, true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", quit_text, true, None::<&str>)?;
     let mut builder = MenuBuilder::new(app).item(&show);
+
+    // 最近使用:按最近请求排序的前几个供应商(点击即切到该分组的它)
+    let recents: std::collections::HashMap<String, String> = db::provider_dao::list_all(
+        &state.db,
+    )
+    .unwrap_or_default()
+    .into_iter()
+    .map(|p| (p.id.clone(), p.name.clone()))
+    .collect();
+    let recent_items: Vec<(String, String, String)> = db::usage_dao::recent_providers(&state.db, 5)
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|(pid, app_str)| {
+            // 只保留当前仍存在、且该分组下可切换的供应商
+            recents.contains_key(pid) && types::AppType::from_str(app_str).is_some()
+        })
+        .map(|(pid, app_str)| {
+            let name = recents.get(&pid).cloned().unwrap_or_default();
+            (pid, app_str, name)
+        })
+        .collect();
+    if !recent_items.is_empty() {
+        let mut sub = SubmenuBuilder::new(app, recent_text);
+        for (pid, app_str, name) in recent_items {
+            let item = MenuItem::with_id(
+                app,
+                format!("switch:{}:{}", app_str, pid),
+                format!("{} · {}", name, app_str),
+                true,
+                None::<&str>,
+            )?;
+            sub = sub.item(&item);
+        }
+        builder = builder.item(&sub.build()?);
+    }
 
     for app_type in types::AppType::all() {
         let providers = db::provider_dao::list_by_app(&state.db, *app_type)

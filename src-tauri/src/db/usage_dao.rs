@@ -114,6 +114,20 @@ pub fn recent(pool: &Pool, app_type: &str, limit: i64) -> Result<Vec<UsageEntry>
     Ok(rows.flatten().collect())
 }
 
+/// 最近实际服务过请求的供应商(app_type 一起返回,供托盘「最近使用」)。
+/// 每个供应商取最近一次,按最近排序,最多 n 个。
+pub fn recent_providers(pool: &Pool, n: i64) -> Result<Vec<(String, String)>> {
+    let conn = pool.get().map_err(|e| anyhow!("{e}"))?;
+    let mut stmt = conn.prepare(
+        "SELECT provider_id, app_type FROM usage_log
+         GROUP BY provider_id ORDER BY MAX(id) DESC LIMIT ?1",
+    )?;
+    let rows = stmt.query_map(rusqlite::params![n], |r| {
+        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+    })?;
+    Ok(rows.flatten().collect())
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub struct NamedUsage {
     pub key: String,
