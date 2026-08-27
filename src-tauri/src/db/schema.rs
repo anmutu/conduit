@@ -11,7 +11,7 @@ use rusqlite::{params, Connection};
 
 /// 当前 schema 版本,用于未来迁移校验。
 #[allow(dead_code)]
-pub const SCHEMA_VERSION: u32 = 8;
+pub const SCHEMA_VERSION: u32 = 9;
 
 pub fn create_tables(conn: &Connection) -> Result<()> {
     let version: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
@@ -114,7 +114,10 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
     if version < 8 {
         migrate_v6_to_v8(conn)?;
     }
-    conn.execute_batch("PRAGMA user_version = 8;")?;
+    if version < 9 {
+        migrate_v8_to_v9(conn)?;
+    }
+    conn.execute_batch("PRAGMA user_version = 9;")?;
     Ok(())
 }
 
@@ -176,6 +179,17 @@ fn migrate_v6_to_v8(conn: &Connection) -> Result<()> {
         conn.execute_batch(
             "ALTER TABLE usage_log ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 0;",
         )?;
+    }
+    Ok(())
+}
+
+/// v8 → v9:usage_log 增加 error_note 列(失败响应体前 160 字符,排查用)。
+fn migrate_v8_to_v9(conn: &Connection) -> Result<()> {
+    if conn
+        .prepare("SELECT error_note FROM usage_log LIMIT 1")
+        .is_err()
+    {
+        conn.execute_batch("ALTER TABLE usage_log ADD COLUMN error_note TEXT;")?;
     }
     Ok(())
 }

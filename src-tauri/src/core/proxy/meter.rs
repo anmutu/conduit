@@ -34,6 +34,8 @@ pub struct UsageMeter {
     last: Option<(i64, i64)>,
     /// 计量器创建时刻(≈请求开始),finish 时算耗时
     started: std::time::Instant,
+    /// 失败响应体摘要(状态 >= 400 时截取前 160 字符)
+    error_note: Option<String>,
 }
 
 impl UsageMeter {
@@ -43,6 +45,7 @@ impl UsageMeter {
             line_buf: String::new(),
             last: None,
             started: std::time::Instant::now(),
+            error_note: None,
         }
     }
 
@@ -53,10 +56,26 @@ impl UsageMeter {
             line_buf: String::new(),
             last: None,
             started: std::time::Instant::now(),
+            error_note: None,
         }
     }
 
     pub fn observe(&mut self, bytes: &[u8]) {
+        // 失败响应:截取摘要(限一次,取最前面一段;SSE 中失败体通常为一个 JSON 错误)
+        if self.error_note.is_none() {
+            let ctx_status = self.ctx.as_ref().map(|c| c.status).unwrap_or(200);
+            if ctx_status >= 400 && !bytes.is_empty() {
+                let head: String = String::from_utf8_lossy(bytes)
+                    .trim_start_matches("data:")
+                    .trim()
+                    .chars()
+                    .take(160)
+                    .collect();
+                if !head.is_empty() {
+                    self.error_note = Some(head);
+                }
+            }
+        }
         let text = String::from_utf8_lossy(bytes);
         for ch in text.chars() {
             if ch == '\n' {
@@ -116,6 +135,7 @@ impl UsageMeter {
             ctx.status,
             ctx.rule_pattern.as_deref(),
             self.started.elapsed().as_millis() as i64,
+            self.error_note.as_deref(),
         ) {
             tracing::warn!("usage 落库失败(不影响转发): {e}");
         }

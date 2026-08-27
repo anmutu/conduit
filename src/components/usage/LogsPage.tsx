@@ -14,6 +14,7 @@ interface UsageEntry {
   status: number;
   rule_pattern: string | null;
   duration_ms: number;
+  error_note: string | null;
   created_at: number;
 }
 
@@ -200,6 +201,7 @@ export function LogsPage({
                             ? "text-emerald-600 dark:text-emerald-400"
                             : "text-red-500"
                         }
+                        title={e.error_note ?? undefined}
                       >
                         {e.status}
                       </span>
