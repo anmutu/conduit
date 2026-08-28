@@ -198,3 +198,23 @@ pub fn set_provider_models(
 ) -> Result<(), String> {
     provider_dao::set_models(&state.db, &id, &models).map_err(|e| e.to_string())
 }
+
+/// 故障转移候选链(名称序):仅当该分组开启 failover 时返回,否则空数组。
+#[tauri::command]
+pub fn get_failover_chain(
+    state: State<'_, AppState>,
+    app_type: AppType,
+) -> Result<Vec<String>, String> {
+    let on = crate::db::kv::get(&state.db, &format!("failover:{}", app_type.as_str()))
+        .map_err(|e| e.to_string())?
+        .as_deref()
+        == Some("1");
+    if !on {
+        return Ok(vec![]);
+    }
+    Ok(provider_dao::failover_candidates(&state.db, app_type)
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .map(|p| p.name)
+        .collect())
+}

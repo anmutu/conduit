@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Activity, Boxes, Download, Plus } from "lucide-react";
+import { Activity, Boxes, Download, Gauge, Plus } from "lucide-react";
 import type { AppType, Provider, ProxyStatus, UsageSummary } from "@/types";
 import { APP_PROTOCOL } from "@/types";
 import { Sidebar } from "@/components/Sidebar";
 import { AppHeaderBar } from "@/components/AppHeaderBar";
 import { ProviderCard } from "@/components/providers/ProviderCard";
 import { AddProviderDialog } from "@/components/providers/AddProviderDialog";
+import { GatewayStatusStrip } from "@/components/providers/GatewayStatusStrip";
 import { EditProviderDialog } from "@/components/providers/EditProviderDialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ToastStack, type ToastItem, type ToastType } from "@/components/Toast";
@@ -132,6 +133,9 @@ function App() {
   // 全部测速:批量结果 + 进行中标记
   const [batchResults, setBatchResults] = useState<Record<string, { ok: boolean; latency_ms: number; message: string }>>({});
   const [testingAll, setTestingAll] = useState(false);
+  // 候选链展示(Clash 式)+ 按延迟排序开关
+  const [chain, setChain] = useState<string[]>([]);
+  const [latencySort, setLatencySort] = useState(false);
 
   const runTestAll = async () => {
     setTestingAll(true);
@@ -207,6 +211,12 @@ function App() {
   useEffect(() => {
     activeAppRef.current = activeApp;
   }, [activeApp]);
+  useEffect(() => {
+    if (IS_DEMO) return;
+    invoke<string[]>("get_failover_chain", { appType: activeApp })
+      .then(setChain)
+      .catch(() => setChain([]));
+  }, [activeApp, providers]);
 
   const toast = useCallback((type: ToastType, msg: string) => {
     const id = ++toastSeq;
@@ -562,6 +572,19 @@ function App() {
         <div className="px-6 pt-6 flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="flex-1 overflow-y-auto overflow-x-hidden pb-12 px-1">
             <div className="max-w-[760px] mx-auto w-full h-full flex flex-col space-y-4 animate-fade-in" key={activeApp}>
+              <GatewayStatusStrip />
+              {/* 候选链(Clash 式):开启故障转移时展示 A → B → C */}
+              {chain.length > 0 && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground rounded-xl border border-dashed border-border px-4 py-2">
+                  <span>{t("gw.chain")}</span>
+                  {chain.map((n, i) => (
+                    <span key={i} className="flex items-center gap-1.5">
+                      {i > 0 && <span className="text-border">→</span>}
+                      <span className={i === 0 ? "font-medium text-foreground" : ""}>{n}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
               {/* 首次加载:骨架屏占位 */}
               {!hasCache && providers.length === 0 && (
                 <>
@@ -607,7 +630,16 @@ function App() {
               )}
 
               {providers.length > 0 && (
-                <div className="flex justify-end -mb-2">
+                <div className="flex items-center justify-end gap-1 -mb-2">
+                  <Button
+                    variant={latencySort ? "secondary" : "ghost"}
+                    size="sm"
+                    title={t("gw.latencySort")}
+                    onClick={() => setLatencySort((v) => !v)}
+                  >
+                    <Gauge className="w-4 h-4 mr-1" />
+                    {t("gw.latencySort")}
+                  </Button>
                   <Button variant="ghost" size="sm" disabled={testingAll} onClick={() => void runTestAll()}>
                     <Activity className={cn("w-4 h-4 mr-1", testingAll && "animate-pulse")} />
                     {testingAll ? t("provider.testingAll") : t("provider.testAll")}
@@ -615,7 +647,14 @@ function App() {
                 </div>
               )}
 
-              {providers.map((p) => (
+              {(latencySort
+                ? [...providers].sort((a, b) => {
+                    const la = a.last_test?.ok ? a.last_test.latency_ms : Infinity;
+                    const lb = b.last_test?.ok ? b.last_test.latency_ms : Infinity;
+                    return la - lb;
+                  })
+                : providers
+              ).map((p) => (
                 <div
                   key={p.id}
                   draggable

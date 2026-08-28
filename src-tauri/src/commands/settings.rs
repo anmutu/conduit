@@ -115,3 +115,28 @@ pub fn get_health_interval(state: State<'_, AppState>) -> Result<Option<i64>, St
         .map_err(|e| e.to_string())?
         .and_then(|v| v.parse::<i64>().ok()))
 }
+
+/// 网关状态条数据:代理地址/版本 + 各分组当前供应商 + 今日用量。
+#[tauri::command]
+pub fn gateway_status(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let mut current = serde_json::Map::new();
+    for app in [
+        crate::types::AppType::Claude,
+        crate::types::AppType::Codex,
+        crate::types::AppType::Gemini,
+    ] {
+        let name = crate::db::provider_dao::get_current(&state.db, app)
+            .map_err(|e| e.to_string())?
+            .map(|p| serde_json::Value::String(p.name));
+        current.insert(app.as_str().into(), name.unwrap_or(serde_json::Value::Null));
+    }
+    let (tin, tout, reqs) =
+        crate::db::usage_dao::today_total(&state.db).map_err(|e| e.to_string())?;
+    Ok(serde_json::json!({
+        "proxy_addr": crate::core::proxy::PROXY_ADDR,
+        "version": env!("CARGO_PKG_VERSION"),
+        "current": current,
+        "today_tokens": tin + tout,
+        "today_requests": reqs,
+    }))
+}
