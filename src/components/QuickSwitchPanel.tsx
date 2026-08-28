@@ -28,9 +28,29 @@ export function QuickSwitchPanel({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const filtered = providers.filter((p) =>
-    q.trim() ? p.name.toLowerCase().includes(q.trim().toLowerCase()) : true,
-  );
+  // 模糊子序列匹配(Raycast 式):按字符顺序命中即可,并记录命中位用于高亮
+  const fuzzy = (name: string, query: string): number[] | null => {
+    const hit: number[] = [];
+    let j = 0;
+    for (let i = 0; i < name.length && j < query.length; i++) {
+      if (name[i].toLowerCase() === query[j]) {
+        hit.push(i);
+        j++;
+      }
+    }
+    return j === query.length ? hit : null;
+  };
+  const query = q.trim().toLowerCase();
+  const filtered = query
+    ? providers
+        .map((p) => ({ p, hits: fuzzy(p.name, query) }))
+        .filter((x) => x.hits)
+        .map((x) => x.p)
+    : providers;
+  const hitOf = (p: Provider): Set<number> => {
+    if (!query) return new Set();
+    return new Set(fuzzy(p.name, query) ?? []);
+  };
 
   useEffect(() => {
     if (open) {
@@ -64,6 +84,13 @@ export function QuickSwitchPanel({
         e.preventDefault();
         const p = filtered[idx];
         if (p) pick(p);
+      } else if (/^[1-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey) {
+        // 数字键 1-9 秒切(Raycast 式)
+        const p = filtered[Number(e.key) - 1];
+        if (p) {
+          e.preventDefault();
+          pick(p);
+        }
       }
     };
     window.addEventListener("keydown", onKey, true);
@@ -104,7 +131,7 @@ export function QuickSwitchPanel({
             {t("qs.title", { app: app })}
           </span>
           <span className="text-[11px] text-muted-foreground">
-            ↑↓ · ⏎ · Esc
+            ↑↓ · ⏎ · 1-9 · Esc
           </span>
         </div>
         <div className="px-3 py-2 border-b border-border">
@@ -135,8 +162,22 @@ export function QuickSwitchPanel({
                 p.is_current && "font-medium",
               )}
             >
+              <span className="w-4 text-[10px] text-muted-foreground tabular-nums text-right">
+                {i < 9 ? i + 1 : ""}
+              </span>
               <ProviderIcon icon={p.base_url} name={p.name} size={18} />
-              <span className="flex-1 truncate">{p.name}</span>
+              <span className="flex-1 truncate">
+                {(() => {
+                  const hits = hitOf(p);
+                  return p.name.split("").map((ch, ci) =>
+                    hits.has(ci) ? (
+                      <b key={ci} className="text-blue-600 dark:text-blue-400">{ch}</b>
+                    ) : (
+                      <span key={ci}>{ch}</span>
+                    ),
+                  );
+                })()}
+              </span>
               {p.last_test && (
                 <span
                   className={

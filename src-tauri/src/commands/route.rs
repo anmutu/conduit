@@ -143,3 +143,48 @@ pub fn set_think_preset(
 pub fn move_route_rule(state: State<'_, AppState>, id: i64, dir: i64) -> Result<(), String> {
     route_dao::move_rule(&state.db, id, dir).map_err(|e| e.to_string())
 }
+
+/// 规则试运行(dry-run):给定模型名,返回实际会命中的路由(规则或当前供应商),不发请求。
+#[tauri::command]
+pub fn dry_run_route(
+    state: State<'_, AppState>,
+    app_type: AppType,
+    model: String,
+) -> Result<serde_json::Value, String> {
+    let m = model.trim().to_string();
+    let hit = crate::db::route_dao::match_provider(&state.db, app_type.as_str(), Some(&m))
+        .map_err(|e| e.to_string())?;
+    let pid = hit.as_ref().map(|(pid, _, _)| pid.clone()).or_else(|| {
+        crate::db::provider_dao::get_current(&state.db, app_type)
+            .ok()
+            .flatten()
+            .map(|p| p.id)
+    });
+    let (provider_name, pattern, fallback_name) = match pid {
+        Some(id) => {
+            let name = crate::db::provider_dao::get_by_id(&state.db, &id)
+                .map_err(|e| e.to_string())?
+                .map(|p| p.name)
+                .unwrap_or_else(|| id.clone());
+            let pattern = hit.as_ref().map(|(_, p, _)| p.clone());
+            let fb = hit
+                .as_ref()
+                .and_then(|(_, _, f)| f.clone())
+                .and_then(|fid| {
+                    crate::db::provider_dao::get_by_id(&state.db, &fid)
+                        .ok()
+                        .flatten()
+                        .map(|p| p.name)
+                });
+            (name, pattern, fb)
+        }
+        None => (String::new(), None, None),
+    };
+    Ok(serde_json::json!({
+        "model": m,
+        "rule_hit": hit.is_some(),
+        "pattern": pattern,
+        "provider": provider_name,
+        "fallback": fallback_name,
+    }))
+}

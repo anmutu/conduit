@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
-import { ScrollText, Search, Download, Trash2 } from "lucide-react";
+import { ScrollText, Search, Download, Trash2, X } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { Input } from "@/components/ui/input";
 import type { Provider } from "@/types";
@@ -33,6 +33,7 @@ export function LogsPage({
 }) {
   const { t } = useI18n();
   const [entries, setEntries] = useState<UsageEntry[] | null>(null);
+  const [detail, setDetail] = useState<UsageEntry | null>(null);
   const [q, setQ] = useState("");
   const [prov, setProv] = useState("");
   const [onlyErrors, setOnlyErrors] = useState(false);
@@ -228,7 +229,8 @@ export function LogsPage({
                     {dayEntries.map((e) => (
                   <tr
                     key={e.id}
-                    className="border-b border-border/50 hover:bg-accent/50"
+                    onClick={() => setDetail(e)}
+                    className="border-b border-border/50 hover:bg-accent/50 cursor-pointer"
                   >
                     <td className="px-4 py-1.5 text-muted-foreground whitespace-nowrap">
                       {fmtTime(e.created_at)}
@@ -278,6 +280,51 @@ export function LogsPage({
         )}
       </div>
       <p className="text-xs text-muted-foreground text-right">{t("logs.note")}</p>
+
+      {/* 详情抽屉:点行展开(Proxyman 式) */}
+      {detail && (
+        <div className="fixed inset-0 z-50 flex justify-end" onClick={() => setDetail(null)}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div
+            className="relative w-[340px] h-full bg-card border-l border-border shadow-xl overflow-y-auto"
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-card">
+              <h4 className="text-sm font-semibold">{t("logs.detail")}</h4>
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => setDetail(null)}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 space-y-3 text-xs">
+              {[
+                [t("logs.time"), fmtTime(detail.created_at)],
+                [t("logs.provider"), nameOf(detail.provider_id)],
+                [t("logs.model"), detail.model ?? "—"],
+                ["↓", String(detail.input_tokens)],
+                ["↑", String(detail.output_tokens)],
+                [t("logs.duration"), detail.duration_ms > 0 ? `${(detail.duration_ms / 1000).toFixed(1)}s` : "—"],
+                [t("logs.status"), String(detail.status)],
+                [t("logs.ruleHitShort"), detail.rule_pattern ?? "—"],
+              ].map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-4">
+                  <span className="text-muted-foreground shrink-0">{k}</span>
+                  <span className="font-medium text-right break-all">{v}</span>
+                </div>
+              ))}
+              {detail.error_note && (
+                <div className="rounded-md bg-red-500/10 border border-red-500/30 p-2.5">
+                  <p className="font-semibold text-red-600 dark:text-red-400 mb-1">{t("logs.errNote")}</p>
+                  <p className="text-red-700 dark:text-red-300 break-all whitespace-pre-wrap">{detail.error_note}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

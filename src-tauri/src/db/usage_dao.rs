@@ -319,3 +319,18 @@ pub fn group_provider_model(
     })?;
     Ok(rows.flatten().collect())
 }
+
+/// 近 1 小时各供应商错误率(告警横幅用):(provider_id, total, errors)。
+pub fn recent_error_rates(pool: &Pool) -> Result<Vec<(String, i64, i64)>> {
+    let conn = pool.get().map_err(|e| anyhow::anyhow!("{e}"))?;
+    let since = chrono::Utc::now().timestamp() - 3600;
+    let mut stmt = conn.prepare(
+        "SELECT provider_id, COUNT(*), SUM(CASE WHEN status >= 400 THEN 1 ELSE 0 END)
+         FROM usage_log WHERE created_at >= ?1
+         GROUP BY provider_id HAVING COUNT(*) >= 5",
+    )?;
+    let rows = stmt.query_map(rusqlite::params![since], |r| {
+        Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+    })?;
+    Ok(rows.flatten().collect())
+}

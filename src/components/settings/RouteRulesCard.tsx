@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { ArrowRight, ChevronDown, ChevronUp, Plus, Route, X } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronUp, FlaskConical, Plus, Route, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -37,6 +37,19 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
   const [adding, setAdding] = useState(false);
   // 长上下文分流预设
   const [lcProvider, setLcProvider] = useState("");
+  // 规则试运行
+  const [dryModel, setDryModel] = useState("");
+  const [dryResult, setDryResult] = useState<{ rule_hit: boolean; pattern: string | null; provider: string; fallback: string | null } | null>(null);
+
+  const dryRun = () => {
+    if (!dryModel.trim()) { setDryResult(null); return; }
+    invoke<{ rule_hit: boolean; pattern: string | null; provider: string; fallback: string | null }>(
+      "dry_run_route",
+      { appType: app, model: dryModel.trim() },
+    )
+      .then(setDryResult)
+      .catch(() => setDryResult(null));
+  };
   const [lcThreshold, setLcThreshold] = useState("60000");
   // 后台轻量分流预设
   const [bgProvider, setBgProvider] = useState("");
@@ -311,6 +324,39 @@ export function RouteRulesCard({ onError }: { onError: (msg: string) => void }) 
               >
                 <Plus className="w-3.5 h-3.5" />
               </Button>
+            </div>
+            {/* 规则试运行 */}
+            <div className="rounded-md border border-dashed border-border px-2.5 py-2 text-xs">
+              <div className="flex items-center gap-2">
+                <FlaskConical className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <Input
+                  value={dryModel}
+                  onChange={(e) => setDryModel(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && dryRun()}
+                  placeholder={t("route.dryPh")}
+                  className="h-7 text-xs flex-1"
+                />
+                <Button variant="outline" size="sm" className="h-7 px-2" onClick={dryRun}>
+                  {t("route.dryRun")}
+                </Button>
+              </div>
+              {dryResult && (
+                <p className="mt-1.5 text-muted-foreground">
+                  {dryResult.rule_hit ? (
+                    <>
+                      <span className="rounded bg-blue-500/15 px-1 text-blue-600 dark:text-blue-400">
+                        {dryResult.pattern}
+                      </span>{" "}
+                      → <b className="text-foreground">{dryResult.provider}</b>
+                      {dryResult.fallback && <> · {t("route.dryFallback")} {dryResult.fallback}</>}
+                    </>
+                  ) : (
+                    <>
+                      {t("route.dryMiss")} <b className="text-foreground">{dryResult.provider}</b>
+                    </>
+                  )}
+                </p>
+              )}
             </div>
             {/* 长上下文分流预设 */}
             <div className="flex items-center gap-2 flex-wrap rounded-md border border-dashed border-border px-2.5 py-2 text-xs">

@@ -218,3 +218,23 @@ pub fn get_failover_chain(
         .map(|p| p.name)
         .collect())
 }
+
+/// 近 1 小时错误率超 30% 的供应商(≥5 次请求才统计),首页告警横幅用。
+#[tauri::command]
+pub fn get_degraded_providers(
+    state: State<'_, AppState>,
+) -> Result<Vec<serde_json::Value>, String> {
+    Ok(crate::db::usage_dao::recent_error_rates(&state.db)
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .filter(|(_, total, errs)| *errs as f64 / *total as f64 > 0.3)
+        .map(|(pid, total, errs)| {
+            let name = provider_dao::get_by_id(&state.db, &pid)
+                .ok()
+                .flatten()
+                .map(|p| p.name)
+                .unwrap_or_else(|| pid.clone());
+            serde_json::json!({ "id": pid, "name": name, "total": total, "errors": errs })
+        })
+        .collect())
+}
