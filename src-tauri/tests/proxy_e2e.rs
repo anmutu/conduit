@@ -987,3 +987,71 @@ async fn cooldown_demotes_failed_provider_within_window() {
     );
     let _ = std::fs::remove_dir_all(&db_dir);
 }
+
+/// Gemini CLI → OpenAI 流式:chat SSE → Gemini streamGenerateContent SSE。
+#[tokio::test]
+async fn convert_streaming_openai_sse_to_gemini_client_sse() {
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let app = Router::new().route(
+        "/v1/chat/completions",
+        post(|| async move {
+            let body = concat!(
+                "data: {\"id\":\"1\",\"model\":\"gpt\",\"choices\":[{\"delta\":{\"content\":\"Hel\"}}]}\n\n",
+                "data: {\"choices\":[{\"delta\":{\"content\":\"lo\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2}}\n\n",
+                "data: [DONE]\n\n",
+            );
+            ([(axum::http::header::CONTENT_TYPE, "text/event-stream")], body).into_response()
+        }),
+    );
+    tokio::spawn(async move { axum::serve(listener, app).await });
+
+    let key = "ab".repeat(32);
+    let db_dir = std::env::temp_dir().join(format!("conduit_e2e_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&db_dir).unwrap();
+    let pool = db::init_pool(db_dir.join("test.db"), &key).unwrap();
+
+    let mut p = test_provider("py", "OpenAIOnlyS", format!("http://{addr}"));
+    p.endpoints
+        .insert("openai".into(), format!("http://{addr}/v1"));
+    provider_dao::insert(&pool, &p).unwrap();
+    provider_dao::set_current(&pool, "py", AppType::Gemini).unwrap();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let proxy_addr = listener.local_addr().unwrap();
+    tokio::spawn(proxy::server::run_listener(
+        AppState::new(pool.clone()),
+        listener,
+    ));
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!(
+            "http://{proxy_addr}/v1beta/models/gemini-2:streamGenerateContent?alt=sse"
+        ))
+        .json(&serde_json::json!({
+            "model": "gemini-2", "stream": true,
+            "contents": [{ "role": "user", "parts": [{ "text": "hi" }] }]
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let ct = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    assert!(ct.starts_with("text/event-stream"), "content-type={ct}");
+    let body = resp.text().await.unwrap();
+    // Gemini 原生流形态:candidates[].content.parts[].text 分片 + usageMetadata
+    assert!(body.contains("candidates"), "缺 candidates:\n{body}");
+    assert!(body.contains("\"Hel\""), "缺 Hel 分片:\n{body}");
+    assert!(body.contains("\"lo\""), "缺 lo 分片:\n{body}");
+    assert!(body.contains("usageMetadata"), "缺 usage:\n{body}");
+}
