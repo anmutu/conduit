@@ -7,6 +7,7 @@ import {
   ChevronUp,
   CalendarClock,
   Database,
+  Activity,
   FileJson,
   Languages,
   LayoutGrid,
@@ -85,6 +86,13 @@ export function SettingsPage({
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [version, setVersion] = useState("…");
   const [backupBusy, setBackupBusy] = useState(false);
+  const [healthMin, setHealthMin] = useState(0);
+
+  useEffect(() => {
+    invoke<number | null>("get_health_interval")
+      .then((v) => setHealthMin(v ?? 0))
+      .catch(() => setHealthMin(0));
+  }, []);
   // Profile(供应商组合快照)
   const [profileList, setProfileList] = useState<string[]>([]);
   const [activeProfile, setActiveProfile] = useState("");
@@ -604,6 +612,27 @@ export function SettingsPage({
           </Button>
           <span className="text-xs text-muted-foreground">v{version}</span>
         </div>
+      </Row>
+
+      <Row
+        icon={<Activity className="w-4 h-4" />}
+        title={t("settings.healthRow")}
+        desc={t("settings.healthRowDesc")}
+      >
+        <select
+          value={healthMin}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setHealthMin(v);
+            invoke("set_health_interval", { minutes: v }).catch((e) => onError(String(e)));
+          }}
+          className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+        >
+          <option value={0}>{t("settings.healthOff")}</option>
+          <option value={15}>15 min</option>
+          <option value={30}>30 min</option>
+          <option value={60}>60 min</option>
+        </select>
       </Row>
 
       <div className="flex justify-end pt-2">

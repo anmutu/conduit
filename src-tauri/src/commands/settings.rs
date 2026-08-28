@@ -95,3 +95,23 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
+
+/// 周期健康检测间隔(分钟;0=关闭,默认)。写入后由后台线程轮询生效。
+#[tauri::command]
+pub fn set_health_interval(state: State<'_, AppState>, minutes: i64) -> Result<(), String> {
+    let m = minutes.clamp(0, 24 * 60);
+    if m == 0 {
+        crate::db::kv::del(&state.db, "health.interval_min").map_err(|e| e.to_string())
+    } else {
+        crate::db::kv::set(&state.db, "health.interval_min", &m.to_string())
+            .map_err(|e| e.to_string())
+    }
+}
+
+/// 读取周期健康检测间隔(None=关闭)。
+#[tauri::command]
+pub fn get_health_interval(state: State<'_, AppState>) -> Result<Option<i64>, String> {
+    Ok(crate::db::kv::get(&state.db, "health.interval_min")
+        .map_err(|e| e.to_string())?
+        .and_then(|v| v.parse::<i64>().ok()))
+}

@@ -161,6 +161,53 @@ pub fn run() {
                 })
                 .build(app)?;
 
+            // 3. 周期健康检测(设置里开启才跑):每 interval 分钟测各分组当前供应商,
+            // 结果写 last_test(托盘 ✗ / 卡片延迟随之更新)
+            {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    // 用一个轻量 runtime 跑异步测试
+                    if let Ok(rt) = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                    {
+                        loop {
+                            let mins = db::kv::get(
+                                &handle.state::<state::AppState>().db,
+                                "health.interval_min",
+                            )
+                            .ok()
+                            .flatten()
+                            .and_then(|v| v.parse::<u64>().ok())
+                            .unwrap_or(0);
+                            let sleep_secs = if mins > 0 { mins * 60 } else { 300 };
+                            std::thread::sleep(std::time::Duration::from_secs(sleep_secs));
+                            if mins == 0 {
+                                continue; // 关闭时只轮询开关,不测
+                            }
+                            let st = handle.state::<state::AppState>();
+                            let providers: Vec<_> = types::AppType::all()
+                                .iter()
+                                .filter_map(|a| {
+                                    db::provider_dao::get_current(&st.db, *a).ok().flatten()
+                                })
+                                .collect();
+                            for p in providers {
+                                let pool = st.db.clone();
+                                let (pid, app_t) = (p.id.clone(), p.app_type);
+                                rt.block_on(async move {
+                                    let _ = crate::services::provider::test_provider(
+                                        &pool, &pid, app_t,
+                                    )
+                                    .await;
+                                });
+                            }
+                            let _ = rebuild_tray_menu(&handle);
+                        }
+                    }
+                });
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -181,12 +228,16 @@ pub fn run() {
             commands::config::export_config,
             commands::config::import_config,
             commands::provider::set_provider_models,
+            commands::settings::set_health_interval,
+            commands::settings::get_health_interval,
             commands::provider::set_responses_bridge,
             commands::provider::get_responses_bridge,
             commands::provider::get_provider_balance,
             commands::config::export_config,
             commands::config::import_config,
             commands::provider::set_provider_models,
+            commands::settings::set_health_interval,
+            commands::settings::get_health_interval,
             commands::settings::get_app_settings,
             commands::settings::set_autostart,
             commands::proxy::proxy_status,
