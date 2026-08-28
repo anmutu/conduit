@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { ScrollText, Search, Download, Trash2 } from "lucide-react";
@@ -92,6 +92,28 @@ export function LogsPage({
       .catch((e) => onError(String(e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [app]);
+
+  // 按天分组倒序(新日期在上),组头显示 日期 · 条数
+  const grouped = useMemo(() => {
+    if (!filtered) return null;
+    const byDay = new Map<string, typeof filtered>();
+    for (const e of filtered) {
+      const d = new Date(e.created_at * 1000);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const day = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const arr = byDay.get(day) ?? [];
+      arr.push(e);
+      byDay.set(day, arr);
+    }
+    const today = new Date();
+    const tpad = (n: number) => String(n).padStart(2, "0");
+    const tday = `${today.getFullYear()}-${tpad(today.getMonth() + 1)}-${tpad(today.getDate())}`;
+    return [...byDay.entries()].map(([d, es]) => [
+      d === tday ? `${t("logs.today")} ${d}` : d,
+      es,
+    ]) as [string, typeof filtered][];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered]);
 
   const nameOf = (id: string) =>
     providers.find((p) => p.id === id)?.name ?? id.slice(0, 8);
@@ -193,7 +215,17 @@ export function LogsPage({
                 </tr>
               </thead>
               <tbody className="tabular-nums">
-                {filtered?.map((e) => (
+                {grouped?.map(([day, dayEntries]) => (
+                  <Fragment key={day}>
+                    <tr className="bg-muted/40">
+                      <td
+                        colSpan={7}
+                        className="px-4 py-1 text-[11px] font-semibold text-muted-foreground"
+                      >
+                        {day} · {dayEntries.length}
+                      </td>
+                    </tr>
+                    {dayEntries.map((e) => (
                   <tr
                     key={e.id}
                     className="border-b border-border/50 hover:bg-accent/50"
@@ -237,6 +269,8 @@ export function LogsPage({
                       </span>
                     </td>
                   </tr>
+                    ))}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
