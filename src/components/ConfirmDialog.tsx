@@ -19,7 +19,7 @@ interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
-// 结构复刻 CC Switch 的 ConfirmDialog
+// 通用确认对话框:标题/描述/危险动作红色主按钮
 export function ConfirmDialog({
   isOpen,
   title,

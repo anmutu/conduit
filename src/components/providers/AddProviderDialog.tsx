@@ -45,7 +45,7 @@ function validateUrl(v: string, t: ReturnType<typeof useI18n>["t"]): string | nu
   }
 }
 
-// 对话框结构复刻 CC Switch 的 AddProviderDialog;
+// 添加供应商对话框;
 // form 包住整个内容(含 footer),支持 Enter 提交。
 // 两步式:先选预设(或自定义),再进入预填表单。
 export function AddProviderDialog({

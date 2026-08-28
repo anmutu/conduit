@@ -3,7 +3,7 @@ import { ALL_APPS } from "@/lib/appPrefs";
 import { cn } from "@/lib/utils";
 import type { AppType } from "@/types";
 
-// 布局与交互复刻 CC Switch 的 AppSwitcher;分组多时收起文字
+// CLI 分组切换器;分组多时收起文字只留图标
 const STORAGE_KEY = "conduit-last-app";
 
 const appIconName: Record<AppType, string> = {

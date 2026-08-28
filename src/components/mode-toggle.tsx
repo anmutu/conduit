@@ -9,7 +9,7 @@ const META: Record<Theme, { icon: typeof Sun; label: string }> = {
   system: { icon: Monitor, label: "跟随系统" },
 };
 
-/** 三态主题循环切换:浅色 → 深色 → 跟随系统(与 CC Switch 的 mode-toggle 一致) */
+/** 三态主题循环切换:浅色 → 深色 → 跟随系统 */
 export function ModeToggle() {
   const { theme, setTheme } = useTheme();
   const { icon: Icon, label } = META[theme];

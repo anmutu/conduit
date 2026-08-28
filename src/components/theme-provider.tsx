@@ -32,7 +32,7 @@ function applyTheme(theme: Theme) {
 
 /** 三态主题:浅色 / 深色 / 跟随系统(默认),localStorage 记忆。
  * 支持 URL ?theme=dark|light 强制指定(演示/截图用)。
- * 主题变量已在 index.css 定义(与 CC Switch 同款深浅两套 token)。 */
+ * 主题变量已在 index.css 定义(深浅两套 token)。 */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     const q = new URLSearchParams(location.search).get("theme") as Theme | null;

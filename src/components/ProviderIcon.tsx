@@ -2,7 +2,7 @@ import { Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * 品牌图标:与 CC Switch 同源(lobehub 静态 SVG,MIT)。
+ * 品牌图标:lobehub 静态 SVG(MIT)。
  * 深色适配:openai 为 currentColor 单色,img 引用下为黑色,深色背景需反转。
  */
 const BRAND: Record<string, { src: string; darkInvert?: boolean }> = {
@@ -11,7 +11,7 @@ const BRAND: Record<string, { src: string; darkInvert?: boolean }> = {
   gemini: { src: "icons/gemini.svg" },
   opencode: { src: "icons/opencode.svg" },
   openclaw: { src: "icons/openclaw.svg" },
-  // 供应商品牌(预设列表用,与 CC Switch 同源 lobehub SVG,MIT)
+  // 供应商品牌(预设列表用,lobehub SVG,MIT)
   deepseek: { src: "icons/deepseek.svg" },
   kimi: { src: "icons/kimi.svg" },
   zhipu: { src: "icons/zhipu.svg" },

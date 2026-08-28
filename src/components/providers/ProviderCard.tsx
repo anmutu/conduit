@@ -29,9 +29,7 @@ interface ProviderCardProps {
   testedAt?: number | null;
 }
 
-// 视觉结构复刻 CC Switch 的 ProviderCard:
-// rounded-xl 卡片 + 当前项蓝色边框/渐变 + hover 显示操作组。
-// 与原版的差异:当前项常显"当前"徽章(不依赖 hover);拖拽把手待 M1 排序功能一起加。
+// 供应商卡片:rounded-xl + 当前项蓝色边框/渐变 + hover 显示操作组 + 常显"当前"徽章。
 export function ProviderCard({
   provider,
   isCurrent,

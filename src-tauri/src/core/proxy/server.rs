@@ -593,7 +593,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                 out_headers.insert(HeaderName::from_static("x-keyway-route"), val);
             }
         }
-        // 降级可观测:发生过自动回退时回写链路与原因(参考 x-ccr-fallback-attempts)
+        // 降级可观测:发生过自动回退时回写链路与原因
         if !fallbacks.is_empty() {
             if let Ok(val) = HeaderValue::from_str(&fallbacks.join(",")) {
                 out_headers.insert(HeaderName::from_static("x-keyway-fallback"), val);
