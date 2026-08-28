@@ -129,7 +129,7 @@ pub fn create(pool: &Pool, input: ProviderInput) -> Result<Provider> {
 /// 切换当前供应商(同 app_type 仅一个 current)。
 ///
 /// 因为代理转发按 `is_current` 选供应商,这里只改 DB —— 对所有 CLI 立即生效,
-/// 无需写 live 配置文件、无需重启终端。这是 Conduit 的核心体验差异化。
+/// 无需写 live 配置文件、无需重启终端。这是 Keyway 的核心体验差异化。
 pub fn switch(pool: &Pool, id: &str, app: AppType) -> Result<()> {
     provider_dao::set_current(pool, id, app)
 }

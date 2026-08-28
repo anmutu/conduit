@@ -581,10 +581,10 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
             }
             out_headers.append(k.clone(), v.clone());
         }
-        // 错误响应附 actionable 提示(x-conduit-hint),CLI 侧可直接看到原因定位
+        // 错误响应附 actionable 提示(x-keyway-hint),CLI 侧可直接看到原因定位
         if let Some(hint) = status_hint(status.as_u16()) {
             if let Ok(val) = HeaderValue::from_str(hint) {
-                out_headers.insert(HeaderName::from_static("x-conduit-hint"), val);
+                out_headers.insert(HeaderName::from_static("x-keyway-hint"), val);
             }
         }
         // 分流可观测:命中路由规则/长上下文时回写标记头
@@ -743,12 +743,15 @@ fn meter_for(
     }
 }
 
-/// 常见错误的 actionable 提示(附在响应头 x-conduit-hint)。
+/// 常见错误的 actionable 提示(附在响应头 x-keyway-hint)。
 fn status_hint(code: u16) -> Option<&'static str> {
     match code {
-        401 | 403 => Some("Conduit: 鉴权失败 — API Key 无效或过期,请在 Conduit 中编辑该供应商重新填写 Key"),
-        404 => Some("Conduit: 端点不存在 — 请检查该供应商的接口地址(如 anthropic 端点应填根地址、openai 端点带 /v1)"),
-        429 => Some("Conduit: 限流/额度不足 — 可在 Conduit 中切换其他供应商或开启故障转移"),
+        401 | 403 => Some("Keyway: 鉴权失败 — API Key 无效或过期,请在 Keyway 中编辑该供应商重新填写 Key"),
+        404 => Some("Keyway: 端点不存在 — 请检查该供应商的接口地址(如 anthropic 端点应填根地址、openai 端点带 /v1)"),
+        402 => Some("Keyway: 余额不足 — 请充值该渠道,或在 Keyway 中切换其他供应商"),
+        408 => Some("Keyway: 上游超时 — 可重试,或为该分组配置故障转移候选"),
+        429 => Some("Keyway: 限流/额度不足 — 可在 Conduit 中切换其他供应商或开启故障转移"),
+        500..=599 => Some("Keyway: 上游服务异常 — 已在候选链内自动重试;持续失败请检查该渠道状态"),
         _ => None,
     }
 }

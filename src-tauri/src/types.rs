@@ -2,7 +2,7 @@
 //!
 //! 贯穿前后端的领域类型。注意安全设计:`Provider` 结构**不包含 API Key 字段**,
 //! Key 只存放在系统 keychain,数据库里只保留 keychain 的引用标识(`keychain_id`)。
-//! 这是 Conduit 相对竞品的核心安全差异化:DB 泄露不会导致凭证泄露。
+//! 这是 Keyway 相对竞品的核心安全差异化:DB 泄露不会导致凭证泄露。
 
 use serde::{Deserialize, Serialize};
 

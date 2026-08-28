@@ -26,7 +26,7 @@ pub struct TakeoverStatus {
     pub supported: bool,
     /// live 配置文件是否存在
     pub config_exists: bool,
-    /// 已由 Conduit 接管(内部标记)
+    /// 已由 Keyway 接管(内部标记)
     pub active: bool,
     /// 配置当前确实指向代理(未被外部覆盖)
     pub effective: bool,
@@ -194,11 +194,11 @@ pub fn apply_codex_at(path: &Path) -> Result<String> {
     if providers.is_empty() {
         // 无任何 provider:创建指向代理的最小条目并设为默认
         let mut t = toml_edit::Table::new();
-        t["name"] = toml_edit::value("Conduit");
+        t["name"] = toml_edit::value("Keyway");
         t["base_url"] = toml_edit::value(PROXY_URL);
         t["wire_api"] = toml_edit::value("chat");
-        providers["conduit"] = toml_edit::Item::Table(t);
-        doc["model_provider"] = toml_edit::value("conduit");
+        providers["keyway"] = toml_edit::Item::Table(t);
+        doc["model_provider"] = toml_edit::value("keyway");
     } else {
         for (_, item) in providers.iter_mut() {
             if let Some(t) = item.as_table_mut() {
@@ -454,7 +454,7 @@ mod tests {
         let p = tmp("codex_new").join("config.toml");
         apply_codex_at(&p).unwrap();
         let raw = std::fs::read_to_string(&p).unwrap();
-        assert!(raw.contains("model_provider = \"conduit\""));
+        assert!(raw.contains("model_provider = \"keyway\""));
         assert!(raw.contains(PROXY_URL));
     }
 
