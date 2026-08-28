@@ -545,6 +545,7 @@ function App() {
               app={activeApp}
               providers={providers}
               onError={(m) => toast("error", humanizeError(m, t))}
+              onInfo={(m) => toast("success", m)}
             />
           </div>
         )}

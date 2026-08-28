@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
 import { BarChart3 } from "lucide-react";
 import { useI18n } from "@/i18n";
 import type { Provider } from "@/types";
@@ -100,10 +101,12 @@ export function UsagePage({
   app,
   providers,
   onError,
+  onInfo,
 }: {
   app: string;
   providers: Provider[];
   onError: (msg: string) => void;
+  onInfo: (msg: string) => void;
 }) {
   const { t } = useI18n();
   const [data, setData] = useState<UsageDashboard | null>(null);
@@ -151,6 +154,30 @@ export function UsagePage({
           <h3 className="text-sm font-semibold">
             {days === 1 ? t("dash.trendToday") : t("dash.trendN", { n: days })}
           </h3>
+          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            title={t("dash.exportModels")}
+            onClick={async () => {
+              try {
+                const target = await save({
+                  defaultPath: `keyway-models-${days}d.csv`,
+                  filters: [{ name: "CSV", extensions: ["csv"] }],
+                });
+                if (!target) return;
+                const r = await invoke<{ path: string; count: number }>(
+                  "export_usage_models_csv",
+                  { appType: app, days, target },
+                );
+                onInfo(t("dash.exported", { n: r.count, path: r.path }));
+              } catch (e) {
+                onError(String(e));
+              }
+            }}
+            className="px-2 h-6 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground transition-all"
+          >
+            CSV
+          </button>
           <div className="flex items-center gap-1 p-0.5 bg-muted rounded-lg">
             {[1, 7, 30].map((d) => (
               <button
@@ -170,6 +197,7 @@ export function UsagePage({
                 {d}d
               </button>
             ))}
+          </div>
           </div>
         </div>
         {data && data.by_day.length > 0 ? (

@@ -230,6 +230,7 @@ pub fn run() {
             commands::provider::set_provider_models,
             commands::settings::set_health_interval,
             commands::settings::get_health_interval,
+            commands::usage_dash::export_usage_models_csv,
             commands::provider::set_responses_bridge,
             commands::provider::get_responses_bridge,
             commands::provider::get_provider_balance,
@@ -238,6 +239,7 @@ pub fn run() {
             commands::provider::set_provider_models,
             commands::settings::set_health_interval,
             commands::settings::get_health_interval,
+            commands::usage_dash::export_usage_models_csv,
             commands::settings::get_app_settings,
             commands::settings::set_autostart,
             commands::proxy::proxy_status,
@@ -311,14 +313,20 @@ fn build_tray_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let state = app.state::<state::AppState>();
     // 托盘文案随语言(默认中文;en 由前端设置页切换写入)
     let zh = db::kv::get(&state.db, "locale").ok().flatten().as_deref() != Some("en");
-    let (show_text, quit_text, recent_text) = if zh {
-        ("显示主界面", "退出 Keyway", "最近使用")
+    let (show_text, quit_text, recent_text, data_dir_text) = if zh {
+        ("显示主界面", "退出 Keyway", "最近使用", "打开数据目录")
     } else {
-        ("Show Main Window", "Quit Keyway", "Recent")
+        (
+            "Show Main Window",
+            "Quit Keyway",
+            "Recent",
+            "Open data folder",
+        )
     };
     let show = MenuItem::with_id(app, "show", show_text, true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", quit_text, true, None::<&str>)?;
-    let mut builder = MenuBuilder::new(app).item(&show);
+    let data_dir = MenuItem::with_id(app, "open-data-dir", data_dir_text, true, None::<&str>)?;
+    let mut builder = MenuBuilder::new(app).item(&show).item(&data_dir);
 
     // 今日用量摘要(禁用项,纯展示)
     if let Ok((tin, tout, reqs)) = db::usage_dao::today_total(&state.db) {
@@ -422,6 +430,15 @@ fn on_tray_menu_event<R: Runtime>(app: &AppHandle<R>, event: tauri::menu::MenuEv
             }
         }
         "quit" => app.exit(0),
+        "open-data-dir" => {
+            use tauri::Manager;
+            if let Ok(dir) = app.path().app_data_dir() {
+                if !dir.exists() {
+                    let _ = std::fs::create_dir_all(&dir);
+                }
+                let _ = tauri_plugin_opener::open_path(dir.display().to_string(), None::<&str>);
+            }
+        }
         id => {
             if let Some(rest) = id.strip_prefix("switch:") {
                 let mut parts = rest.splitn(2, ':');

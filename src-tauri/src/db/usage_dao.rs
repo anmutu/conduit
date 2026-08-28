@@ -280,3 +280,42 @@ pub fn today_total(pool: &Pool) -> Result<(i64, i64, i64)> {
     })?;
     Ok(rows.next().and_then(|r| r.ok()).unwrap_or((0, 0, 0)))
 }
+
+/// 供应商×模型 明细行(导出用)。
+pub struct ProviderModelRow {
+    pub provider_id: String,
+    pub model: String,
+    pub requests: i64,
+    pub errors: i64,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+}
+
+/// 供应商×模型 明细聚合(导出用)。
+pub fn group_provider_model(
+    pool: &Pool,
+    app_type: &str,
+    days: i64,
+) -> Result<Vec<ProviderModelRow>> {
+    let conn = pool.get().map_err(|e| anyhow::anyhow!("{e}"))?;
+    let since = chrono::Utc::now().timestamp() - days * 86400;
+    let mut stmt = conn.prepare(
+        "SELECT provider_id, COALESCE(model,''), COUNT(*),
+                SUM(CASE WHEN status >= 400 THEN 1 ELSE 0 END),
+                COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0)
+         FROM usage_log WHERE app_type = ?1 AND created_at >= ?2
+         GROUP BY provider_id, model
+         ORDER BY (SUM(input_tokens)+SUM(output_tokens)) DESC",
+    )?;
+    let rows = stmt.query_map(rusqlite::params![app_type, since], |r| {
+        Ok(ProviderModelRow {
+            provider_id: r.get(0)?,
+            model: r.get(1)?,
+            requests: r.get(2)?,
+            errors: r.get(3)?,
+            input_tokens: r.get(4)?,
+            output_tokens: r.get(5)?,
+        })
+    })?;
+    Ok(rows.flatten().collect())
+}
