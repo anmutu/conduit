@@ -58,6 +58,8 @@ export const zh = {
   "empty.kbd": "或按",
   "empty.import": "从现有 CLI 配置导入",
   "empty.importing": "导入中…",
+  "empty.copyFrom": "从其他分组复制",
+  "empty.copyNone": "其他分组也还没有供应商",
   "import.none": "未发现可导入的配置(无第三方 base_url 或已导入过)",
   "import.done": "已导入 {n} 个:{names}",
   // 添加/编辑对话框
@@ -405,6 +407,8 @@ export const en: Dict = {
   "empty.kbd": "or press",
   "empty.import": "Import from existing CLI config",
   "empty.importing": "Importing…",
+  "empty.copyFrom": "Copy from another group",
+  "empty.copyNone": "No providers in other groups either",
   "import.none": "No importable config found (no third-party base URL, or already imported)",
   "import.done": "Imported {n}: {names}",
   "dialog.addTitle": "Add Provider",

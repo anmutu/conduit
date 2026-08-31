@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Activity, Boxes, Download, Gauge, Plus } from "lucide-react";
+import { Activity, Boxes, CopyPlus, Download, Gauge, Plus } from "lucide-react";
 import type { AppType, Provider, ProxyStatus, UsageSummary } from "@/types";
 import { APP_PROTOCOL } from "@/types";
 import { Sidebar } from "@/components/Sidebar";
@@ -134,6 +134,45 @@ function App() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Provider | null>(null);
+  // 空分组引导:其他分组的供应商(点「从其他分组复制」时懒加载)
+  const [copySrc, setCopySrc] = useState<Provider[] | null>(null);
+  const loadOtherGroups = async () => {
+    if (copySrc) return setCopySrc(null);
+    if (IS_DEMO) {
+      setCopySrc(DEMO_PROVIDERS.filter((p) => p.app_type !== activeApp));
+      return;
+    }
+    const all: Provider[] = [];
+    for (const a of appsOrder) {
+      if (a === activeApp) continue;
+      try {
+        all.push(...(await invoke<Provider[]>("list_providers", { appType: a })));
+      } catch {
+        /* 该分组读取失败则跳过 */
+      }
+    }
+    setCopySrc(all);
+  };
+  /** 跨分组复制:按当前分组的 app_type 重建一条(name 去重) */
+  const copyFromGroup = async (src: Provider) => {
+    try {
+      const created = await invoke<Provider>("create_provider", {
+        input: {
+          app_type: activeApp,
+          name: src.name,
+          base_url: src.base_url,
+          models: src.models,
+        },
+      });
+      toast("success", t("toast.added", { name: created.name }));
+      syncTray();
+      setCopySrc(null);
+      await refresh(activeApp);
+      focusProvider(created.id);
+    } catch (e) {
+      toast("error", humanizeError(String(e), t));
+    }
+  };
   const [aboutOpen, setAboutOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   // 拖拽排序:被拖卡片 id 与悬停目标 id
@@ -696,6 +735,36 @@ function App() {
                       </Button>
                     )}
                   </div>
+                  <Button variant="ghost" size="sm" onClick={() => void loadOtherGroups()}>
+                    <CopyPlus className="w-4 h-4 mr-1" />
+                    {t("empty.copyFrom")}
+                  </Button>
+                  {copySrc && (
+                    <div className="mt-1 max-w-md w-full rounded-lg border border-border bg-card p-2">
+                      {copySrc.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-2">
+                          {t("empty.copyNone")}
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5 justify-center">
+                          {copySrc.map((src) => (
+                            <button
+                              key={src.id}
+                              type="button"
+                              onClick={() => void copyFromGroup(src)}
+                              className="rounded-md border border-border bg-muted px-2 py-1 text-xs hover:bg-accent"
+                              title={t(`app.${src.app_type}`)}
+                            >
+                              {src.name}
+                              <span className="ml-1 text-muted-foreground">
+                                · {t(`app.${src.app_type}`)}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     {t("empty.kbd")}{" "}
                     <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted font-mono text-[10px]">
