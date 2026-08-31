@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { cn } from "@/lib/utils";
 import { ProviderIcon } from "@/components/ProviderIcon";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { ProviderActions } from "@/components/providers/ProviderActions";
 import { useI18n } from "@/i18n";
 
@@ -24,6 +25,9 @@ interface ProviderCardProps {
   usage?: UsageSummary;
   /** 连通性测试失败等错误提示 */
   onError?: (msg: string) => void;
+  /** 键盘/按钮排序:上移/下移(不传则不显示) */
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
   /** 「全部测速」批量结果(常显徽章;与单卡 hover 测试互不影响) */
   batchResult?: { ok: boolean; latency_ms: number; message: string } | null;
   testedAt?: number | null;
@@ -40,6 +44,8 @@ export function ProviderCard({
   onDuplicate,
   onDelete,
   onCopyUrl,
+  onMoveUp,
+  onMoveDown,
   usage,
   onError,
   batchResult,
@@ -182,6 +188,29 @@ export function ProviderCard({
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 pointer-events-none group-hover:opacity-100 group-focus-within:opacity-100 group-hover:pointer-events-auto group-focus-within:pointer-events-auto transition-opacity duration-200">
+            {/* 上移/下移:键盘可达的排序方式(与拖拽并存) */}
+            {(onMoveUp || onMoveDown) && (
+              <div className="flex flex-col mr-0.5">
+                <button
+                  type="button"
+                  disabled={!onMoveUp}
+                  onClick={onMoveUp}
+                  title={t("provider.moveUp")}
+                  className="h-4 w-6 flex items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-25"
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  disabled={!onMoveDown}
+                  onClick={onMoveDown}
+                  title={t("provider.moveDown")}
+                  className="h-4 w-6 flex items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-25"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
             <ProviderActions
               provider={provider}
               isCurrent={isCurrent}

@@ -178,6 +178,19 @@ function App() {
       return next;
     });
   };
+  /** ↑↓ 按钮排序:在基础顺序上与相邻项交换(延迟排序视图下隐藏) */
+  const moveProvider = (id: string, dir: -1 | 1) => {
+    if (latencySort) return;
+    setProviders((list) => {
+      const i = list.findIndex((p) => p.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= list.length) return list;
+      const next = [...list];
+      [next[i], next[j]] = [next[j], next[i]];
+      void invoke("reorder_providers", { ids: next.map((p) => p.id) }).catch(() => {});
+      return next;
+    });
+  };
   const [currentView, setCurrentView] = useState<"providers" | "settings" | "usage" | "logs" | "mcp" | "skills">("usage");
   // 界面偏好:布局(左侧/顶部)+ 可见分组顺序,设置页可改
   const [layout, setLayoutState] = useState<LayoutMode>(loadLayout);
@@ -741,6 +754,17 @@ function App() {
                     isCurrent={p.is_current}
                     app={activeApp}
                     highlight={p.id === highlightId}
+                    onMoveUp={
+                      !latencySort && providers.findIndex((x) => x.id === p.id) > 0
+                        ? () => moveProvider(p.id, -1)
+                        : undefined
+                    }
+                    onMoveDown={
+                      !latencySort &&
+                      providers.findIndex((x) => x.id === p.id) < providers.length - 1
+                        ? () => moveProvider(p.id, 1)
+                        : undefined
+                    }
                     onSwitch={(provider) => void switchProvider(provider)}
                     onEdit={(provider) => setEditingProvider(provider)}
                     onDuplicate={(provider) => void duplicateProvider(provider)}
