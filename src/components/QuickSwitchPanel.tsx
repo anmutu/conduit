@@ -5,22 +5,31 @@ import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { AppType, Provider } from "@/types";
 
+/** 跨分组条目:供应商 + 所属分组(用于分组小标题渲染) */
+interface FlatEntry {
+  p: Provider;
+  app: AppType;
+}
+
 /**
  * 快速切换面板(全局快捷键 ⌘⇧K / Ctrl+Shift+K 唤起)。
- * 列出当前分组的供应商,↑↓ 选择、Enter 切换、Esc 关闭。
+ * 传入 groups 时跨分组列出全部供应商(分组小标题分隔),
+ * 否则只列当前分组;↑↓/数字键 选择、Enter 切换、Esc 关闭。
  */
 export function QuickSwitchPanel({
   open,
   onClose,
   app,
   providers,
+  groups,
   onPick,
 }: {
   open: boolean;
   onClose: () => void;
   app: AppType;
   providers: Provider[];
-  onPick: (p: Provider) => void;
+  groups?: { app: AppType; providers: Provider[] }[];
+  onPick: (p: Provider, app: AppType) => void;
 }) {
   const { t } = useI18n();
   const [idx, setIdx] = useState(0);
@@ -40,13 +49,17 @@ export function QuickSwitchPanel({
     }
     return j === query.length ? hit : null;
   };
+  // 跨分组时扁平化(编号/键盘导航按全局顺序),渲染时再按分组分组
+  const flat: FlatEntry[] = groups
+    ? groups.flatMap((g) => g.providers.map((p) => ({ p, app: g.app })))
+    : providers.map((p) => ({ p, app }));
   const query = q.trim().toLowerCase();
   const filtered = query
-    ? providers
-        .map((p) => ({ p, hits: fuzzy(p.name, query) }))
+    ? flat
+        .map((e) => ({ e, hits: fuzzy(e.p.name, query) }))
         .filter((x) => x.hits)
-        .map((x) => x.p)
-    : providers;
+        .map((x) => x.e)
+    : flat;
   const hitOf = (p: Provider): Set<number> => {
     if (!query) return new Set();
     return new Set(fuzzy(p.name, query) ?? []);
@@ -55,10 +68,10 @@ export function QuickSwitchPanel({
   useEffect(() => {
     if (open) {
       setQ("");
-      setIdx(Math.max(0, providers.findIndex((p) => p.is_current)));
+      setIdx(Math.max(0, filtered.findIndex((e) => e.p.is_current)));
       setTimeout(() => inputRef.current?.focus(), 30);
     }
-  }, [open, providers]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 输入过滤后保持选中项有效
   useEffect(() => {
@@ -82,14 +95,14 @@ export function QuickSwitchPanel({
         setIdx((i) => Math.max(0, i - 1));
       } else if (e.key === "Enter") {
         e.preventDefault();
-        const p = filtered[idx];
-        if (p) pick(p);
+        const e2 = filtered[idx];
+        if (e2) pick(e2.p, e2.app);
       } else if (/^[1-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey) {
         // 数字键 1-9 秒切(Raycast 式)
-        const p = filtered[Number(e.key) - 1];
-        if (p) {
+        const e2 = filtered[Number(e.key) - 1];
+        if (e2) {
           e.preventDefault();
-          pick(p);
+          pick(e2.p, e2.app);
         }
       }
     };
@@ -104,15 +117,9 @@ export function QuickSwitchPanel({
       [idx]?.scrollIntoView({ block: "nearest" });
   }, [idx]);
 
-  useEffect(() => {
-    listRef.current
-      ?.querySelectorAll("[data-qs-item]")
-      [idx]?.scrollIntoView({ block: "nearest" });
-  }, [idx]);
-
-  const pick = (p: Provider) => {
+  const pick = (p: Provider, pApp: AppType) => {
     onClose();
-    onPick(p);
+    onPick(p, pApp);
   };
 
   if (!open) return null;
@@ -146,16 +153,39 @@ export function QuickSwitchPanel({
         <div ref={listRef} className="max-h-[46vh] overflow-y-auto py-1.5">
           {filtered.length === 0 && (
             <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-              {providers.length === 0 ? t("qs.empty") : t("qs.noMatch")}
+              {flat.length === 0 ? t("qs.empty") : t("qs.noMatch")}
             </p>
           )}
-          {filtered.map((p, i) => (
+          {(() => {
+            // 按分组分段渲染:遇到新分组先输出小标题(首组不重复标题)
+            let lastApp: AppType | null = null;
+            return filtered.map((e, i) => {
+              const showHeader = groups && e.app !== lastApp;
+              lastApp = e.app;
+              return (
+                <div key={e.p.id}>
+                  {showHeader && (
+                    <p className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {t(`app.${e.app}`)}
+                    </p>
+                  )}
+                  {item(e.p, e.app, i)}
+                </div>
+              );
+            });
+          })()}
+        </div>
+      </div>
+    </div>
+  );
+
+  function item(p: Provider, _pApp: AppType, i: number) {
+    return (
             <button
-              key={p.id}
               type="button"
               data-qs-item
               onMouseEnter={() => setIdx(i)}
-              onClick={() => pick(p)}
+              onClick={() => pick(p, _pApp)}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm",
                 i === idx ? "bg-accent" : "hover:bg-accent/60",
@@ -199,9 +229,6 @@ export function QuickSwitchPanel({
                 <CornerDownLeft className="w-3.5 h-3.5 text-muted-foreground" />
               )}
             </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+    );
+  }
 }

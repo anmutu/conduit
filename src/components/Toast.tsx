@@ -6,6 +6,8 @@ export interface ToastItem {
   id: number;
   type: ToastType;
   msg: string;
+  /** 可选动作(如"撤销"):带动作的 toast 停留更久 */
+  action?: { label: string; run: () => void };
 }
 
 /**
@@ -37,6 +39,19 @@ export function ToastStack({
           title={t.msg}
         >
           {t.msg}
+          {t.action && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDismiss(t.id);
+                t.action!.run();
+              }}
+              className="ml-2 rounded px-1.5 py-0.5 text-xs font-medium bg-white/20 hover:bg-white/30"
+            >
+              {t.action.label}
+            </button>
+          )}
         </div>
       ))}
     </div>

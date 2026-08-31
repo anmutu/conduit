@@ -218,12 +218,16 @@ function App() {
       .catch(() => setChain([]));
   }, [activeApp, providers]);
 
-  const toast = useCallback((type: ToastType, msg: string) => {
-    const id = ++toastSeq;
-    setToasts((ts) => [...ts.slice(-2), { id, type, msg }]);
-    const ttl = type === "success" ? 1800 : 3500;
-    setTimeout(() => setToasts((ts) => ts.filter((t) => t.id !== id)), ttl);
-  }, []);
+  const toast = useCallback(
+    (type: ToastType, msg: string, action?: ToastItem["action"]) => {
+      const id = ++toastSeq;
+      setToasts((ts) => [...ts.slice(-2), { id, type, msg, action }]);
+      // 带动作(如"撤销")时停留 5s,给用户反应时间
+      const ttl = action ? 5000 : type === "success" ? 1800 : 3500;
+      setTimeout(() => setToasts((ts) => ts.filter((t) => t.id !== id)), ttl);
+    },
+    [],
+  );
 
   const dismissToast = useCallback((id: number) => {
     setToasts((ts) => ts.filter((t) => t.id !== id));
@@ -407,6 +411,41 @@ function App() {
     }
   };
 
+  /** 跨分组快速切换:面板打开时拉取所有分组的供应商(缓存优先) */
+  const [qsGroups, setQsGroups] = useState<{ app: AppType; providers: Provider[] }[]>([]);
+  useEffect(() => {
+    if (!quickOpen) return;
+    if (IS_DEMO) {
+      setQsGroups(
+        [...new Set(DEMO_PROVIDERS.map((p) => p.app_type))].map((a) => ({
+          app: a,
+          providers: DEMO_PROVIDERS.filter((p) => p.app_type === a),
+        })),
+      );
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      const gs: { app: AppType; providers: Provider[] }[] = [];
+      for (const a of appsOrder) {
+        let list = cacheRef.current[a];
+        if (!list) {
+          try {
+            list = await invoke<Provider[]>("list_providers", { appType: a });
+            cacheRef.current[a] = list;
+          } catch {
+            list = [];
+          }
+        }
+        gs.push({ app: a, providers: list });
+      }
+      if (alive) setQsGroups(gs);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [quickOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /** 供应商变更后同步托盘菜单(演示模式无后端,跳过) */
   const syncTray = useCallback(() => {
     if (!IS_DEMO) void invoke("refresh_tray").catch(() => {});
@@ -423,15 +462,30 @@ function App() {
     setTimeout(() => setHighlightId(null), 2200);
   }, []);
 
-  const switchProvider = async (provider: Provider) => {
+  const switchProvider = async (provider: Provider, app: AppType = activeApp) => {
+    // 记住切换前的当前供应商,支持 toast「撤销」一键切回
+    const prev = cacheRef.current[app]?.find((p) => p.is_current);
     try {
       await invoke("switch_provider", {
         id: provider.id,
-        appType: activeApp,
+        appType: app,
       });
-      toast("success", t("toast.switched", { name: provider.name }));
+      // 跨组切换:同时把界面切到对应分组,所见即所得
+      if (app !== activeApp) {
+        setActiveApp(app);
+      }
+      toast(
+        "success",
+        t("toast.switched", { name: provider.name }),
+        prev && prev.id !== provider.id
+          ? {
+              label: t("toast.undo"),
+              run: () => void switchProvider(prev, app),
+            }
+          : undefined,
+      );
       syncTray();
-      await refresh(activeApp);
+      await refresh(app);
     } catch (e) {
       toast("error", humanizeError(String(e), t));
     }
@@ -754,7 +808,8 @@ function App() {
         onClose={() => setQuickOpen(false)}
         app={activeApp}
         providers={providers}
-        onPick={(p) => void switchProvider(p)}
+        groups={qsGroups}
+        onPick={(p, a) => void switchProvider(p, a)}
       />
 
       <OnboardingDialog
