@@ -55,7 +55,7 @@ export function AboutDialog({
       .catch(() => setVersion(t("about.demoVersion")));
   }, [open]);
 
-  const github = "https://github.com/anmutu/conduit";
+  const github = "https://github.com/anmutu/keyway";
   const openGithub = async () => {
     try {
       if (canOpenExternal) {

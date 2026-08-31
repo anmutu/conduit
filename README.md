@@ -67,7 +67,7 @@ pnpm tauri build   # 构建
 | [Claude Code 指南](docs/guide/claude-code.md) | 接管、切换、官方订阅共存 |
 | [Codex 指南](docs/guide/codex.md) | 完整故障排查 |
 | [Gemini CLI 指南](docs/guide/gemini.md) | Gemini 格式供应商接入 |
-| [GLM 接入](docs/guide/providers/glm.md) / [Kimi 接入](docs/guide/providers/kimi.md) | Anthropic 兼容端点接法 |
+| [GLM 接入](docs/guide/providers/glm.md) / [Kimi 接入](docs/guide/providers/kimi.md) / [CoderPlan 接入](docs/guide/providers/coderplan.md) | Anthropic 兼容端点接法 |
 
 ## 🗺️ 路线图
 

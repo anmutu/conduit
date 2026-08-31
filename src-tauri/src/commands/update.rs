@@ -22,7 +22,7 @@ pub struct UpdateInfo {
 pub async fn check_update(state: tauri::State<'_, AppState>) -> Result<UpdateInfo, String> {
     let resp = state
         .http
-        .get("https://api.github.com/repos/anmutu/conduit/releases/latest")
+        .get("https://api.github.com/repos/anmutu/keyway/releases/latest")
         .header("User-Agent", "keyway-updater")
         .timeout(std::time::Duration::from_secs(8))
         .send()

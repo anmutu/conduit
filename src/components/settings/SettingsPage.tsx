@@ -640,7 +640,7 @@ export function SettingsPage({
           variant="link"
           className="text-xs"
           onClick={() =>
-            window.open("https://github.com/anmutu/conduit", "_blank")
+            window.open("https://github.com/anmutu/keyway", "_blank")
           }
         >
           {t("github.repo")}

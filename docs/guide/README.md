@@ -61,7 +61,7 @@ OpenClaw    ┘
 
 之后正常使用 `codex` / `claude` / `gemini` 命令即可——流量已走 Conduit。
 
-> 没有现成供应商?看看 [GLM 接入](./providers/glm.md) 和 [Kimi 接入](./providers/kimi.md),国产模型的 Coding 套餐都提供 Anthropic 兼容端点。
+> 没有现成供应商?看看 [GLM 接入](./providers/glm.md)、[Kimi 接入](./providers/kimi.md) 和 [CoderPlan 接入](./providers/coderplan.md),国产模型的 Coding 套餐和中转站都提供 Anthropic 兼容端点。
 
 ### 日常操作速查
 
@@ -121,6 +121,7 @@ OpenClaw    ┘
 | [Gemini CLI 指南](./gemini.md) | Gemini 格式供应商接入 |
 | [GLM 接入](./providers/glm.md) | 智谱 Coding Plan 双端点接法 |
 | [Kimi 接入](./providers/kimi.md) | Moonshot Anthropic 端点接法 |
+| [CoderPlan 接入](./providers/coderplan.md) | CoderPlan 中转站接法(根地址,不带 `/v1`) |
 
 ---
 
