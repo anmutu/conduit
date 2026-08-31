@@ -314,12 +314,19 @@ function App() {
       setHasCache(false);
     }
     try {
+      // 用量统计与列表互不依赖:并行发起,不等列表返回
+      const usageP = activeAppRef.current === app
+        ? invoke<Record<string, UsageSummary>>("get_usage_map", { appType: app }).catch(() => ({}))
+        : Promise.resolve(null);
       const list = await invoke<Provider[]>("list_providers", { appType: app });
       cacheRef.current[app] = list;
       // 异步返回时若已切走其他 app,不覆盖当前展示
       if (activeAppRef.current === app) {
         setProviders(list);
         setHasCache(true);
+        void usageP.then((m) => {
+          if (m && activeAppRef.current === app) setUsageMap(m);
+        });
         // 播种上次测速结果(meta 持久化,重启后徽章仍在)
         setBatchResults((prev) => {
           const next = { ...prev };
@@ -334,9 +341,6 @@ function App() {
           }
           return next;
         });
-        invoke<Record<string, UsageSummary>>("get_usage_map", { appType: app })
-          .then(setUsageMap)
-          .catch(() => setUsageMap({}));
       }
     } catch (e) {
       toast("error", humanizeError(String(e), t));
