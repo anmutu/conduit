@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
@@ -83,16 +84,20 @@ export function LogsPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, q, prov, onlyErrors, providers]);
 
+  // 拉取条数:默认 100,「加载更多」每次 +200
+  const [limit, setLimit] = useState(100);
+  useEffect(() => setLimit(100), [app]);
+
   useEffect(() => {
     if (IS_DEMO) {
       setEntries([]);
       return;
     }
-    invoke<UsageEntry[]>("get_recent_usage", { appType: app, limit: 100 })
+    invoke<UsageEntry[]>("get_recent_usage", { appType: app, limit })
       .then(setEntries)
       .catch((e) => onError(String(e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [app]);
+  }, [app, limit]);
 
   // 按天分组倒序(新日期在上),组头显示 日期 · 条数
   const grouped = useMemo(() => {
@@ -279,6 +284,13 @@ export function LogsPage({
           </div>
         )}
       </div>
+      {entries && entries.length >= limit && limit < 2000 && (
+        <div className="flex justify-center">
+          <Button variant="outline" size="sm" onClick={() => setLimit((n) => n + 200)}>
+            {t("logs.more")}
+          </Button>
+        </div>
+      )}
       <p className="text-xs text-muted-foreground text-right">{t("logs.note")}</p>
 
       {/* 详情抽屉:点行展开(Proxyman 式) */}
