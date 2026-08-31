@@ -46,9 +46,18 @@ function getInitialApp(): AppType {
 type TFunc = ReturnType<typeof useI18n>["t"];
 function humanizeError(raw: string, t: TFunc): string {
   const msg = raw.replace(/^Error:\s*/i, "");
+  const m = msg.toLowerCase();
   if (msg.includes("keychain")) return t("err.keychain");
   if (msg.includes("数据库") || msg.includes("database")) return t("err.db");
   if (msg.includes("invoke") || msg.includes("ipc")) return t("err.ipc");
+  // 常见 HTTP/网络错误:给出可操作的下一步,而不是裸状态码
+  if (/\b401\b|unauthorized/.test(m)) return t("err.401");
+  if (/\b403\b|forbidden/.test(m)) return t("err.403");
+  if (/\b404\b|not found/.test(m)) return t("err.404");
+  if (/\b429\b|rate.?limit|quota/.test(m)) return t("err.429");
+  if (/timeout|timed out/.test(m)) return t("err.timeout");
+  if (/dns|resolve|refused|unreachable|network/.test(m)) return t("err.network");
+  if (/certificate|tls|ssl/.test(m)) return t("err.tls");
   return t("err.fallback", { msg: msg.length > 120 ? `${msg.slice(0, 120)}…` : msg });
 }
 

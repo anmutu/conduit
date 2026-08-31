@@ -335,6 +335,13 @@ export const zh = {
   "err.db": "本地数据库读写失败",
   "err.ipc": "无法连接本地服务(浏览器预览模式下属正常)",
   "err.fallback": "{msg}",
+  "err.401": "认证失败(401):API Key 无效或已过期,请编辑供应商重新填写",
+  "err.403": "无权限(403):该 Key 无权访问此模型或端点",
+  "err.404": "端点不存在(404):请检查供应商接口地址是否正确",
+  "err.429": "请求过于频繁或额度不足(429):稍后再试,或切换其他供应商",
+  "err.timeout": "请求超时:供应商响应太慢,可先测速或切换供应商",
+  "err.network": "网络不可达:请检查本机网络或供应商地址",
+  "err.tls": "证书校验失败:检查系统时间或供应商是否需要自定义证书",
   // 设置页 placeholder 版本行/GitHub
   "github.repo": "GitHub 仓库 · MIT",
   "err.generic": "出错了",
@@ -668,6 +675,13 @@ export const en: Dict = {
   "dash.fails": "{n} failed",
   "dash.note": "Metered as it forwards, zero extra requests; data stays in your local encrypted store.",
   "github.repo": "GitHub · MIT",
+  "err.401": "Authentication failed (401): API key invalid or expired — edit the provider and re-enter it",
+  "err.403": "Forbidden (403): this key cannot access that model or endpoint",
+  "err.404": "Endpoint not found (404): check the provider base URL",
+  "err.429": "Rate limited or out of quota (429): retry later or switch provider",
+  "err.timeout": "Request timed out: provider too slow — test latency or switch provider",
+  "err.network": "Network unreachable: check your connection or the provider address",
+  "err.tls": "TLS certificate error: check system clock or custom CA requirements",
   "err.generic": "Something went wrong",
 };
 
