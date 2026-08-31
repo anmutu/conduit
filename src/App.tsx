@@ -178,7 +178,7 @@ function App() {
       return next;
     });
   };
-  const [currentView, setCurrentView] = useState<"providers" | "settings" | "usage" | "logs" | "mcp" | "skills">("providers");
+  const [currentView, setCurrentView] = useState<"providers" | "settings" | "usage" | "logs" | "mcp" | "skills">("usage");
   // 界面偏好:布局(左侧/顶部)+ 可见分组顺序,设置页可改
   const [layout, setLayoutState] = useState<LayoutMode>(loadLayout);
   const [appsOrder, setAppsOrder] = useState<AppType[]>(loadApps);
@@ -314,9 +314,9 @@ function App() {
   // 快捷键:Cmd/Ctrl+N 新建,Cmd/Ctrl+1..5 切换应用
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Escape:从设置页返回主界面
+      // Escape:从设置页返回主界面(仪表盘为默认首页)
       if (e.key === "Escape") {
-        setCurrentView("providers");
+        setCurrentView("usage");
         return;
       }
       const mod = e.metaKey || e.ctrlKey;
