@@ -1,6 +1,6 @@
 <div align="center">
 
-# Conduit
+# Keyway
 
 ### AI CLI 的本地供应中心
 
@@ -31,9 +31,9 @@
 
 ## 📦 安装
 
-从 [Releases](https://github.com/anmutu/conduit/releases/latest) 下载对应平台安装包。
+从 [Releases](https://github.com/anmutu/keyway/releases/latest) 下载对应平台安装包。
 
-> **macOS 首次打开**:安装包未做 Apple 公证(个人开源项目),双击若提示「无法验证开发者」——在 Finder 里**右键点 Conduit.app → 打开 → 再点「打开」**即可,仅首次需要。
+> **macOS 首次打开**:安装包未做 Apple 公证(个人开源项目),双击若提示「无法验证开发者」——在 Finder 里**右键点 Keyway.app → 打开 → 再点「打开」**即可,仅首次需要。
 > **Windows**:SmartScreen 提示时选「仍要运行」。
 
 ## 🚀 快速开始

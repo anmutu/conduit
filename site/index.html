@@ -271,12 +271,14 @@
             <span>keyway — proxy 127.0.0.1:9527</span>
           </div>
           <div class="term-body">
-            <div><span class="dim">»</span> <span class="blue">keyway</span> takeover codex</div>
+            <div><span class="dim" data-i18n="t3"># 在 Keyway 中一键接管(原配置自动备份)</span></div>
             <div><span class="green">✓</span> <span data-i18n="t1">已接管 ~/.codex/config.toml(已备份)</span></div>
             <div><span class="dim">»</span> codex "refactor this module"</div>
-            <div><span class="dim">POST</span> /v1/chat/completions <span class="dim">→</span> <span class="violet">GLM Coding Plan</span> <span class="green">200 · 1.8s</span></div>
-            <div><span class="dim">»</span> <span class="blue">keyway</span> use kimi</div>
+            <div><span class="green">✓</span> 200 · 1.8s <span class="dim">·</span> <span class="violet">GLM Coding Plan</span></div>
+            <div><span class="dim" data-i18n="t4"># 菜单栏或 ⌘⇧K 快速切换,终端不必重开</span></div>
             <div><span class="green">✓</span> <span data-i18n="t2">已切换 → Kimi(免重启,下个请求生效)</span></div>
+            <div><span class="dim">»</span> codex "keep going"</div>
+            <div><span class="green">✓</span> 200 · 1.6s <span class="dim">·</span> <span class="violet">Kimi</span></div>
             <div><span class="dim">»</span> <span class="cursor"></span></div>
           </div>
         </div>
@@ -457,6 +459,8 @@
           tTitle: "Fluid, end to end.", tSub: "Takeover, forwarding, switching — in one flow.",
           t1: "Took over ~/.codex/config.toml (backed up)",
           t2: "Switched → Kimi (no restart, next request)",
+          t3: "# One-click takeover in Keyway (config backed up)",
+          t4: "# Switch via menu bar or ⌘⇧K — no terminal restart",
           capTitle: "Far more than switching.",
           capSub: "From key safety to request observability, Keyway is the local gateway for your AI CLIs.",
           c1t: "Automatic failover", c1d: "Upstream 5xx or timeouts automatically fail over to backup providers. Long tasks no longer break on a single point of failure. Configurable candidate chain.",
