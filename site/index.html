@@ -113,6 +113,18 @@
       }
       .hero-shot img { display: block; width: 100%; }
 
+      /* 截图窗口栏(macOS 信号灯) */
+      .win-bar { position: relative; display: flex; align-items: center; gap: 8px; padding: 11px 14px;
+        background: var(--bg-alt); border-bottom: 1px solid var(--hair); }
+      .win-bar i { width: 12px; height: 12px; border-radius: 50%; }
+      .win-bar i:nth-child(1) { background: #ff5f57; }
+      .win-bar i:nth-child(2) { background: #febc2e; }
+      .win-bar i:nth-child(3) { background: #28c840; }
+      .win-bar span { position: absolute; left: 0; right: 0; text-align: center;
+        font-size: 12.5px; font-weight: 500; color: var(--fg-3); letter-spacing: .02em; }
+      .win-bar.dark { background: #232326; border-bottom-color: rgba(255,255,255,.09); }
+      .win-bar.dark span { color: #98989d; }
+
       /* 三特性(Apple 排版式,无卡片) */
       .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 56px; text-align: center; }
       @media (max-width: 760px) { .trio { grid-template-columns: 1fr; gap: 44px; } }
@@ -221,6 +233,7 @@
         <a class="alink dl-direct" href="https://github.com/anmutu/keyway/releases" target="_blank" rel="noreferrer" data-i18n="freeDl">免费下载</a>
       </div>
       <div class="hero-shot">
+        <div class="win-bar"><i></i><i></i><i></i><span>Keyway</span></div>
         <img src="./app-light.png" alt="Keyway" />
       </div>
     </section>
@@ -346,10 +359,12 @@
         <h2 data-i18n="pvTitle">两种面貌,同一种出色。</h2>
         <div class="shots">
           <figure class="shot">
+            <div class="win-bar"><i></i><i></i><i></i><span>Keyway</span></div>
             <img src="./app-light.png" alt="light" loading="lazy" />
             <figcaption data-i18n="lightMode">浅色模式</figcaption>
           </figure>
           <figure class="shot">
+            <div class="win-bar dark"><i></i><i></i><i></i><span>Keyway</span></div>
             <img src="./app-dark.png" alt="dark" loading="lazy" />
             <figcaption data-i18n="darkMode">深色模式</figcaption>
           </figure>
