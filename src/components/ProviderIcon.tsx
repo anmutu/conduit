@@ -4,8 +4,10 @@ import { cn } from "@/lib/utils";
 /**
  * 品牌图标:lobehub 静态 SVG(MIT)。
  * 深色适配:openai 为 currentColor 单色,img 引用下为黑色,深色背景需反转。
+ * full:自带背景的方形徽标(如 coderplan 终端造型),渲染时占满容器/独立圆角,
+ * 避免在卡片图标配底色框里出现"双重边框"。
  */
-const BRAND: Record<string, { src: string; darkInvert?: boolean }> = {
+const BRAND: Record<string, { src: string; darkInvert?: boolean; full?: boolean }> = {
   claude: { src: "icons/claude.svg" },
   openai: { src: "icons/openai.svg", darkInvert: true },
   gemini: { src: "icons/gemini.svg" },
@@ -24,27 +26,46 @@ const BRAND: Record<string, { src: string; darkInvert?: boolean }> = {
   aihubmix: { src: "icons/aihubmix-color.svg" },
   stepfun: { src: "icons/stepfun.svg" },
   modelscope: { src: "icons/modelscope-color.svg" },
-  coderplan: { src: "icons/coderplan.svg" },
+  coderplan: { src: "icons/coderplan.svg", full: true },
   // CLI 分组品牌(官方发布渠道获取;商标归各自所有者)
-  iflow: { src: "icons/iflow.png" },
-  crush: { src: "icons/crush.png" },
-  droid: { src: "icons/droid.svg" },
+  iflow: { src: "icons/iflow.png", full: true },
+  crush: { src: "icons/crush.png", full: true },
+  droid: { src: "icons/droid.svg", full: true },
 };
 
 export function ProviderIcon({
   icon,
   name,
   size = 20,
+  fill = false,
 }: {
   icon: string;
   name?: string;
   color?: string;
   size?: number;
+  /** 占满父容器(父容器需有固定尺寸并自行圆角/裁切);与 size 互斥 */
+  fill?: boolean;
 }) {
   const key = icon?.toLowerCase() ?? "";
   const brand = BRAND[key] ?? BRAND[name?.toLowerCase() ?? ""];
 
   if (brand) {
+    if (brand.full) {
+      return (
+        <img
+          src={brand.src}
+          alt={name ?? key}
+          width={size}
+          height={size}
+          className={cn(
+            "object-cover",
+            fill ? "w-full h-full" : "rounded-[22%]",
+            brand.darkInvert && "dark:invert",
+          )}
+          aria-hidden="true"
+        />
+      );
+    }
     return (
       <img
         src={brand.src}

@@ -52,6 +52,7 @@ export function ProviderActions({
   const [result, setResult] = useState<TestResult | null>(null);
   const [balance, setBalance] = useState<Balance | null>(null);
   const [balanceNA, setBalanceNA] = useState(false);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
   const runTest = async () => {
     setTesting(true);
@@ -71,12 +72,15 @@ export function ProviderActions({
 
   const runBalance = async () => {
     setBalanceNA(false);
+    setBalanceLoading(true);
     try {
       const b = await invoke<Balance>("get_provider_balance", { id: provider.id });
       setBalance(b);
     } catch {
       setBalance(null);
       setBalanceNA(true);
+    } finally {
+      setBalanceLoading(false);
     }
   };
 
@@ -85,8 +89,9 @@ export function ProviderActions({
       {/* 测试结果:延迟/状态 */}
       {result && (
         <span
+          title={result.ok ? `${result.latency_ms}ms` : result.message || t("provider.testFail")}
           className={cn(
-            "text-xs tabular-nums",
+            "text-xs tabular-nums max-w-[160px] truncate",
             result.ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-500",
           )}
         >
@@ -127,12 +132,15 @@ export function ProviderActions({
         size="icon"
         variant="ghost"
         className={iconButtonClass}
-        disabled={!provider.has_key}
+        disabled={!provider.has_key || balanceLoading}
         onClick={() => void runBalance()}
         title={t("provider.balance")}
       >
-        <Wallet className="h-4 w-4" />
+        <Wallet className={cn("h-4 w-4", balanceLoading && "animate-pulse")} />
       </Button>
+      {balanceLoading && (
+        <span className="text-xs text-muted-foreground">…</span>
+      )}
       {balance && (
         <span className="text-xs tabular-nums text-muted-foreground">
           ${(balance.usage ?? 0).toFixed(2)}

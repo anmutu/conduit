@@ -148,7 +148,8 @@ pub fn get_responses_bridge(state: State<'_, AppState>, id: String) -> Result<bo
     )
 }
 
-/// 供应商余额(OpenRouter 兼容 /api/v1/key;其他上游返回 not_supported)。
+/// 供应商余额:依次尝试 OpenRouter 兼容(/auth/key)与 OpenAI 计费端点
+/// (/dashboard/billing/*,one-api/new-api 系中转均实现),两者都不支持才报错。
 #[tauri::command]
 pub async fn get_provider_balance(
     state: State<'_, AppState>,
@@ -167,25 +168,79 @@ pub async fn get_provider_balance(
         .get("openai")
         .cloned()
         .unwrap_or_else(|| p.base_url.clone());
-    let url = format!("{}/api/v1/key", base.trim_end_matches('/'));
-    let resp = reqwest::Client::new()
-        .get(&url)
+    // 以 /v1 结尾的端点直接拼子路径,否则补 /v1 前缀
+    let v1 = {
+        let b = base.trim_end_matches('/');
+        if b.ends_with("/v1") {
+            b.to_string()
+        } else {
+            format!("{b}/v1")
+        }
+    };
+    let client = reqwest::Client::new();
+    let timeout = std::time::Duration::from_secs(10);
+
+    // 1) OpenRouter 兼容:GET /auth/key → {data:{label,usage,limit,is_free_tier}}
+    if let Ok(resp) = client
+        .get(format!("{v1}/auth/key"))
         .bearer_auth(&key)
-        .timeout(std::time::Duration::from_secs(10))
+        .timeout(timeout)
+        .send()
+        .await
+    {
+        if resp.status().is_success() {
+            if let Ok(v) = resp.json::<serde_json::Value>().await {
+                if let Some(d) = v.get("data") {
+                    return Ok(serde_json::json!({
+                        "label": d.get("label").cloned().unwrap_or(serde_json::Value::Null),
+                        "usage": d.get("usage").and_then(|x| x.as_f64()),
+                        "limit": d.get("limit").and_then(|x| x.as_f64()),
+                        "is_free_tier": d.get("is_free_tier").and_then(|x| x.as_bool()).unwrap_or(false),
+                    }));
+                }
+            }
+        }
+    }
+
+    // 2) OpenAI 计费端点:subscription → 总额度;usage → 已用(美分)
+    let sub = client
+        .get(format!("{v1}/dashboard/billing/subscription"))
+        .bearer_auth(&key)
+        .timeout(timeout)
         .send()
         .await
         .map_err(|e| e.to_string())?;
-    let status = resp.status();
-    let v: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-    if !status.is_success() {
-        return Err(format!("HTTP {status}"));
+    if !sub.status().is_success() {
+        return Err(format!("HTTP {}", sub.status()));
     }
-    let d = v.get("data").cloned().ok_or("not_supported")?;
+    let sub_v: serde_json::Value = sub.json().await.map_err(|e| e.to_string())?;
+    let limit = sub_v
+        .get("hard_limit_usd")
+        .and_then(|x| x.as_f64())
+        .or_else(|| sub_v.get("system_hard_limit_usd").and_then(|x| x.as_f64()));
+    let usage = match client
+        .get(format!("{v1}/dashboard/billing/usage"))
+        .bearer_auth(&key)
+        .timeout(timeout)
+        .send()
+        .await
+    {
+        Ok(resp) if resp.status().is_success() => resp
+            .json::<serde_json::Value>()
+            .await
+            .ok()
+            .and_then(|v| v.get("total_usage").and_then(|x| x.as_f64()))
+            .map(|cents| cents / 100.0),
+        _ => None,
+    };
+    if usage.is_none() && limit.is_none() {
+        return Err("not_supported".into());
+    }
     Ok(serde_json::json!({
-        "label": d.get("label").cloned().unwrap_or(serde_json::Value::Null),
-        "usage": d.get("usage").and_then(|x| x.as_f64()),
-        "limit": d.get("limit").and_then(|x| x.as_f64()),
-        "is_free_tier": d.get("is_free_tier").and_then(|x| x.as_bool()).unwrap_or(false),
+        "label": serde_json::Value::Null,
+        "usage": usage,
+        "limit": limit,
+        "is_free_tier": false,
     }))
 }
 

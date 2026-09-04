@@ -95,12 +95,13 @@ export function ProviderCard({
       />
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 items-center gap-2">
-          {/* 供应商图标 */}
-          <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center border border-border group-hover:scale-105 transition-transform duration-300">
+          {/* 供应商图标:方形徽标(coderplan 等)全出血填满容器,避免双重边框 */}
+          <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center border border-border overflow-hidden group-hover:scale-105 transition-transform duration-300">
             <ProviderIcon
               icon={provider.app_type}
               name={provider.name}
               size={20}
+              fill
             />
           </div>
 
@@ -180,12 +181,15 @@ export function ProviderCard({
               {batchResult && (
                 <span
                   title={
-                    testedAt
-                      ? new Date(testedAt * 1000).toLocaleString()
-                      : undefined
+                    (testedAt
+                      ? new Date(testedAt * 1000).toLocaleString() + "\n"
+                      : "") +
+                    (batchResult.ok
+                      ? `${batchResult.latency_ms}ms`
+                      : batchResult.message || t("provider.unreachable"))
                   }
                   className={cn(
-                    "text-xs tabular-nums",
+                    "text-xs tabular-nums max-w-[220px] truncate",
                     batchResult.ok
                       ? "text-emerald-600 dark:text-emerald-400"
                       : "text-red-500",
