@@ -70,6 +70,8 @@
       section.step p b, section.step li b { color: var(--fg); font-weight: 600; }
       section.step ul, section.step ol.plain { margin: 12px 0 0 22px; font-size: 16.5px; color: var(--fg-2); }
       section.step li { margin: 7px 0; }
+      section.step a { color: var(--blue); text-decoration: none; }
+      section.step a:hover { text-decoration: underline; }
       code {
         font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13.5px;
         background: var(--bg-alt); border-radius: 5px; padding: 2px 6px;
@@ -152,7 +154,7 @@
         <h2 data-i18n="gS1h2">下载与安装</h2>
         <p data-i18n="gS1p">Keyway 是一个免费的 macOS 桌面应用。从 GitHub Releases 下载 <code>.dmg</code>,拖入「应用程序」即可,无需其他依赖。</p>
         <ul>
-          <li data-i18n="gS1l1">首次打开若提示「无法验证开发者」,请在 <b>系统设置 → 隐私与安全性</b> 中点击「仍要打开」。</li>
+          <li data-i18n="gS1l1">首次打开若提示「无法验证开发者」:在「应用程序」里<b>右键点 Keyway → 打开</b>;或在 <b>系统设置 → 隐私与安全性</b> 中点击「仍要打开」。</li>
           <li data-i18n="gS1l2">启动后 Keyway 会常驻<b>菜单栏(托盘)</b>,关闭窗口不影响代理运行。</li>
           <li data-i18n="gS1l3">本地代理默认监听 <code>127.0.0.1:9527</code>,只接受本机请求。</li>
         </ul>
@@ -168,6 +170,7 @@
           <li data-i18n="gS2l1"><b>预设直选</b>:内置常见供应商与中转站,填入 API Key 即可用。</li>
           <li data-i18n="gS2l2"><b>从现有配置导入</b>:已在 CLI 里配过?一键导入,不用重新填。</li>
           <li data-i18n="gS2l3"><b>自定义</b>:填名称、Base URL、API Key,任意中转/自建网关都支持。</li>
+          <li data-i18n="gS2l4"><b>以 CoderPlan 为例</b>:预设置顶、端点已预填;点 <b>「获取 API Key」</b>直达 <a href="https://coderplan.ai/dashboard/keys" target="_blank" rel="noreferrer">coderplan.ai/dashboard/keys</a>,创建并复制 Key,粘贴即可。</li>
         </ul>
         <div class="tip" data-i18n="gTip2"><b>密钥安全</b>:API Key 存入系统钥匙串 + 整库加密的本地数据库,不会明文写进任何 CLI 配置文件,导出备份也不含密钥。</div>
         <p style="margin-top:18px;" data-i18n="gS2p2">添加完成后,可点击供应商卡片上的 <b>测速按钮</b> 检查连通性与延迟,再决定用谁。</p>
@@ -286,7 +289,7 @@
           gToc4: "Switch instantly, no restarts", gToc5: "Advanced: routing · failover · logs · profiles", gToc6: "Troubleshooting",
           gS1k: "Get ready", gS1h2: "Download & install",
           gS1p: "Keyway is a free macOS desktop app. Download the .dmg from GitHub Releases and drag it into Applications — no other dependencies.",
-          gS1l1: "If macOS says the developer cannot be verified, open System Settings → Privacy & Security and click “Open Anyway”.",
+          gS1l1: "If macOS says the developer cannot be verified: right-click Keyway in Applications and choose Open; or open System Settings → Privacy & Security and click “Open Anyway”.",
           gS1l2: "Keyway lives in the menu bar (tray); closing the window keeps the proxy running.",
           gS1l3: "The local proxy listens on 127.0.0.1:9527 and accepts local requests only.",
           gTip1: "How does it work? After taking over each CLI's API endpoint, every request hits the local proxy first, then forwards to your chosen provider. Switching only changes local state — no CLI config rewriting. That's why there are no restarts.",
@@ -295,6 +298,7 @@
           gS2l1: "Presets: common providers and relays built in — just paste an API key.",
           gS2l2: "Import from existing configs: already configured a CLI? Import in one click, no retyping.",
           gS2l3: "Custom: name, Base URL and API Key — any relay or self-hosted gateway works.",
+          gS2l4: "Example — CoderPlan: preset pinned at top with the endpoint prefilled; click “Get API Key” to open coderplan.ai/dashboard/keys, create and copy a key, then paste it back.",
           gTip2: "Key safety: API keys live in the system keychain plus a fully encrypted local database. They are never written in plain text to CLI configs, and exports exclude them.",
           gS2p2: "After adding, hit the test button on a provider card to check reachability and latency before committing.",
           gS3k: "Takeover", gS3h2: "One-click CLI takeover",
