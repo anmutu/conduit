@@ -1,4 +1,11 @@
-import { BarChart3, Settings as SettingsIcon } from "lucide-react";
+import {
+  BarChart3,
+  Plus,
+  ScrollText,
+  Settings as SettingsIcon,
+  Sparkles,
+  Plug,
+} from "lucide-react";
 import { AppSwitcher } from "@/components/AppSwitcher";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
@@ -9,7 +16,8 @@ import type { View } from "@/components/Sidebar";
 
 /**
  * 横向切换栏:顶部(top)/底部(bottom)布局共用。
- * 左侧 CLI 分组切换,右侧用量/设置/代理/主题。
+ * 左侧 CLI 分组切换 + 新增,右侧 日志/技能/MCP/用量/设置/代理/主题
+ * (与侧栏布局的功能对齐,不依赖快捷键)。
  */
 export function AppHeaderBar({
   position,
@@ -18,6 +26,7 @@ export function AppHeaderBar({
   currentView,
   onViewChange,
   onSwitchApp,
+  onAdd,
   proxyOk,
   proxyAddr,
   onTakeover,
@@ -29,6 +38,7 @@ export function AppHeaderBar({
   currentView: View;
   onViewChange: (v: View) => void;
   onSwitchApp: (app: AppType) => void;
+  onAdd: () => void;
   proxyOk: boolean | null;
   proxyAddr: string;
   onTakeover: () => void;
@@ -60,6 +70,15 @@ export function AppHeaderBar({
             onViewChange("providers");
           }}
         />
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          title={t("common.add")}
+          onClick={onAdd}
+        >
+          <Plus className="w-4 h-4" />
+        </Button>
       </div>
       <div className="flex items-center gap-1.5 pr-3" data-tauri-no-drag>
         <Button
@@ -70,6 +89,33 @@ export function AppHeaderBar({
           onClick={() => onViewChange("usage")}
         >
           <BarChart3 className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn("h-8 w-8", currentView === "logs" && "bg-accent")}
+          title={t("logs.title")}
+          onClick={() => onViewChange("logs")}
+        >
+          <ScrollText className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn("h-8 w-8", currentView === "skills" && "bg-accent")}
+          title={`${t("sk.title")} (⌘⇧S)`}
+          onClick={() => onViewChange("skills")}
+        >
+          <Sparkles className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn("h-8 w-8", currentView === "mcp" && "bg-accent")}
+          title={`${t("mcp.title")} (⌘⇧M)`}
+          onClick={() => onViewChange("mcp")}
+        >
+          <Plug className="w-4 h-4" />
         </Button>
         <Button
           variant="ghost"

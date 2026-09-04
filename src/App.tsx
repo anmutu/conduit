@@ -279,9 +279,14 @@ function App() {
   }, [activeApp]);
   useEffect(() => {
     if (IS_DEMO) return;
-    invoke<string[]>("get_failover_chain", { appType: activeApp })
-      .then(setChain)
-      .catch(() => setChain([]));
+    const app = activeApp;
+    invoke<string[]>("get_failover_chain", { appType: app })
+      .then((c) => {
+        if (activeAppRef.current === app) setChain(c);
+      })
+      .catch(() => {
+        if (activeAppRef.current === app) setChain([]);
+      });
   }, [activeApp, providers]);
 
   const toast = useCallback(
@@ -340,7 +345,7 @@ function App() {
               next[p.id] = {
                 ok: p.last_test.ok,
                 latency_ms: p.last_test.latency_ms,
-                message: p.last_test.ok ? "" : "不可达",
+                message: p.last_test.ok ? "" : t("provider.unreachable"),
               };
             }
           }
@@ -421,8 +426,21 @@ function App() {
   // 快捷键:Cmd/Ctrl+N 新建,Cmd/Ctrl+1..5 切换应用
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Escape:从设置页返回主界面(仪表盘为默认首页)
+      // Escape:从设置页返回主界面(仪表盘为默认首页)。
+      // 对话框/浮层打开时让 Radix 自己关,不劫持跳页;输入框聚焦时也忽略
       if (e.key === "Escape") {
+        if (e.defaultPrevented) return;
+        if (document.querySelector("[data-state=open], [data-qs-panel]")) return;
+        const el = document.activeElement;
+        if (el instanceof HTMLElement && el.isContentEditable) return;
+        if (
+          el instanceof HTMLInputElement ||
+          el instanceof HTMLTextAreaElement ||
+          el instanceof HTMLSelectElement
+        ) {
+          el.blur();
+          return;
+        }
         setCurrentView("usage");
         return;
       }
@@ -664,6 +682,7 @@ function App() {
           currentView={currentView}
           onViewChange={setCurrentView}
           onSwitchApp={setActiveApp}
+          onAdd={() => setIsAddOpen(true)}
           proxyOk={proxyOk}
           proxyAddr={proxyAddr}
           onTakeover={() => setTakeoverOpen(true)}
@@ -726,6 +745,7 @@ function App() {
               app={activeApp}
               providers={providers}
               onError={(m) => toast("error", humanizeError(m, t))}
+              onInfo={(m) => toast("success", m)}
             />
           </div>
         )}
@@ -959,6 +979,7 @@ function App() {
           currentView={currentView}
           onViewChange={setCurrentView}
           onSwitchApp={setActiveApp}
+          onAdd={() => setIsAddOpen(true)}
           proxyOk={proxyOk}
           proxyAddr={proxyAddr}
           onTakeover={() => setTakeoverOpen(true)}

@@ -61,6 +61,7 @@ export function OnboardingDialog({
   const [importing, setImporting] = useState(false);
   const [takeoverList, setTakeoverList] = useState<TakeoverStatus[]>([]);
   const [busyApp, setBusyApp] = useState<string | null>(null);
+  const [takeoverError, setTakeoverError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -93,10 +94,13 @@ export function OnboardingDialog({
 
   const applyTakeover = async (app: string) => {
     setBusyApp(app);
+    setTakeoverError(null);
     try {
       await invoke("apply_takeover", { appType: app });
       const l = await invoke<TakeoverStatus[]>("takeover_status");
       setTakeoverList(l.filter((x) => x.supported));
+    } catch (e) {
+      setTakeoverError(String(e));
     } finally {
       setBusyApp(null);
     }
@@ -227,6 +231,9 @@ export function OnboardingDialog({
                 )}
               </div>
             ))}
+            {takeoverError && (
+              <p className="text-xs text-red-500 break-all">{takeoverError}</p>
+            )}
             <Button onClick={finish}>{t("ob.finish")}</Button>
           </div>
         )}

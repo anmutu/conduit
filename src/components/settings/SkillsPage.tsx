@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { BookOpen, Download, FolderOpen, Plus, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -38,6 +39,7 @@ export function SkillsPage({
   const { t } = useI18n();
   const [skills, setSkills] = useState<SkillEntry[]>([]);
   const [editing, setEditing] = useState<{ id: string; content: string; apps: string[]; isNew: boolean } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<SkillEntry | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importSrc, setImportSrc] = useState<Record<string, string[]>>({});
   const [syncing, setSyncing] = useState(false);
@@ -210,7 +212,7 @@ export function SkillsPage({
                 variant="ghost"
                 size="sm"
                 className="h-8 px-2 text-muted-foreground hover:text-destructive"
-                onClick={() => remove(s)}
+                onClick={() => setPendingDelete(s)}
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
@@ -218,6 +220,18 @@ export function SkillsPage({
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!pendingDelete}
+        title={t("sk.deleteTitle")}
+        message={t("sk.deleteConfirm", { name: pendingDelete?.name ?? "" })}
+        onConfirm={() => {
+          const target = pendingDelete;
+          setPendingDelete(null);
+          if (target) remove(target);
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
 
       <SkillEditDialog
         draft={editing}

@@ -5,6 +5,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { ScrollText, Search, Download, Trash2, X } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { Provider } from "@/types";
 
 interface UsageEntry {
@@ -27,10 +28,12 @@ export function LogsPage({
   app,
   providers,
   onError,
+  onInfo,
 }: {
   app: string;
   providers: Provider[];
   onError: (msg: string) => void;
+  onInfo: (msg: string) => void;
 }) {
   const { t } = useI18n();
   const [entries, setEntries] = useState<UsageEntry[] | null>(null);
@@ -38,6 +41,7 @@ export function LogsPage({
   const [q, setQ] = useState("");
   const [prov, setProv] = useState("");
   const [onlyErrors, setOnlyErrors] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const exportCsv = async () => {
     try {
@@ -51,18 +55,17 @@ export function LogsPage({
         "export_usage_csv",
         { appType: app, target },
       );
-      onError(t("logs.exportedTo", { path: r.path, n: r.count }));
+      onInfo(t("logs.exportedTo", { path: r.path, n: r.count }));
     } catch (e) {
       onError(String(e));
     }
   };
 
   const clearAll = async () => {
-    if (!window.confirm(t("logs.clearConfirm"))) return;
     try {
       const n = await invoke<number>("clear_usage", { appType: app });
       setEntries([]);
-      onError(t("logs.cleared", { n }));
+      onInfo(t("logs.cleared", { n }));
     } catch (e) {
       onError(String(e));
     }
@@ -187,7 +190,7 @@ export function LogsPage({
             {entries !== null && entries.length > 0 && (
               <button
                 type="button"
-                onClick={() => void clearAll()}
+                onClick={() => setConfirmClear(true)}
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-500"
                 title={t("logs.clearTitle")}
               >
@@ -292,6 +295,19 @@ export function LogsPage({
         </div>
       )}
       <p className="text-xs text-muted-foreground text-right">{t("logs.note")}</p>
+
+      {/* 清空确认(Tauri WebView 里 window.confirm 是空操作,必须用自绘对话框) */}
+      <ConfirmDialog
+        isOpen={confirmClear}
+        title={t("logs.clearTitle")}
+        message={t("logs.clearConfirm")}
+        confirmText={t("logs.clear")}
+        onConfirm={() => {
+          setConfirmClear(false);
+          void clearAll();
+        }}
+        onCancel={() => setConfirmClear(false)}
+      />
 
       {/* 详情抽屉:点行展开(Proxyman 式) */}
       {detail && (

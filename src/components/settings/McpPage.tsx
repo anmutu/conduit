@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Activity, Plug, Plus, RefreshCw, Server, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -59,6 +60,7 @@ export function McpPage({
   const [servers, setServers] = useState<McpServer[]>([]);
   const [editing, setEditing] = useState<McpServer | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<McpServer | null>(null);
 
   const reload = useCallback(() => {
     invoke<McpServer[]>("list_mcp_servers")
@@ -172,7 +174,7 @@ export function McpPage({
                 variant="ghost"
                 size="sm"
                 className="h-8 px-2 text-muted-foreground hover:text-destructive"
-                onClick={() => remove(s)}
+                onClick={() => setPendingDelete(s)}
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
@@ -180,6 +182,18 @@ export function McpPage({
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!pendingDelete}
+        title={t("mcp.deleteTitle")}
+        message={t("mcp.deleteConfirm", { name: pendingDelete?.name ?? "" })}
+        onConfirm={() => {
+          const target = pendingDelete;
+          setPendingDelete(null);
+          if (target) remove(target);
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
 
       <McpEditDialog
         server={editing}

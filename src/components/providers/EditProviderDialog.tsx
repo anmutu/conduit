@@ -56,7 +56,8 @@ export function EditProviderDialog({
   const [endpoints, setEndpoints] = useState<Record<string, string>>({});
   const [apiKey, setApiKey] = useState("");
   const [models, setModels] = useState("");
-  const [urlError, setUrlError] = useState<string | null>(null);
+  /** 每行端点独立的 URL 校验错误:protocol -> "scheme" | "invalid" */
+  const [urlErrors, setUrlErrors] = useState<Record<string, string | null>>({});
   const [submitting, setSubmitting] = useState(false);
   /** /v1/responses → chat/completions 桥接(仅 codex 供应商有意义) */
   const [bridge, setBridge] = useState(false);
@@ -83,17 +84,20 @@ export function EditProviderDialog({
       setEndpoints(eps);
       setApiKey("");
       setModels(provider.models.join(", "));
-      setUrlError(null);
+      setUrlErrors({});
     }
   }, [provider, defaultProtocol]);
 
-  const urlValid = urlError === null;
+  const urlValid = Object.values(urlErrors).every((e) => e === null);
   const filledCount = Object.values(endpoints).filter((v) => v.trim() !== "").length;
   const canSubmit = Boolean(provider) && name.trim() !== "" && urlValid && filledCount >= 1;
 
   const setEndpoint = (proto: string, v: string) => {
     setEndpoints((prev) => ({ ...prev, [proto]: v }));
-    if (urlError) setUrlError(validateUrl(v));
+    // 已报错的行随输入实时复查;干净的行留到 blur 再校验
+    setUrlErrors((prev) =>
+      prev[proto] ? { ...prev, [proto]: validateUrl(v) } : prev,
+    );
   };
 
   const addEndpointRow = (proto: Protocol) => {
@@ -110,6 +114,15 @@ export function EditProviderDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!provider || !canSubmit || submitting) return;
+    // 提交前全量复查:避免"行 A 报错 → 行 B 编辑清掉共享错误"绕过校验
+    const check: Record<string, string | null> = {};
+    for (const [proto, v] of Object.entries(endpoints)) {
+      check[proto] = validateUrl(v);
+    }
+    if (Object.values(check).some((x) => x !== null)) {
+      setUrlErrors(check);
+      return;
+    }
     setSubmitting(true);
     try {
       await invoke("update_provider", { id: provider.id, name: name.trim() });
@@ -145,7 +158,7 @@ export function EditProviderDialog({
         id: provider.id,
         models: models.split(",").map((m) => m.trim()).filter(Boolean),
       });
-      onSaved(provider);
+      onSaved({ ...provider, name: name.trim() });
       onOpenChange(false);
     } catch (err) {
       onError(String(err));
@@ -192,9 +205,18 @@ export function EditProviderDialog({
                   <Input
                     value={endpoints[proto]}
                     onChange={(e) => setEndpoint(proto, e.target.value)}
-                    onBlur={() => setUrlError(validateUrl(endpoints[proto] ?? ""))}
-                    aria-invalid={!urlValid}
-                    className={!urlValid ? "border-red-500 focus-visible:ring-red-500" : ""}
+                    onBlur={() =>
+                      setUrlErrors((prev) => ({
+                        ...prev,
+                        [proto]: validateUrl(endpoints[proto] ?? ""),
+                      }))
+                    }
+                    aria-invalid={urlErrors[proto] != null}
+                    className={
+                      urlErrors[proto] != null
+                        ? "border-red-500 focus-visible:ring-red-500"
+                        : ""
+                    }
                     placeholder={t("dialog.urlPh")}
                   />
                 </div>
@@ -216,8 +238,8 @@ export function EditProviderDialog({
                 </Button>
               ))}
             </div>
-            {urlError && (
-              <p className="text-xs text-red-500">{t(urlError === "scheme" ? "url.scheme" : "url.invalid")}</p>
+            {Object.values(urlErrors).some((x) => x !== null) && (
+              <p className="text-xs text-red-500">{t("url.invalid")}</p>
             )}
           </div>
 

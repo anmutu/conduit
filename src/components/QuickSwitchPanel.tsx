@@ -82,6 +82,8 @@ export function QuickSwitchPanel({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
+      // 输入法组词中的 Enter/数字不当作快捷键(中文用户高频场景)
+      if (e.isComposing) return;
       if (e.key === "Escape") {
         e.preventDefault();
         // 有关键词时先清词,再按一次才关闭
@@ -98,7 +100,9 @@ export function QuickSwitchPanel({
         const e2 = filtered[idx];
         if (e2) pick(e2.p, e2.app);
       } else if (/^[1-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey) {
-        // 数字键 1-9 秒切(Raycast 式)
+        // 数字键 1-9 秒切(Raycast 式);正在过滤输入时不劫持
+        // (否则输入 "gpt-4" 的 4 会直接切到第 4 个供应商)
+        if (document.activeElement === inputRef.current && q.trim()) return;
         const e2 = filtered[Number(e.key) - 1];
         if (e2) {
           e.preventDefault();
@@ -130,12 +134,13 @@ export function QuickSwitchPanel({
       onClick={onClose}
     >
       <div
+        data-qs-panel
         className="w-[92vw] max-w-[420px] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <span className="text-sm font-semibold">
-            {t("qs.title", { app: app })}
+            {t("qs.title", { app: t(`app.${app}`) })}
           </span>
           <span className="text-[11px] text-muted-foreground">
             ↑↓ · ⏎ · 1-9 · Esc
