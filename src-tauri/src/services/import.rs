@@ -91,7 +91,6 @@ fn scan_gemini() -> Option<(String, Option<String>)> {
     base.map(|b| (b, key))
 }
 
-
 /// 提取 opencode 配置:第一个带 baseURL 的 provider(options.apiKey 可能为空)
 fn scan_opencode_at(path: &std::path::Path) -> Option<(String, Option<String>)> {
     let raw = std::fs::read_to_string(path).ok()?;

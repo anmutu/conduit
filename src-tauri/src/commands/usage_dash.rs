@@ -130,22 +130,18 @@ pub fn export_usage_models_csv(
         }
     };
     // 已设单价时附带成本估算列(美元;单价 = 美元/百万 tokens)
-    let prices: std::collections::HashMap<String, (f64, f64)> =
-        crate::db::kv::all(&state.db)
-            .map_err(|e| e.to_string())?
-            .into_iter()
-            .filter_map(|(k, v)| {
-                let model = k.strip_prefix("price:")?.to_string();
-                let (i, o) = v.split_once(',')?;
-                Some((
-                    model,
-                    (
-                        i.trim().parse::<f64>().ok()?,
-                        o.trim().parse::<f64>().ok()?,
-                    ),
-                ))
-            })
-            .collect();
+    let prices: std::collections::HashMap<String, (f64, f64)> = crate::db::kv::all(&state.db)
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .filter_map(|(k, v)| {
+            let model = k.strip_prefix("price:")?.to_string();
+            let (i, o) = v.split_once(',')?;
+            Some((
+                model,
+                (i.trim().parse::<f64>().ok()?, o.trim().parse::<f64>().ok()?),
+            ))
+        })
+        .collect();
     let mut csv = String::from(
         "provider,model,requests,errors,input_tokens,output_tokens,input_price_usd_m,output_price_usd_m,est_cost_usd\n",
     );
@@ -185,9 +181,7 @@ fn price_key(model: &str) -> String {
 
 /// 全部已设单价:(model, input $/M, output $/M),按模型名排序
 #[tauri::command]
-pub fn get_model_prices(
-    state: State<'_, AppState>,
-) -> Result<Vec<(String, f64, f64)>, String> {
+pub fn get_model_prices(state: State<'_, AppState>) -> Result<Vec<(String, f64, f64)>, String> {
     let mut out: Vec<(String, f64, f64)> = crate::db::kv::all(&state.db)
         .map_err(|e| e.to_string())?
         .into_iter()
@@ -215,7 +209,11 @@ pub fn set_model_price(
     if model.is_empty() || model.len() > 128 {
         return Err("模型名不能为空且不得超过 128 字符".into());
     }
-    if !(0.0..=1e9).contains(&input) || !(0.0..=1e9).contains(&output) || input.is_nan() || output.is_nan() {
+    if !(0.0..=1e9).contains(&input)
+        || !(0.0..=1e9).contains(&output)
+        || input.is_nan()
+        || output.is_nan()
+    {
         return Err("单价必须是不小于 0 的数字".into());
     }
     let key = price_key(&model);
@@ -230,10 +228,6 @@ pub fn set_model_price(
 
 /// 删除某模型单价
 #[tauri::command]
-pub fn remove_model_price(
-    state: State<'_, AppState>,
-    model: String,
-) -> Result<(), String> {
-    crate::db::kv::del(&state.db, &price_key(model.trim()))
-        .map_err(|e| e.to_string())
+pub fn remove_model_price(state: State<'_, AppState>, model: String) -> Result<(), String> {
+    crate::db::kv::del(&state.db, &price_key(model.trim())).map_err(|e| e.to_string())
 }

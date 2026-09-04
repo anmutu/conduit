@@ -479,8 +479,14 @@ pub fn status(pool: &Pool) -> Vec<TakeoverStatus> {
     AppType::all()
         .iter()
         .map(|&app| {
-            let supported =
-                matches!(app, AppType::Claude | AppType::Codex | AppType::Gemini | AppType::OpenCode | AppType::OpenClaw);
+            let supported = matches!(
+                app,
+                AppType::Claude
+                    | AppType::Codex
+                    | AppType::Gemini
+                    | AppType::OpenCode
+                    | AppType::OpenClaw
+            );
             let (exists, effective) = if supported {
                 match live_path(app) {
                     Ok(p) => (
