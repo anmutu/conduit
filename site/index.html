@@ -145,19 +145,36 @@
       .trio h3 { font-size: 30px; font-weight: 600; letter-spacing: -.01em; }
       .trio p { font-size: 15.5px; color: var(--fg-2); margin-top: 8px; line-height: 1.55; }
 
-      /* 终端大图(Apple 产品图式) */
-      .terminal {
-        max-width: 760px; margin: 56px auto 0; background: #1d1d20;
-        border-radius: 14px; overflow: hidden; text-align: left;
-        box-shadow: 0 32px 80px rgba(0,0,0,.3);
+      /* 快速切换面板演示(⌘⇧K,应用内真实功能) */
+      .qs-demo { max-width: 560px; margin: 56px auto 0; }
+      .qs-panel {
+        background: #232329; border-radius: 14px; overflow: hidden; text-align: left;
+        border: 1px solid rgba(255,255,255,.09);
+        box-shadow: 0 32px 80px rgba(0,0,0,.32);
       }
-      .term-bar { display: flex; gap: 7px; align-items: center; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
-      .term-bar i { width: 11px; height: 11px; border-radius: 50%; }
-      .term-bar span { margin-left: 10px; color: #98989d; font-size: 11.5px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
-      .term-body { padding: 22px 24px 26px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; line-height: 1.95; color: #d5d5da; }
-      .dim { color: #7c7c82; } .blue { color: #5ac8fa; } .green { color: #30d158; } .violet { color: #bf5af2; }
-      .cursor { display: inline-block; width: 7px; height: 14px; background: #5ac8fa; vertical-align: -2px; animation: blink 1.1s steps(1) infinite; }
+      .qs-search { display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+        border-bottom: 1px solid rgba(255,255,255,.08); }
+      .qs-kbd { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px;
+        color: #98989d; border: 1px solid rgba(255,255,255,.16); border-radius: 5px; padding: 2px 7px; }
+      .qs-query { color: #e8e8ed; font-size: 15px; }
+      .qs-caret { display: inline-block; width: 1.5px; height: 16px; background: #0a84ff;
+        vertical-align: -3px; margin-left: 2px; animation: blink 1.1s steps(1) infinite; }
       @keyframes blink { 50% { opacity: 0; } }
+      .qs-row { display: flex; align-items: center; gap: 12px; padding: 11px 16px;
+        color: #c9c9cf; font-size: 14.5px; }
+      .qs-row.sel { background: rgba(10,132,255,.2); color: #fff; }
+      .qs-num { flex: none; width: 20px; height: 20px; border-radius: 5px;
+        border: 1px solid rgba(255,255,255,.16); color: #98989d; font-size: 11.5px;
+        display: flex; align-items: center; justify-content: center;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+      .qs-row.sel .qs-num { background: #0a84ff; border-color: #0a84ff; color: #fff; }
+      .qs-name { flex: 1; }
+      .qs-hl { color: #6fb7ff; font-weight: 600; }
+      .qs-ms { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: #30d158; }
+      .qs-ms.bad { color: #ff453a; }
+      .qs-foot { padding: 10px 16px; border-top: 1px solid rgba(255,255,255,.08);
+        color: #7c7c82; font-size: 12px; }
+      .qs-cap { margin-top: 16px; font-size: 13.5px; color: var(--fg-3); letter-spacing: .04em; }
 
       /* 全能力网格(详细介绍) */
       .cap-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px 44px; margin-top: 60px; text-align: left; }
@@ -287,24 +304,21 @@
     <!-- 终端 -->
     <section>
       <div class="container">
-        <h2 data-i18n="tTitle">终端,原样不动。</h2>
-        <p class="sub" data-i18n="tSub">接管与切换都在 Keyway 里完成,claude / codex 照常使用。</p>
-        <div class="terminal">
-          <div class="term-bar">
-            <i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>
-            <span>zsh · codex · proxy 127.0.0.1:9527</span>
+        <h2 data-i18n="tTitle">切换,一秒的事。</h2>
+        <p class="sub" data-i18n="tSub">接管与切换都在 Keyway 里完成,正在运行的 claude / codex 会话不受影响。</p>
+        <div class="qs-demo">
+          <div class="qs-panel">
+            <div class="qs-search">
+              <span class="qs-kbd">⌘⇧K</span>
+              <span class="qs-query">ki<span class="qs-caret"></span></span>
+            </div>
+            <div class="qs-row sel"><span class="qs-num">1</span><span class="qs-name"><span class="qs-hl">Ki</span>mi</span><span class="qs-ms">✓ 180ms</span></div>
+            <div class="qs-row"><span class="qs-num">2</span><span class="qs-name">GLM Coding Plan</span><span class="qs-ms">✓ 210ms</span></div>
+            <div class="qs-row"><span class="qs-num">3</span><span class="qs-name">DeepSeek</span><span class="qs-ms">✓ 460ms</span></div>
+            <div class="qs-row"><span class="qs-num">4</span><span class="qs-name">OpenAI</span><span class="qs-ms bad">✗ 401</span></div>
+            <div class="qs-foot" data-i18n="qsFoot">↑↓ 选择 · Enter 切换 · 1-9 直切 · Esc 关闭</div>
           </div>
-          <div class="term-body">
-            <div><span class="dim" data-i18n="t3"># 在 Keyway 中一键接管(原配置自动备份)</span></div>
-            <div><span class="green">✓</span> <span data-i18n="t1">已接管 ~/.codex/config.toml(已备份)</span></div>
-            <div><span class="dim">»</span> codex "refactor this module"</div>
-            <div><span class="green">✓</span> 200 · 1.8s <span class="dim">·</span> <span class="violet">GLM Coding Plan</span></div>
-            <div><span class="dim" data-i18n="t4"># 菜单栏或 ⌘⇧K 快速切换,终端不必重开</span></div>
-            <div><span class="green">✓</span> <span data-i18n="t2">已切换 → Kimi(免重启,下个请求生效)</span></div>
-            <div><span class="dim">»</span> codex "keep going"</div>
-            <div><span class="green">✓</span> 200 · 1.6s <span class="dim">·</span> <span class="violet">Kimi</span></div>
-            <div><span class="dim">»</span> <span class="cursor"></span></div>
-          </div>
+          <div class="qs-cap" data-i18n="qsCap">⌘⇧K 快速切换面板 —— 无需改任何配置</div>
         </div>
       </div>
     </section>
@@ -480,11 +494,9 @@
           f1t: "Zero restarts.", f1d: "Switch providers and the very next request follows. Codex and Gemini feel just like Claude.",
           f2t: "More private.", f2d: "API keys live in the system keychain with a fully encrypted store. Never on disk, never uploaded.",
           f3t: "Clearly visible.", f3d: "Every forward is metered. Each provider's token usage, at a glance.",
-          tTitle: "Your terminal, untouched.", tSub: "Takeover and switching happen inside Keyway — claude / codex just keep running.",
-          t1: "Took over ~/.codex/config.toml (backed up)",
-          t2: "Switched → Kimi (no restart, next request)",
-          t3: "# One-click takeover in Keyway (config backed up)",
-          t4: "# Switch via menu bar or ⌘⇧K — no terminal restart",
+          tTitle: "Switching, in a keystroke.", tSub: "Takeover and switching happen inside Keyway — running claude / codex sessions just keep going.",
+          qsCap: "The ⌘⇧K quick switch panel — no config to touch",
+          qsFoot: "↑↓ navigate · Enter switch · 1-9 pick · Esc close",
           capTitle: "Far more than switching.",
           capSub: "From key safety to request observability, Keyway is the local gateway for your AI CLIs.",
           c1t: "Automatic failover", c1d: "Upstream 5xx or timeouts automatically fail over to backup providers. Long tasks no longer break on a single point of failure. Configurable candidate chain.",
@@ -519,7 +531,7 @@
       // 滚动入场:区块内容淡入上移(Apple 式克制,仅一次)
       (function () {
         var els = document.querySelectorAll(
-          "section:not(.hero) h2, section:not(.hero) .sub, .trio > div, .cap, .step, .terminal, .shots, .table-wrap, .faq, section .links"
+          "section:not(.hero) h2, section:not(.hero) .sub, .trio > div, .cap, .step, .qs-demo, .shots, .table-wrap, .faq, section .links"
         );
         els.forEach(function (el) { el.classList.add("reveal"); });
         if (!("IntersectionObserver" in window)) {
