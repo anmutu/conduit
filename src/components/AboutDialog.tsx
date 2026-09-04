@@ -75,14 +75,14 @@ export function AboutDialog({
         <DialogHeader>
           <div className="flex items-center gap-3">
             <img
-              src="icons/conduit-logo.svg?v=2"
-              alt="Conduit"
+              src="icons/keyway-logo.svg?v=3"
+              alt="Keyway"
               width={40}
               height={40}
               className="rounded-[10px]"
             />
             <div>
-              <DialogTitle>Conduit</DialogTitle>
+              <DialogTitle>Keyway</DialogTitle>
               <DialogDescription>v{version} · {t("about.openSource")}</DialogDescription>
             </div>
           </div>

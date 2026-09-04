@@ -9,7 +9,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { en, zh, type Dict, type DictKey } from "@/i18n/dict";
 
 export type LocaleSetting = "zh" | "en" | "system";
-const STORAGE_KEY = "conduit-locale";
+const STORAGE_KEY = "keyway-locale";
+const LEGACY_STORAGE_KEY = "conduit-locale";
 
 /** 解析 system 的实际语言 */
 function systemLocale(): "zh" | "en" {
@@ -37,7 +38,11 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     // URL ?lang=zh|en 强制(演示/截图);?lang=system 恢复跟随
     const q = new URLSearchParams(location.search).get("lang");
     if (q === "zh" || q === "en") return q;
-    const saved = localStorage.getItem(STORAGE_KEY) as LocaleSetting | null;
+    let saved = localStorage.getItem(STORAGE_KEY) as LocaleSetting | null;
+    if (saved === null) {
+      // 旧键迁移:老版本用户的语言偏好不丢
+      saved = localStorage.getItem(LEGACY_STORAGE_KEY) as LocaleSetting | null;
+    }
     return saved === "zh" || saved === "en" || saved === "system"
       ? saved
       : "system";

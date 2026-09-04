@@ -111,7 +111,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         Ok(_) => {
             return text_resp(
                 StatusCode::BAD_GATEWAY,
-                &format!("未设置 {} 的当前供应商,请先在 Conduit 中切换", app.as_str()),
+                &format!("未设置 {} 的当前供应商,请先在 Keyway 中切换", app.as_str()),
             )
         }
         Err(e) => {
@@ -750,7 +750,7 @@ fn status_hint(code: u16) -> Option<&'static str> {
         404 => Some("Keyway: 端点不存在 — 请检查该供应商的接口地址(如 anthropic 端点应填根地址、openai 端点带 /v1)"),
         402 => Some("Keyway: 余额不足 — 请充值该渠道,或在 Keyway 中切换其他供应商"),
         408 => Some("Keyway: 上游超时 — 可重试,或为该分组配置故障转移候选"),
-        429 => Some("Keyway: 限流/额度不足 — 可在 Conduit 中切换其他供应商或开启故障转移"),
+        429 => Some("Keyway: 限流/额度不足 — 可在 Keyway 中切换其他供应商或开启故障转移"),
         500..=599 => Some("Keyway: 上游服务异常 — 已在候选链内自动重试;持续失败请检查该渠道状态"),
         _ => None,
     }

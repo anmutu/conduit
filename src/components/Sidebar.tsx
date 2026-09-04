@@ -137,7 +137,7 @@ export function Sidebar({
           title={t("common.about")}
           className="flex items-center justify-center rounded-lg transition-transform hover:scale-105 active:scale-95 cursor-pointer"
         >
-          <img src="icons/conduit-logo.svg?v=2" alt="Keyway" width={28} height={28} className="rounded-[7px]" />
+          <img src="icons/keyway-logo.svg?v=3" alt="Keyway" width={28} height={28} className="rounded-[7px]" />
         </button>
         <span className="text-[9px] font-semibold tracking-wide text-muted-foreground/70">Keyway</span>
       </div>
