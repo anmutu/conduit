@@ -129,16 +129,45 @@ pub fn export_usage_models_csv(
             s.to_string()
         }
     };
-    let mut csv = String::from("provider,model,requests,errors,input_tokens,output_tokens\n");
+    // 已设单价时附带成本估算列(美元;单价 = 美元/百万 tokens)
+    let prices: std::collections::HashMap<String, (f64, f64)> =
+        crate::db::kv::all(&state.db)
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .filter_map(|(k, v)| {
+                let model = k.strip_prefix("price:")?.to_string();
+                let (i, o) = v.split_once(',')?;
+                Some((
+                    model,
+                    (
+                        i.trim().parse::<f64>().ok()?,
+                        o.trim().parse::<f64>().ok()?,
+                    ),
+                ))
+            })
+            .collect();
+    let mut csv = String::from(
+        "provider,model,requests,errors,input_tokens,output_tokens,input_price_usd_m,output_price_usd_m,est_cost_usd\n",
+    );
     for r in &rows {
+        let (pin, pout, cost) = match prices.get(&r.model) {
+            Some((i, o)) => {
+                let cost = (r.input_tokens as f64 / 1e6) * i + (r.output_tokens as f64 / 1e6) * o;
+                (*i, *o, format!("{cost:.4}"))
+            }
+            None => (0.0, 0.0, String::new()),
+        };
         csv.push_str(&format!(
-            "{},{},{},{},{},{}\n",
+            "{},{},{},{},{},{},{},{},{}\n",
             esc(&r.provider_id),
             esc(&r.model),
             r.requests,
             r.errors,
             r.input_tokens,
             r.output_tokens,
+            pin,
+            pout,
+            cost,
         ));
     }
     std::fs::write(&path, format!("\u{feff}{csv}")).map_err(|e| e.to_string())?;
