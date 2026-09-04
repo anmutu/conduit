@@ -147,3 +147,64 @@ pub fn export_usage_models_csv(
         count: rows.len(),
     })
 }
+
+// ---------- 模型单价表(成本估算,批 C):KV `price:{model}` = "input,output"(美元/百万 tokens) ----------
+
+fn price_key(model: &str) -> String {
+    format!("price:{}", model.trim())
+}
+
+/// 全部已设单价:(model, input $/M, output $/M),按模型名排序
+#[tauri::command]
+pub fn get_model_prices(
+    state: State<'_, AppState>,
+) -> Result<Vec<(String, f64, f64)>, String> {
+    let mut out: Vec<(String, f64, f64)> = crate::db::kv::all(&state.db)
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .filter_map(|(k, v)| {
+            let model = k.strip_prefix("price:")?.to_string();
+            let (i, o) = v.split_once(',')?;
+            let input = i.trim().parse::<f64>().ok()?;
+            let output = o.trim().parse::<f64>().ok()?;
+            Some((model, input, output))
+        })
+        .collect();
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(out)
+}
+
+/// 设置/更新某模型单价;输入与输出同时为 0 时删除该条
+#[tauri::command]
+pub fn set_model_price(
+    state: State<'_, AppState>,
+    model: String,
+    input: f64,
+    output: f64,
+) -> Result<(), String> {
+    let model = model.trim().to_string();
+    if model.is_empty() || model.len() > 128 {
+        return Err("模型名不能为空且不得超过 128 字符".into());
+    }
+    if !(0.0..=1e9).contains(&input) || !(0.0..=1e9).contains(&output) || input.is_nan() || output.is_nan() {
+        return Err("单价必须是不小于 0 的数字".into());
+    }
+    let key = price_key(&model);
+    if input == 0.0 && output == 0.0 {
+        crate::db::kv::del(&state.db, &key).map_err(|e| e.to_string())?;
+    } else {
+        crate::db::kv::set(&state.db, &key, &format!("{input},{output}"))
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// 删除某模型单价
+#[tauri::command]
+pub fn remove_model_price(
+    state: State<'_, AppState>,
+    model: String,
+) -> Result<(), String> {
+    crate::db::kv::del(&state.db, &price_key(model.trim()))
+        .map_err(|e| e.to_string())
+}

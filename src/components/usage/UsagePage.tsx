@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { BarChart3 } from "lucide-react";
@@ -55,6 +55,12 @@ function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
+}
+
+function fmtCost(n: number): string {
+  if (n >= 100) return `$${Math.round(n).toLocaleString()}`;
+  if (n >= 0.01) return `$${n.toFixed(2)}`;
+  return `$${n.toFixed(4)}`;
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {
@@ -114,6 +120,11 @@ export function UsagePage({
     const v = Number(localStorage.getItem("keyway.dash.days"));
     return [1, 7, 30].includes(v) ? v : 7;
   });
+  // 模型单价表(批 C):model → { i: 输入 $/M, o: 输出 $/M }
+  const [prices, setPrices] = useState<Record<string, { i: number; o: number }>>({});
+  const [draft, setDraft] = useState<Record<string, { i: string; o: string }>>({});
+  const [priceOpen, setPriceOpen] = useState(false);
+  const [newModel, setNewModel] = useState("");
 
   useEffect(() => {
     if (IS_DEMO) {
@@ -125,6 +136,80 @@ export function UsagePage({
       .catch((e) => onError(String(e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [app, days]);
+
+  const loadPrices = useCallback(() => {
+    if (IS_DEMO) return;
+    invoke<[string, number, number][]>("get_model_prices")
+      .then((l) => {
+        const m: Record<string, { i: number; o: number }> = {};
+        for (const [k, i, o] of l) m[k] = { i, o };
+        setPrices(m);
+      })
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    loadPrices();
+  }, [loadPrices]);
+
+  // 新出现的模型补一行草稿(已有单价填入,否则留空)
+  useEffect(() => {
+    if (!data) return;
+    setDraft((d) => {
+      const next = { ...d };
+      for (const m of data.by_model) {
+        if (next[m.key]) continue;
+        const p = prices[m.key];
+        next[m.key] = { i: p ? String(p.i) : "", o: p ? String(p.o) : "" };
+      }
+      return next;
+    });
+  }, [data, prices]);
+
+  const modelCost = (m: NamedUsage): number | null => {
+    const p = prices[m.key];
+    if (!p) return null;
+    return (m.input_tokens / 1e6) * p.i + (m.output_tokens / 1e6) * p.o;
+  };
+  const totalCost = (data?.by_model ?? []).reduce<number>(
+    (acc, m) => acc + (modelCost(m) ?? 0),
+    0,
+  );
+  const hasAnyPrice = Object.keys(prices).length > 0;
+
+  const savePrice = async (model: string) => {
+    const d = draft[model];
+    if (!d) return;
+    const i = Number(d.i) || 0;
+    const o = Number(d.o) || 0;
+    if (i < 0 || o < 0 || Number.isNaN(i) || Number.isNaN(o)) return;
+    try {
+      await invoke("set_model_price", { model, input: i, output: o });
+      onInfo(t("dash.priceSaved", { n: model }));
+      loadPrices();
+    } catch (e) {
+      onError(String(e));
+    }
+  };
+  const removePrice = async (model: string) => {
+    try {
+      await invoke("remove_model_price", { model });
+      onInfo(t("dash.priceRemoved", { n: model }));
+      setDraft((d) => {
+        const next = { ...d };
+        delete next[model];
+        return next;
+      });
+      loadPrices();
+    } catch (e) {
+      onError(String(e));
+    }
+  };
+  const addPriceRow = () => {
+    const m = newModel.trim();
+    if (!m) return;
+    setDraft((d) => ({ ...d, [m]: { i: "", o: "" } }));
+    setNewModel("");
+  };
 
   const nameOf = (id: string) =>
     providers.find((p) => p.id === id)?.name ?? id.slice(0, 8);
@@ -244,23 +329,116 @@ export function UsagePage({
 
       {/* 按模型 */}
       <div className="rounded-xl border border-border p-4 bg-card">
-        <h3 className="text-sm font-semibold mb-4">{t("dash.byModel")}</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold">{t("dash.byModel")}</h3>
+          <div className="flex items-center gap-3">
+            {hasAnyPrice && totalCost > 0 && (
+              <span className="text-xs font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
+                {t("dash.costTotal", { c: fmtCost(totalCost) })}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setPriceOpen((v) => !v)}
+              className={
+                "px-2 h-6 rounded-md text-[11px] font-medium transition-all " +
+                (priceOpen || hasAnyPrice
+                  ? "text-blue-500"
+                  : "text-muted-foreground hover:text-foreground")
+              }
+            >
+              {t("dash.priceTable")}
+            </button>
+          </div>
+        </div>
         {data && data.by_model.length > 0 ? (
           <Bars
-            rows={data.by_model.map((m) => ({
-              label: m.key,
-              value: m.input_tokens + m.output_tokens,
-              sub:
-                `${m.requests} ${t("dash.reqUnit")}` +
-                ((m.errors ?? 0) > 0 ? ` · ${t("dash.fails", { n: m.errors ?? 0 })}` : "") +
-                (m.avg_duration_ms && m.avg_duration_ms > 0
-                  ? ` · ${(m.avg_duration_ms / 1000).toFixed(1)}s`
-                  : ""),
-            }))}
+            rows={data.by_model.map((m) => {
+              const cost = modelCost(m);
+              return {
+                label: m.key,
+                value: m.input_tokens + m.output_tokens,
+                sub:
+                  `${m.requests} ${t("dash.reqUnit")}` +
+                  ((m.errors ?? 0) > 0 ? ` · ${t("dash.fails", { n: m.errors ?? 0 })}` : "") +
+                  (m.avg_duration_ms && m.avg_duration_ms > 0
+                    ? ` · ${(m.avg_duration_ms / 1000).toFixed(1)}s`
+                    : "") +
+                  (cost != null ? ` · ${fmtCost(cost)}` : ""),
+              };
+            })}
             format={fmt}
           />
         ) : (
           <p className="text-sm text-muted-foreground py-4 text-center">{t("dash.empty")}</p>
+        )}
+
+        {/* 单价表:本地保存,用于估算成本 */}
+        {priceOpen && (
+          <div className="mt-4 border-t border-border pt-3 space-y-2">
+            <p className="text-[11px] text-muted-foreground">{t("dash.priceHint")}</p>
+            {Object.entries(draft).map(([model, d]) => (
+              <div key={model} className="flex items-center gap-2 text-xs">
+                <span className="flex-1 truncate font-medium">{model}</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={d.i}
+                  placeholder={t("dash.priceIn")}
+                  onChange={(e) =>
+                    setDraft((x) => ({ ...x, [model]: { ...d, i: e.target.value } }))
+                  }
+                  className="w-24 h-7 rounded-md border border-border bg-background px-2 tabular-nums"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={d.o}
+                  placeholder={t("dash.priceOut")}
+                  onChange={(e) =>
+                    setDraft((x) => ({ ...x, [model]: { ...d, o: e.target.value } }))
+                  }
+                  className="w-24 h-7 rounded-md border border-border bg-background px-2 tabular-nums"
+                />
+                <button
+                  type="button"
+                  onClick={() => void savePrice(model)}
+                  className="px-2 h-7 rounded-md text-[11px] font-medium text-blue-500 hover:bg-blue-500/10 transition-all"
+                >
+                  {t("common.save")}
+                </button>
+                {prices[model] && (
+                  <button
+                    type="button"
+                    onClick={() => void removePrice(model)}
+                    className="px-1.5 h-7 rounded-md text-[11px] text-muted-foreground hover:text-red-500 transition-all"
+                  >
+                    {t("common.delete")}
+                  </button>
+                )}
+              </div>
+            ))}
+            {/* 新增任意模型 */}
+            <div className="flex items-center gap-2 text-xs">
+              <input
+                type="text"
+                value={newModel}
+                placeholder={t("dash.priceNewPh")}
+                onChange={(e) => setNewModel(e.target.value)}
+                className="flex-1 h-7 rounded-md border border-border bg-background px-2"
+              />
+              <button
+                type="button"
+                onClick={addPriceRow}
+                disabled={!newModel.trim()}
+                className="px-2 h-7 rounded-md text-[11px] font-medium text-blue-500 hover:bg-blue-500/10 transition-all disabled:opacity-40"
+              >
+                {t("dash.priceAdd")}
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
