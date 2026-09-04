@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Activity, Boxes, CopyPlus, Download, Gauge, Plus } from "lucide-react";
+import { Activity, Boxes, CopyPlus, Download, Gauge, Plus, TriangleAlert } from "lucide-react";
 import type { AppType, Provider, ProxyStatus, UsageSummary } from "@/types";
 import { APP_PROTOCOL } from "@/types";
 import { Sidebar } from "@/components/Sidebar";
@@ -184,6 +184,11 @@ function App() {
   // 候选链展示(Clash 式)+ 按延迟排序开关
   const [chain, setChain] = useState<string[]>([]);
   const [latencySort, setLatencySort] = useState(false);
+  // 接管状态:app → { active: 内部已接管, effective: 配置确实指向代理 }(批 54 漂移检测)
+  const [takeoverMap, setTakeoverMap] = useState<
+    Record<string, { active: boolean; effective: boolean }>
+  >({});
+  const [retaking, setRetaking] = useState(false);
 
   const runTestAll = async () => {
     setTestingAll(true);
@@ -375,6 +380,43 @@ function App() {
       })
       .catch(() => setProxyOk(false));
   }, []);
+
+  // 接管漂移检测:active 但配置文件被外部(其他工具/手动)改写 → 分组页横幅提示(批 54)
+  const refreshTakeover = useCallback(() => {
+    if (IS_DEMO) return;
+    invoke<
+      { app: string; supported: boolean; active: boolean; effective: boolean }[]
+    >("takeover_status")
+      .then((list) => {
+        const m: Record<string, { active: boolean; effective: boolean }> = {};
+        for (const s of list) m[s.app] = { active: s.active, effective: s.effective };
+        setTakeoverMap(m);
+      })
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    refreshTakeover();
+    const id = window.setInterval(refreshTakeover, 60_000);
+    return () => window.clearInterval(id);
+  }, [refreshTakeover]);
+
+  const groupDrift =
+    takeoverMap[activeApp]?.active === true &&
+    takeoverMap[activeApp]?.effective === false;
+  const retakeOver = async () => {
+    setRetaking(true);
+    try {
+      await invoke("apply_takeover", {
+        appType: activeApp as "claude" | "codex" | "gemini",
+      });
+      toast("success", t("takeover.applied", { name: activeApp }));
+      refreshTakeover();
+    } catch (e) {
+      toast("error", humanizeError(String(e), t));
+    } finally {
+      setRetaking(false);
+    }
+  };
 
   // 快捷键:Cmd/Ctrl+N 新建,Cmd/Ctrl+1..5 切换应用
   useEffect(() => {
@@ -692,6 +734,24 @@ function App() {
           <div className="flex-1 overflow-y-auto overflow-x-hidden pb-12 px-1">
             <div className="max-w-[760px] mx-auto w-full h-full flex flex-col space-y-4 animate-fade-in" key={activeApp}>
               <GatewayStatusStrip />
+              {/* 接管漂移:配置被外部覆盖,流量绕过了 Keyway(批 54) */}
+              {groupDrift && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5">
+                  <span className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+                    <TriangleAlert className="w-4 h-4 shrink-0" />
+                    {t("takeover.driftBanner")}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 shrink-0 border-amber-500/40 px-2.5 text-xs text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
+                    disabled={retaking}
+                    onClick={() => void retakeOver()}
+                  >
+                    {retaking ? "…" : t("takeover.retake")}
+                  </Button>
+                </div>
+              )}
               {/* 候选链(Clash 式):开启故障转移时展示 A → B → C */}
               {chain.length > 0 && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground rounded-xl border border-dashed border-border px-4 py-2">
@@ -835,6 +895,7 @@ function App() {
                     provider={p}
                     isCurrent={p.is_current}
                     app={activeApp}
+                    takeoverEffective={takeoverMap[activeApp]?.effective}
                     highlight={p.id === highlightId}
                     onMoveUp={
                       !latencySort && providers.findIndex((x) => x.id === p.id) > 0

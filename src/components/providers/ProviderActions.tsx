@@ -12,6 +12,8 @@ interface ProviderActionsProps {
   /** 当前分组协议是否已配置端点(未配置则禁用"切换") */
   canSwitch?: boolean;
   app: AppType;
+  /** 当前分组接管是否实际生效(false = 被外部覆盖,按钮文案降级为「未接管」) */
+  takeoverEffective?: boolean;
   onSwitch: (provider: Provider) => void;
   onEdit: (provider: Provider) => void;
   onDuplicate: (provider: Provider) => void;
@@ -36,6 +38,7 @@ export function ProviderActions({
   isCurrent,
   canSwitch = true,
   app,
+  takeoverEffective,
   onSwitch,
   onEdit,
   onDuplicate,
@@ -98,8 +101,17 @@ export function ProviderActions({
         disabled={switchDisabled}
         onClick={() => onSwitch(provider)}
         title={canSwitch ? t("provider.switch") : t("provider.noEndpoint")}
+        className={
+          isCurrent && takeoverEffective === false
+            ? "text-amber-600 dark:text-amber-400"
+            : undefined
+        }
       >
-        {isCurrent ? t("provider.current") : t("provider.switchBtn")}
+        {isCurrent
+          ? takeoverEffective === false
+            ? t("provider.notTaken")
+            : t("provider.current")
+          : t("provider.switchBtn")}
       </Button>
       <Button
         size="icon"

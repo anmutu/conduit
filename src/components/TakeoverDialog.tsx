@@ -149,7 +149,7 @@ export function TakeoverDialog({
                     onCheckedChange={(v) => void toggleFailover(s.app, v)}
                   />
                 </div>
-                {s.active ? (
+                {s.active && s.effective ? (
                   <Button
                     size="sm"
                     variant="outline"
@@ -158,6 +158,25 @@ export function TakeoverDialog({
                   >
                     {busy === s.app ? "…" : t("takeover.restore")}
                   </Button>
+                ) : s.active && !s.effective ? (
+                  /* 被外部覆盖:主操作是重新夺回,还原为次选 */
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy === s.app}
+                      onClick={() => void act(s.app, true)}
+                    >
+                      {busy === s.app ? "…" : t("takeover.restore")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={busy === s.app}
+                      onClick={() => void act(s.app, false)}
+                    >
+                      {busy === s.app ? "…" : t("takeover.retake")}
+                    </Button>
+                  </>
                 ) : (
                   <Button
                     size="sm"

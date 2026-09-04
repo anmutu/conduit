@@ -31,6 +31,8 @@ interface ProviderCardProps {
   /** 「全部测速」批量结果(常显徽章;与单卡 hover 测试互不影响) */
   batchResult?: { ok: boolean; latency_ms: number; message: string } | null;
   testedAt?: number | null;
+  /** 当前分组接管是否实际生效(false = 配置被外部覆盖,徽章降级为「未接管」) */
+  takeoverEffective?: boolean;
 }
 
 // 供应商卡片:rounded-xl + 当前项蓝色边框/渐变 + hover 显示操作组 + 常显"当前"徽章。
@@ -50,6 +52,7 @@ export function ProviderCard({
   onError,
   batchResult,
   testedAt,
+  takeoverEffective,
 }: ProviderCardProps) {
   const { t } = useI18n();
   // 该分组协议的端点;无端点 → 置灰(供应商实体仍在,只是未配置此协议)
@@ -106,12 +109,20 @@ export function ProviderCard({
               <h3 className="text-base font-semibold leading-none">
                 {provider.name}
               </h3>
-              {/* 当前项常显徽章:不依赖 hover,一眼可辨 */}
-              {isCurrent && (
-                <span className="inline-flex items-center rounded-md bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                  当前
-                </span>
-              )}
+              {/* 当前项常显徽章:不依赖 hover,一眼可辨;接管被外部覆盖时降级为「未接管」 */}
+              {isCurrent &&
+                (takeoverEffective === false ? (
+                  <span
+                    className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                    title={t("takeover.overridden")}
+                  >
+                    {t("provider.notTaken")}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center rounded-md bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                    {t("provider.currentBadge")}
+                  </span>
+                ))}
               {bridged && (
                 <span className="inline-flex items-center rounded-md bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
                   {t("provider.responsesBridgeBadge")}
@@ -216,6 +227,7 @@ export function ProviderCard({
               isCurrent={isCurrent}
               canSwitch={!!endpoint}
               app={app}
+              takeoverEffective={takeoverEffective}
               onSwitch={onSwitch}
               onEdit={onEdit}
               onDuplicate={onDuplicate}
