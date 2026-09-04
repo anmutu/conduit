@@ -8,7 +8,6 @@
 use anyhow::Result;
 
 use crate::db::{api_key_dao, provider_dao, Pool};
-use crate::services::keychain;
 use crate::types::{AppType, Protocol, Provider, ProviderInput};
 
 /// 填充 `has_key`:优先 meta 落库值;未知时查加密库 api_keys;
@@ -194,10 +193,8 @@ async fn test_provider_impl(pool: &Pool, id: &str, app: AppType) -> Result<TestR
         .map(|s| s.to_string())
         .unwrap_or_else(|| p.base_url.clone());
     let base = base.trim_end_matches('/');
-    let key = p
-        .keychain_id
-        .as_deref()
-        .and_then(|kid| keychain::load_provider_key(kid).ok().flatten());
+    // Key 统一走加密库(v4);旧数据由 load_async 自动从 keychain 迁移
+    let key = crate::services::keys::load_async(pool, &p).await;
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
@@ -231,13 +228,17 @@ async fn test_provider_impl(pool: &Pool, id: &str, app: AppType) -> Result<TestR
             req.send().await
         }
         Protocol::Gemini => {
-            // Gemini:带 key 查模型列表即可
-            let url = if let Some(k) = &key {
-                format!("{base}/v1/models?key={k}")
+            // Gemini:带 key 查模型列表即可;key 走请求头,避免拼进 URL 被日志记录
+            let models_path = if base.ends_with("/v1beta") || base.ends_with("/v1") {
+                "/models"
             } else {
-                format!("{base}/v1/models")
+                "/v1beta/models"
             };
-            client.get(url).send().await
+            let mut req = client.get(format!("{base}{models_path}"));
+            if let Some(k) = &key {
+                req = req.header("x-goog-api-key", k);
+            }
+            req.send().await
         }
     };
     let latency = start.elapsed().as_millis() as u64;

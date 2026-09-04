@@ -292,6 +292,10 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         "x-api-key",
         "anthropic-version",
         "content-length",
+        // Gemini CLI 自带的 key 头:不剥离会把用户自己的 key 送给第三方端点,
+        // 且上游优先认头,会让 Keyway 注入的 ?key= 失效(切换供应商不生效)
+        "x-goog-api-key",
+        "openai-organization",
     ];
     for (k, v) in client_headers.iter() {
         let name = k.as_str();
@@ -435,10 +439,12 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
                         } else {
                             "generateContent"
                         };
+                        // 模型名做路径段编码,防止 /、? 等字符破坏 URL
+                        let seg = encode_path_segment(m);
                         if base.ends_with("/v1beta") {
-                            format!("/models/{m}:{verb}")
+                            format!("/models/{seg}:{verb}")
                         } else {
-                            format!("/v1beta/models/{m}:{verb}")
+                            format!("/v1beta/models/{seg}:{verb}")
                         }
                     }
                     None => {
@@ -467,7 +473,7 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         if protocol == crate::types::Protocol::Gemini && conv == Conv::None || conv == Conv::Gemini
         {
             if let Some(key) = &api_key {
-                query_pairs.push(format!("key={key}"));
+                query_pairs.push(format!("key={}", encode_query_component(key)));
             }
         }
         if !query_pairs.is_empty() {
@@ -544,7 +550,10 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
         let resp = match send_result {
             Ok(r) => r,
             Err(e) => {
-                warn!(upstream = %upstream, "上游连接失败: {e}");
+                // 日志与错误体都不带查询串(Gemini key 在 ?key= 里)
+                let e = e.without_url();
+                let upstream_log = upstream.split('?').next().unwrap_or("");
+                warn!(upstream = upstream_log, "上游连接失败: {e}");
                 if i + 1 < candidates.len() {
                     fallbacks.push(format!(
                         "{}->{}(conn)",
@@ -560,16 +569,20 @@ pub async fn proxy_handler(State(state): State<AppState>, req: Request<Body>) ->
 
         let status = resp.status();
         let retryable = status.as_u16() == 429 || status.is_server_error();
-        if retryable && i + 1 < candidates.len() {
-            warn!(upstream = %upstream, %status, "上游故障,切换候选");
+        if retryable {
+            let upstream_log = upstream.split('?').next().unwrap_or("");
+            warn!(upstream = upstream_log, %status, "上游故障,切换候选");
+            // 最后一个候选也记冷却:下个请求优先试别人(全员冷却时 fail-open 保序)
             set_cooldown(&state, &provider.id);
-            fallbacks.push(format!(
-                "{}->{}({})",
-                provider.name,
-                candidates[i + 1].name,
-                status.as_u16()
-            ));
-            continue; // 响应体丢弃,试下一个
+            if i + 1 < candidates.len() {
+                fallbacks.push(format!(
+                    "{}->{}({})",
+                    provider.name,
+                    candidates[i + 1].name,
+                    status.as_u16()
+                ));
+                continue; // 响应体丢弃,试下一个
+            }
         }
 
         // 成功(或不可重试/最后一个):流式回传
@@ -759,7 +772,7 @@ fn status_hint(code: u16) -> Option<&'static str> {
 /// 失败冷却时长(秒):期间该供应商在候选链中被后移
 const COOLDOWN_SECS: i64 = 120;
 
-/// 记录供应商失败冷却起点(仅故障转移场景调用;单候选场景无意义)。
+/// 记录供应商失败冷却起点(429/5xx 时调用;冷却窗口内排到链尾,全员冷却则 fail-open)。
 fn set_cooldown(state: &AppState, pid: &str) {
     let until = chrono::Utc::now().timestamp() + COOLDOWN_SECS;
     let _ = crate::db::kv::set(&state.db, &format!("cooldown.{pid}"), &until.to_string());
@@ -781,4 +794,23 @@ fn notify_fallbacks(state: &AppState, fallbacks: &[String]) {
 
 fn text_resp(code: StatusCode, msg: &str) -> Response<Body> {
     (code, msg.to_string()).into_response()
+}
+
+/// URL 查询值编码(保留非保留字符),防止 Key 中的 &、# 等破坏查询串
+fn encode_query_component(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
+/// URL 路径段编码(模型名等)
+fn encode_path_segment(s: &str) -> String {
+    encode_query_component(s)
 }

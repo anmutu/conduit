@@ -48,6 +48,10 @@ pub fn request(body: &Value) -> Value {
     }
 
     let mut contents: Vec<Value> = Vec::new();
+    // Anthropic tool_result 只有 tool_use_id,没有函数名;Gemini 的
+    // functionResponse.name 必须匹配 —— 先记住 tool_use_id → name 再回填
+    let mut id_to_name: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
     if let Some(msgs) = body.get("messages").and_then(|v| v.as_array()) {
         for m in msgs {
             let role = m.get("role").and_then(|r| r.as_str()).unwrap_or("user");
@@ -62,6 +66,9 @@ pub fn request(body: &Value) -> Value {
                 match b.get("type").and_then(|t| t.as_str()) {
                     Some("tool_use") => {
                         let name = b.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                        if let Some(id) = b.get("id").and_then(|i| i.as_str()) {
+                            id_to_name.insert(id.to_string(), name.to_string());
+                        }
                         // Gemini 要求 functionCall.args 为 object
                         let args = b
                             .get("input")
@@ -79,9 +86,15 @@ pub fn request(body: &Value) -> Value {
                                 .join("\n"),
                             _ => String::new(),
                         };
+                        let fname = b
+                            .get("tool_use_id")
+                            .and_then(|i| i.as_str())
+                            .and_then(|id| id_to_name.get(id).map(|s| s.as_str()))
+                            .or_else(|| b.get("name").and_then(|n| n.as_str()))
+                            .unwrap_or("");
                         parts.push(json!({
                             "functionResponse": {
-                                "name": b.get("name").and_then(|n| n.as_str()).unwrap_or(""),
+                                "name": fname,
                                 "response": { "result": content }
                             }
                         }));
@@ -380,6 +393,27 @@ mod tests {
         );
         assert_eq!(out["generationConfig"]["maxOutputTokens"], 99);
         assert_eq!(out["tools"][0]["functionDeclarations"][0]["name"], "ls");
+    }
+
+    #[test]
+    fn tool_result_name_looked_up_from_tool_use_id() {
+        // 真实 Claude Code 的 tool_result 只有 tool_use_id,没有 name;
+        // functionResponse.name 必须从上一条 assistant tool_use 回填
+        let body = json!({
+            "messages": [
+                { "role": "assistant", "content": [
+                    { "type": "tool_use", "id": "tu_9", "name": "read_file", "input": {"p": 1} }
+                ]},
+                { "role": "user", "content": [
+                    { "type": "tool_result", "tool_use_id": "tu_9", "content": "data" }
+                ]}
+            ]
+        });
+        let out = request(&body);
+        assert_eq!(
+            out["contents"][1]["parts"][0]["functionResponse"]["name"],
+            "read_file"
+        );
     }
 
     #[test]

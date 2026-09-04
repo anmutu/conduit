@@ -265,12 +265,14 @@ pub fn set_current(pool: &Pool, id: &str, app: AppType) -> Result<()> {
 }
 
 pub fn delete(pool: &Pool, id: &str) -> Result<()> {
-    let conn = get_conn(pool)?;
-    conn.execute("DELETE FROM providers WHERE id = ?1", params![id])?;
-    conn.execute(
+    let mut conn = get_conn(pool)?;
+    let tx = conn.transaction()?;
+    tx.execute("DELETE FROM providers WHERE id = ?1", params![id])?;
+    tx.execute(
         "DELETE FROM current_map WHERE provider_id = ?1",
         params![id],
     )?;
+    tx.commit()?;
     Ok(())
 }
 
@@ -345,8 +347,35 @@ pub fn failover_candidates(pool: &Pool, app: AppType) -> Result<Vec<Provider>> {
     let mut list: Vec<Provider> = rows
         .filter_map(|r| r.ok())
         .filter(|p| p.endpoint(protocol).is_some() || !p.base_url.trim().is_empty())
-        .filter(|p| p.keychain_id.is_some() || Some(&p.id) == current_id.as_ref())
         .collect();
+    drop(stmt);
+    drop(conn);
+    // 有 Key 才进故障转移链:keychain_id 自 v4 起不再代表 Key 存在
+    // (备份导入的行是 None,创建时即使没填 Key 也是 Some),
+    // 以加密库 api_keys 为准(meta.has_key 标记兜底,省一次查询)。
+    let ids: Vec<String> = list.iter().map(|p| p.id.clone()).collect();
+    let with_key: std::collections::HashSet<String> = if ids.is_empty() {
+        Default::default()
+    } else {
+        let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let conn2 = get_conn(pool)?;
+        let mut stmt2 = conn2.prepare(&format!(
+            "SELECT provider_id FROM api_keys WHERE provider_id IN ({placeholders})"
+        ))?;
+        let set: std::collections::HashSet<String> = stmt2
+            .query_map(rusqlite::params_from_iter(ids.iter()), |r| {
+                r.get::<_, String>(0)
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        set
+    };
+    list.retain(|p| {
+        Some(&p.id) == current_id.as_ref()
+            || p.has_key
+            || p.meta_has_key == Some(true)
+            || with_key.contains(&p.id)
+    });
     // 当前供应商优先(无条件入链:没配 Key 也不该把"仅剩的当前"排除掉)
     if let Some(cid) = &current_id {
         if let Some(pos) = list.iter().position(|p| &p.id == cid) {

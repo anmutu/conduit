@@ -25,6 +25,11 @@ pub fn request(body: &Value, model: &str) -> Value {
     }
 
     if let Some(contents) = body.get("contents").and_then(|c| c.as_array()) {
+        // tool_call id 全局自增;Gemini 协议本身没有 call id,
+        // functionResponse 只有 name,用 name→id 映射找回配对
+        let mut call_seq = 0usize;
+        let mut name_to_id: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
         for c in contents {
             let role = c.get("role").and_then(|r| r.as_str()).unwrap_or("user");
             let is_model = role == "model";
@@ -41,8 +46,13 @@ pub fn request(body: &Value, model: &str) -> Value {
                     text.push_str(t);
                 }
                 if let Some(fc) = p.get("functionCall") {
+                    let id = format!("call_{call_seq}");
+                    call_seq += 1;
+                    if let Some(nm) = fc.get("name").and_then(|n| n.as_str()) {
+                        name_to_id.insert(nm.to_string(), id.clone());
+                    }
                     tool_calls.push(json!({
-                        "id": format!("call_{}", tool_calls.len()),
+                        "id": id,
                         "type": "function",
                         "function": {
                             "name": fc.get("name").and_then(|n| n.as_str()).unwrap_or(""),
@@ -56,9 +66,14 @@ pub fn request(body: &Value, model: &str) -> Value {
                         Value::String(s) => s.clone(),
                         other => other.to_string(),
                     };
+                    let fr_name = fr.get("name").and_then(|n| n.as_str()).unwrap_or("x");
+                    let tc_id = name_to_id
+                        .get(fr_name)
+                        .cloned()
+                        .unwrap_or_else(|| format!("call_{fr_name}"));
                     msgs.push(json!({
                         "role": "tool",
-                        "tool_call_id": format!("call_{}", fr.get("name").and_then(|n| n.as_str()).unwrap_or("x")),
+                        "tool_call_id": tc_id,
                         "content": content,
                     }));
                 }
@@ -407,6 +422,26 @@ mod tests {
         assert_eq!(out["messages"][3]["role"], "tool");
         assert_eq!(out["max_tokens"], 99);
         assert_eq!(out["tools"][0]["function"]["name"], "ls");
+    }
+
+    #[test]
+    fn tool_call_ids_pair_across_rounds() {
+        // OpenAI 要求 tool 消息的 tool_call_id 与 assistant tool_calls 的 id 完全一致;
+        // 多轮之间 id 也不可重复
+        let body = json!({
+            "contents": [
+                { "role": "model", "parts": [{ "functionCall": { "name": "a", "args": {} } }] },
+                { "role": "user",  "parts": [{ "functionResponse": { "name": "a", "response": "1" } }] },
+                { "role": "model", "parts": [{ "functionCall": { "name": "b", "args": {} } }] },
+                { "role": "user",  "parts": [{ "functionResponse": { "name": "b", "response": "2" } }] }
+            ]
+        });
+        let out = request(&body, "m");
+        let id0 = out["messages"][0]["tool_calls"][0]["id"].as_str().unwrap();
+        let id1 = out["messages"][2]["tool_calls"][0]["id"].as_str().unwrap();
+        assert_ne!(id0, id1, "多轮 tool_call id 不可重复");
+        assert_eq!(out["messages"][1]["tool_call_id"], json!(id0));
+        assert_eq!(out["messages"][3]["tool_call_id"], json!(id1));
     }
 
     #[test]

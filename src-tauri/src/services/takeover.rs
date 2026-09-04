@@ -554,7 +554,17 @@ pub fn apply(pool: &Pool, app: AppType) -> Result<()> {
         AppType::OpenClaw => apply_openclaw_at(&path)?,
         _ => unreachable!(),
     };
-    settings_set(pool, &backup_key(app), &backup)?;
+    // 重新夺回(已接管状态下再次 apply)时保留最初的原始备份:
+    // 此刻 live 文件已指向代理,拿它覆盖备份会让"还原"写回一个死代理地址。
+    let already_active = settings_get(pool, &active_key(app))?
+        .map(|v| v == "1")
+        .unwrap_or(false);
+    let has_backup = settings_get(pool, &backup_key(app))?
+        .map(|s| !s.is_empty())
+        .unwrap_or(false);
+    if !(already_active && has_backup) {
+        settings_set(pool, &backup_key(app), &backup)?;
+    }
     settings_set(pool, &active_key(app), "1")?;
     tracing::info!("已接管 {} → {PROXY_URL}({})", app.as_str(), path.display());
     Ok(())
