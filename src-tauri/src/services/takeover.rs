@@ -1,6 +1,6 @@
 //! takeover 接管:把各 CLI 的 live 配置改写为指向本地代理,实现免重启热切换。
 //!
-//! 覆盖(M1):Claude / Codex / Gemini;OpenCode / OpenClaw 为多供应商共存结构,后续版本支持。
+//! 覆盖:Claude / Codex / Gemini / OpenCode / OpenClaw。
 //!
 //! 安全设计:
 //! - 接管前把原始数据备份进加密 DB(settings 表),可随时一键还原
@@ -300,13 +300,187 @@ fn gemini_effective(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
+// ---------- OpenCode: ~/.config/opencode/opencode.json(JSON) ----------
+
+/// OpenAI 兼容端点路径(@ai-sdk/openai-compatible 会在 baseURL 后拼 /chat/completions)
+const PROXY_V1: &str = "http://127.0.0.1:9527/v1";
+
+fn opencode_config_path() -> Result<PathBuf> {
+    home_path(&[".config", "opencode", "opencode.json"])
+}
+
+/// 改写所有 provider.*.options.baseURL 指向代理(apiKey 占位为 keyway);
+/// 无任何带 baseURL 的 provider 时创建最小 keyway 条目。备份 = 原始文件全文。
+pub fn apply_opencode_at(path: &Path) -> Result<String> {
+    let original = if path.exists() {
+        std::fs::read_to_string(path)?
+    } else {
+        String::new()
+    };
+    let mut root: serde_json::Value = if original.trim().is_empty() {
+        serde_json::json!({})
+    } else {
+        serde_json::from_str(&original).context("opencode.json 不是合法 JSON")?
+    };
+    let providers = root
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("opencode.json 顶层必须是对象"))?
+        .entry("provider")
+        .or_insert_with(|| serde_json::json!({}))
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("provider 必须是对象"))?;
+
+    let mut patched = 0usize;
+    for (_, item) in providers.iter_mut() {
+        let Some(opts) = item.get_mut("options").and_then(|o| o.as_object_mut()) else {
+            continue;
+        };
+        if opts.contains_key("baseURL") {
+            opts.insert("baseURL".into(), serde_json::Value::String(PROXY_V1.into()));
+            opts.insert("apiKey".into(), serde_json::Value::String("keyway".into()));
+            patched += 1;
+        }
+    }
+    if patched == 0 {
+        providers.insert(
+            "keyway".into(),
+            serde_json::json!({
+                "npm": "@ai-sdk/openai-compatible",
+                "name": "Keyway",
+                "options": { "baseURL": PROXY_V1, "apiKey": "keyway" },
+                "models": {}
+            }),
+        );
+    }
+    write_atomic(path, &serde_json::to_string_pretty(&root)?)?;
+    Ok(original)
+}
+
+pub fn restore_opencode_at(path: &Path, backup: &str) -> Result<()> {
+    if backup.is_empty() && !path.exists() {
+        return Ok(());
+    }
+    write_atomic(path, backup)?;
+    Ok(())
+}
+
+fn opencode_effective(path: &Path) -> bool {
+    let Ok(raw) = std::fs::read_to_string(path) else {
+        return false;
+    };
+    let Ok(root) = serde_json::from_str::<serde_json::Value>(&raw) else {
+        return false;
+    };
+    let urls: Vec<String> = root
+        .get("provider")
+        .and_then(|p| p.as_object())
+        .map(|m| {
+            m.values()
+                .filter_map(|p| {
+                    p.get("options")?
+                        .get("baseURL")?
+                        .as_str()
+                        .map(|s| s.to_string())
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    !urls.is_empty() && urls.iter().all(|u| u.starts_with(PROXY_URL))
+}
+
+// ---------- OpenClaw: ~/.openclaw/openclaw.json(JSON5) ----------
+
+fn openclaw_config_path() -> Result<PathBuf> {
+    home_path(&[".openclaw", "openclaw.json"])
+}
+
+/// 改写所有 models.providers.*.baseUrl 指向代理(apiKey 占位为 keyway);
+/// 无任何带 baseUrl 的 provider 时创建最小 keyway 条目。备份 = 原始文件全文。
+/// OpenClaw 官方行为即"自有写入会重序列化为标准 JSON",故回写普通 JSON 无损。
+pub fn apply_openclaw_at(path: &Path) -> Result<String> {
+    let original = if path.exists() {
+        std::fs::read_to_string(path)?
+    } else {
+        String::new()
+    };
+    let mut root: serde_json::Value = if original.trim().is_empty() {
+        serde_json::json!({})
+    } else {
+        json5::from_str(&original).context("openclaw.json 不是合法 JSON5/JSON")?
+    };
+    let providers = root
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("openclaw.json 顶层必须是对象"))?
+        .entry("models")
+        .or_insert_with(|| serde_json::json!({}))
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("models 必须是对象"))?
+        .entry("providers")
+        .or_insert_with(|| serde_json::json!({}))
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("models.providers 必须是对象"))?;
+
+    let mut patched = 0usize;
+    for (_, item) in providers.iter_mut() {
+        if let Some(t) = item.as_object_mut() {
+            if t.contains_key("baseUrl") {
+                t.insert("baseUrl".into(), serde_json::Value::String(PROXY_V1.into()));
+                t.insert("apiKey".into(), serde_json::Value::String("keyway".into()));
+                patched += 1;
+            }
+        }
+    }
+    if patched == 0 {
+        providers.insert(
+            "keyway".into(),
+            serde_json::json!({
+                "baseUrl": PROXY_V1,
+                "apiKey": "keyway",
+                "api": "openai-completions",
+                "models": []
+            }),
+        );
+    }
+    write_atomic(path, &serde_json::to_string_pretty(&root)?)?;
+    Ok(original)
+}
+
+pub fn restore_openclaw_at(path: &Path, backup: &str) -> Result<()> {
+    if backup.is_empty() && !path.exists() {
+        return Ok(());
+    }
+    write_atomic(path, backup)?;
+    Ok(())
+}
+
+fn openclaw_effective(path: &Path) -> bool {
+    let Ok(raw) = std::fs::read_to_string(path) else {
+        return false;
+    };
+    let Ok(root) = json5::from_str::<serde_json::Value>(&raw) else {
+        return false;
+    };
+    let urls: Vec<String> = root
+        .get("models")
+        .and_then(|m| m.get("providers"))
+        .and_then(|p| p.as_object())
+        .map(|m| {
+            m.values()
+                .filter_map(|p| p.get("baseUrl")?.as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+    !urls.is_empty() && urls.iter().all(|u| u.starts_with(PROXY_URL))
+}
+
 // ---------- 对外接口 ----------
 
 pub fn status(pool: &Pool) -> Vec<TakeoverStatus> {
     AppType::all()
         .iter()
         .map(|&app| {
-            let supported = matches!(app, AppType::Claude | AppType::Codex | AppType::Gemini);
+            let supported =
+                matches!(app, AppType::Claude | AppType::Codex | AppType::Gemini | AppType::OpenCode | AppType::OpenClaw);
             let (exists, effective) = if supported {
                 match live_path(app) {
                     Ok(p) => (
@@ -315,6 +489,8 @@ pub fn status(pool: &Pool) -> Vec<TakeoverStatus> {
                             AppType::Claude => claude_effective(&p),
                             AppType::Codex => codex_effective(&p),
                             AppType::Gemini => gemini_effective(&p),
+                            AppType::OpenCode => opencode_effective(&p),
+                            AppType::OpenClaw => openclaw_effective(&p),
                             _ => false,
                         },
                     ),
@@ -350,12 +526,17 @@ fn live_path(app: AppType) -> Result<PathBuf> {
         AppType::Claude => claude_settings_path(),
         AppType::Codex => codex_config_path(),
         AppType::Gemini => gemini_env_path(),
+        AppType::OpenCode => opencode_config_path(),
+        AppType::OpenClaw => openclaw_config_path(),
         _ => Err(anyhow!("该应用暂不支持接管")),
     }
 }
 
 pub fn apply(pool: &Pool, app: AppType) -> Result<()> {
-    if !matches!(app, AppType::Claude | AppType::Codex | AppType::Gemini) {
+    if !matches!(
+        app,
+        AppType::Claude | AppType::Codex | AppType::Gemini | AppType::OpenCode | AppType::OpenClaw
+    ) {
         return Err(anyhow!("{} 暂不支持接管,下个版本支持", app.as_str()));
     }
     let path = live_path(app)?;
@@ -363,6 +544,8 @@ pub fn apply(pool: &Pool, app: AppType) -> Result<()> {
         AppType::Claude => apply_claude_at(&path)?,
         AppType::Codex => apply_codex_at(&path)?,
         AppType::Gemini => apply_gemini_at(&path)?,
+        AppType::OpenCode => apply_opencode_at(&path)?,
+        AppType::OpenClaw => apply_openclaw_at(&path)?,
         _ => unreachable!(),
     };
     settings_set(pool, &backup_key(app), &backup)?;
@@ -379,6 +562,8 @@ pub fn restore(pool: &Pool, app: AppType) -> Result<()> {
         AppType::Claude => restore_claude_at(&path, &backup)?,
         AppType::Codex => restore_codex_at(&path, &backup)?,
         AppType::Gemini => restore_gemini_at(&path, &backup)?,
+        AppType::OpenCode => restore_opencode_at(&path, &backup)?,
+        AppType::OpenClaw => restore_openclaw_at(&path, &backup)?,
         _ => unreachable!(),
     }
     settings_del(pool, &active_key(app))?;
@@ -485,5 +670,117 @@ mod tests {
         let backup = apply_gemini_at(&p).unwrap();
         assert_eq!(backup, "");
         assert!(gemini_effective(&p));
+    }
+}
+
+// (批 D 测试追加)
+#[cfg(test)]
+mod opencode_openclaw_tests {
+    use super::*;
+
+    fn tmp(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!(
+            "conduit_takeover_test_{tag}_{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    #[test]
+    fn opencode_apply_restore_roundtrip() {
+        let p = tmp("opencode").join("opencode.json");
+        std::fs::write(
+            &p,
+            r#"{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "kimi": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": { "baseURL": "https://api.moonshot.cn/v1", "apiKey": "sk-origin" },
+      "models": { "kimi-k2": { "name": "Kimi K2" } }
+    }
+  },
+  "model": "kimi/kimi-k2"
+}"#,
+        )
+        .unwrap();
+
+        let backup = apply_opencode_at(&p).unwrap();
+        let raw = std::fs::read_to_string(&p).unwrap();
+        assert!(raw.contains(PROXY_V1));
+        assert!(raw.contains("kimi-k2")); // models 不动
+        assert!(opencode_effective(&p));
+
+        restore_opencode_at(&p, &backup).unwrap();
+        let raw = std::fs::read_to_string(&p).unwrap();
+        assert!(raw.contains("https://api.moonshot.cn/v1"));
+        assert!(raw.contains("sk-origin"));
+        assert!(!opencode_effective(&p));
+    }
+
+    #[test]
+    fn opencode_creates_keyway_provider_when_missing() {
+        let p = tmp("opencode_new").join("opencode.json");
+        std::fs::write(&p, r#"{ "$schema": "https://opencode.ai/config.json" }"#).unwrap();
+        let backup = apply_opencode_at(&p).unwrap();
+        assert!(opencode_effective(&p));
+        let raw = std::fs::read_to_string(&p).unwrap();
+        assert!(raw.contains("openai-compatible"));
+        restore_opencode_at(&p, &backup).unwrap();
+        assert!(!opencode_effective(&p));
+    }
+
+    #[test]
+    fn openclaw_json5_apply_restore_roundtrip() {
+        let p = tmp("openclaw").join("openclaw.json");
+        // JSON5:注释 + 尾逗号
+        std::fs::write(
+            &p,
+            r#"{
+  // 我的网关配置
+  "models": {
+    "providers": {
+      "kimi": {
+        "baseUrl": "https://api.moonshot.ai/v1",
+        "apiKey": "${KIMI_KEY}",
+        "api": "openai-completions",
+        "models": [{ "id": "kimi-k2.6", "name": "Kimi K2.6" }],
+      },
+    },
+  },
+  "agents": { "defaults": { "model": { "primary": "kimi/kimi-k2.6" } } },
+}"#,
+        )
+        .unwrap();
+
+        let backup = apply_openclaw_at(&p).unwrap();
+        let raw = std::fs::read_to_string(&p).unwrap();
+        assert!(raw.contains(PROXY_V1));
+        assert!(raw.contains("kimi-k2.6")); // models 数组不动
+        assert!(openclaw_effective(&p));
+        // 仍是合法 JSON5(重写后为标准 JSON)
+        assert!(json5::from_str::<serde_json::Value>(&raw).is_ok());
+
+        restore_openclaw_at(&p, &backup).unwrap();
+        let raw = std::fs::read_to_string(&p).unwrap();
+        assert!(raw.contains("https://api.moonshot.ai/v1"));
+        assert!(!openclaw_effective(&p));
+    }
+
+    #[test]
+    fn openclaw_creates_provider_when_file_missing() {
+        let p = tmp("openclaw_new").join("openclaw.json");
+        let backup = apply_openclaw_at(&p).unwrap();
+        assert!(p.exists());
+        assert!(openclaw_effective(&p));
+        restore_openclaw_at(&p, &backup).unwrap();
+        // 空备份(原本无配置)还原为空文件,与 codex 行为一致
+        assert_eq!(
+            std::fs::read_to_string(&p).unwrap().trim(),
+            "",
+            "应还原为空内容"
+        );
+        assert!(!openclaw_effective(&p));
     }
 }

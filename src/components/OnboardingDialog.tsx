@@ -28,6 +28,8 @@ const APP_LABEL: Record<string, string> = {
   claude: "Claude Code",
   codex: "Codex",
   gemini: "Gemini CLI",
+  opencode: "OpenCode",
+  openclaw: "OpenClaw",
 };
 
 /**

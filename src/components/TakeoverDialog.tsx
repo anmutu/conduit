@@ -27,6 +27,8 @@ const APP_LABEL: Record<string, string> = {
   claude: "Claude Code",
   codex: "Codex",
   gemini: "Gemini CLI",
+  opencode: "OpenCode",
+  openclaw: "OpenClaw",
 };
 
 /** 接管管理:把各 CLI 的 live 配置指向本地代理(可随时还原) */
@@ -60,7 +62,7 @@ export function TakeoverDialog({
   const toggleFailover = async (app: string, enabled: boolean) => {
     try {
       await invoke("set_failover", {
-        appType: app as "claude" | "codex" | "gemini",
+        appType: app as "claude" | "codex" | "gemini" | "opencode" | "openclaw",
         enabled,
       });
       onSuccess(t("fo.toast", { name: APP_LABEL[app], state: enabled ? "✓" : "✕" }));
@@ -73,7 +75,7 @@ export function TakeoverDialog({
   const act = async (app: string, restore: boolean) => {
     setBusy(app);
     try {
-      const appEnum = app as "claude" | "codex" | "gemini";
+      const appEnum = app as "claude" | "codex" | "gemini" | "opencode" | "openclaw";
       if (restore) {
         await invoke("restore_takeover", { appType: appEnum });
         onSuccess(t("takeover.restored", { name: APP_LABEL[app] }));
