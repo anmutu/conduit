@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   ChevronDown,
   ChevronUp,
@@ -379,7 +380,7 @@ export function SettingsPage({
         desc={settings ? t("settings.dataDesc", { path: settings.db_path }) : "…"}
       >
         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium text-emerald-600 bg-emerald-500/10 dark:text-emerald-400">
-          已加密
+          {t("settings.encrypted")}
         </span>
       </Row>
 
@@ -609,10 +610,10 @@ export function SettingsPage({
             className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
             title={t("settings.copyHealthz")}
             onClick={() => {
-              void navigator.clipboard.writeText(
-                `curl http://127.0.0.1:9527/healthz`,
-              );
-              onSuccess(t("settings.healthzCopied"));
+              navigator.clipboard
+                .writeText(`curl http://127.0.0.1:9527/healthz`)
+                .then(() => onSuccess(t("settings.healthzCopied")))
+                .catch(() => onError(t("settings.copyFail")));
             }}
           >
             {t("settings.copyHealthz")}
@@ -646,9 +647,12 @@ export function SettingsPage({
         <Button
           variant="link"
           className="text-xs"
-          onClick={() =>
-            window.open("https://github.com/anmutu/keyway", "_blank")
-          }
+          onClick={() => {
+            // Tauri WebView 拦截新窗口,必须走 opener 插件才能真正打开
+            void openUrl("https://github.com/anmutu/keyway").catch(() =>
+              window.open("https://github.com/anmutu/keyway", "_blank"),
+            );
+          }}
         >
           {t("github.repo")}
         </Button>

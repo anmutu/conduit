@@ -76,14 +76,14 @@ function Bars({
   rows,
   format,
 }: {
-  rows: { label: string; value: number; sub?: string }[];
+  rows: { key: string; label: string; value: number; sub?: string }[];
   format: (n: number) => string;
 }) {
   const max = Math.max(...rows.map((r) => r.value), 1);
   return (
     <div className="space-y-2.5">
       {rows.map((r) => (
-        <div key={r.label} className="text-xs">
+        <div key={r.key} className="text-xs">
           <div className="flex justify-between mb-1">
             <span className="font-medium truncate max-w-[60%]">{r.label}</span>
             <span className="text-muted-foreground tabular-nums">
@@ -311,6 +311,7 @@ export function UsagePage({
         {data && data.by_provider.length > 0 ? (
           <Bars
             rows={data.by_provider.map((p) => ({
+              key: p.key,
               label: nameOf(p.key),
               value: p.input_tokens + p.output_tokens,
               sub:
@@ -356,6 +357,7 @@ export function UsagePage({
             rows={data.by_model.map((m) => {
               const cost = modelCost(m);
               return {
+                key: m.key,
                 label: m.key,
                 value: m.input_tokens + m.output_tokens,
                 sub:

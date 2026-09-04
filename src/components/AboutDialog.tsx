@@ -98,6 +98,11 @@ export function AboutDialog({
             target="_blank"
             rel="noreferrer"
             className="text-blue-500 hover:underline"
+            // Tauri WebView 拦截新窗口,必须走 opener 插件才能真正打开
+            onClick={(e) => {
+              e.preventDefault();
+              void openUrl("https://coderplan.ai").catch(() => {});
+            }}
           >
             CoderPlan
           </a>

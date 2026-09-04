@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useI18n } from "@/i18n";
 
 /** 密码输入框 + 显示/隐藏切换,便于核对粘贴的 Key */
 export function PasswordInput(
   props: Omit<React.ComponentProps<typeof Input>, "type">,
 ) {
+  const { t } = useI18n();
   const [show, setShow] = useState(false);
   return (
     <div className="relative">
@@ -13,7 +15,7 @@ export function PasswordInput(
       <button
         type="button"
         tabIndex={-1}
-        aria-label={show ? "隐藏" : "显示"}
+        aria-label={show ? t("common.hide") : t("common.show")}
         onClick={() => setShow((v) => !v)}
         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
       >

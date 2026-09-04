@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { ArrowLeft, ExternalLink, Plus, Search } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { Button } from "@/components/ui/button";
@@ -238,7 +239,12 @@ export function AddProviderDialog({
                       target="_blank"
                       rel="noreferrer"
                       title={t("preset.getKey")}
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Tauri WebView 拦截新窗口,必须走 opener 插件才能真正打开
+                        e.preventDefault();
+                        void openUrl(p.apiKeyUrl!).catch(() => {});
+                      }}
                       className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:text-foreground"
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -335,6 +341,10 @@ export function AddProviderDialog({
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-1 text-xs text-blue-500 hover:underline"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      void openUrl(preset.apiKeyUrl!).catch(() => {});
+                    }}
                   >
                     {t("preset.getKey")}
                     <ExternalLink className="w-3 h-3" />

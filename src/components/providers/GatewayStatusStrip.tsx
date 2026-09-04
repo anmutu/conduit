@@ -71,7 +71,9 @@ export function GatewayStatusStrip() {
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>
             {t("gw.degraded", {
-              names: degraded.map((d) => `${d.name}(${d.errors}/${d.total})`).join("、"),
+              names: degraded
+                .map((d) => `${d.name}(${d.errors}/${d.total})`)
+                .join(t("common.sep")),
             })}
           </span>
         </div>

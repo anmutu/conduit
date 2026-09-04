@@ -143,7 +143,7 @@ export function ProviderCard({
               )}
               {!provider.has_key && (
                 <span className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                  无 API Key
+                  {t("provider.noKey")}
                 </span>
               )}
               {!endpoint && (
@@ -193,7 +193,7 @@ export function ProviderCard({
                 >
                   {batchResult.ok
                     ? `✓ ${batchResult.latency_ms}ms`
-                    : `✗ ${batchResult.message || "不可达"}`}
+                    : `✗ ${batchResult.message || t("provider.unreachable")}`}
                 </span>
               )}
             </div>
