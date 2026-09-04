@@ -35,11 +35,12 @@ pub fn cli_skills_dir(app: &str) -> Result<PathBuf> {
     match app {
         "claude" => Ok(home()?.join(".claude").join("skills")),
         "codex" => Ok(home()?.join(".codex").join("skills")),
+        "opencode" => Ok(home()?.join(".config").join("opencode").join("skills")),
         _ => Err(anyhow!("未知 CLI: {app}")),
     }
 }
 
-pub const TARGET_APPS: &[&str] = &["claude", "codex"];
+pub const TARGET_APPS: &[&str] = &["claude", "codex", "opencode"];
 
 // ---------- frontmatter 解析(轻量:只取 name/description 首个字段) ----------
 

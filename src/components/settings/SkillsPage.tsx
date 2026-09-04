@@ -24,6 +24,7 @@ interface SkillEntry {
 const TARGET_APPS = [
   { key: "claude", label: "Claude Code" },
   { key: "codex", label: "Codex" },
+  { key: "opencode", label: "OpenCode" },
 ];
 
 /** Skills 统一管理:vault(~/.keyway/skills)为源,同步复制到各 CLI 的 skills 目录。 */
