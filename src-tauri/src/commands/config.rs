@@ -96,13 +96,16 @@ pub fn export_config(
 }
 
 #[tauri::command]
-pub fn import_config(state: State<'_, AppState>, path: String) -> Result<(usize, usize), String> {
+pub fn import_config(
+    state: State<'_, AppState>,
+    path: String,
+) -> Result<(usize, usize, usize), String> {
     let raw = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
     let cfg: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
     do_import(&state.db, &cfg)
 }
 
-fn do_import(db: &crate::db::Pool, cfg: &Value) -> Result<(usize, usize), String> {
+fn do_import(db: &crate::db::Pool, cfg: &Value) -> Result<(usize, usize, usize), String> {
     let state_db = db;
     if cfg.get("format").and_then(|f| f.as_str()) != Some("keyway-config") {
         return Err("不是 Keyway 配置文件".into());
@@ -160,8 +163,13 @@ fn do_import(db: &crate::db::Pool, cfg: &Value) -> Result<(usize, usize), String
             created += 1;
         }
     }
-    // 路由规则:同名供应商映射回本机 ID
+    // 路由规则:同名供应商映射回本机 ID;与本机已有规则(同 app/pattern/供应商/匹配方式)重复时跳过
     let mut rules_added = 0usize;
+    let mut rules_skipped = 0usize;
+    let mut existing_cache: std::collections::HashMap<
+        String,
+        std::collections::HashSet<(String, String, String)>,
+    > = std::collections::HashMap::new();
     for r in cfg
         .get("route_rules")
         .and_then(|v| v.as_array())
@@ -174,14 +182,26 @@ fn do_import(db: &crate::db::Pool, cfg: &Value) -> Result<(usize, usize), String
             continue;
         };
         let mt = r["match_type"].as_str().unwrap_or("contains").to_string();
-        route_dao::insert(
-            state_db,
-            app.as_str(),
-            r["pattern"].as_str().unwrap_or(""),
-            &pid,
-            &mt,
-        )
-        .map_err(|e| e.to_string())?;
+        let pattern = r["pattern"].as_str().unwrap_or("").to_string();
+        let seen = existing_cache
+            .entry(app.as_str().to_string())
+            .or_insert_with(|| {
+                route_dao::list_by_app(state_db, app.as_str())
+                    .map(|rs| {
+                        rs.into_iter()
+                            .map(|x| (x.pattern, x.provider_id, x.match_type))
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            });
+        let key = (pattern.clone(), pid.clone(), mt.clone());
+        if seen.contains(&key) {
+            rules_skipped += 1;
+            continue;
+        }
+        route_dao::insert(state_db, app.as_str(), &pattern, &pid, &mt)
+            .map_err(|e| e.to_string())?;
+        seen.insert(key);
         rules_added += 1;
     }
     // 预设:provider_id 是导出机器上的 ID;本机不存在同名映射时跳过(值里的 ID 无法对应)
@@ -242,7 +262,7 @@ fn do_import(db: &crate::db::Pool, cfg: &Value) -> Result<(usize, usize), String
             let _ = kv::set(db, "profiles", &Value::Object(out).to_string());
         }
     }
-    Ok((created, rules_added))
+    Ok((created, rules_added, rules_skipped))
 }
 
 #[cfg(test)]
@@ -299,10 +319,17 @@ mod tests {
         let pool2 = db();
         let path = std::env::temp_dir().join(format!("cfg_{}.json", uuid::Uuid::new_v4()));
         std::fs::write(&path, &raw).unwrap();
-        let (created, rules) =
+        let (created, rules, skipped) =
             do_import(&pool2, &serde_json::from_str::<Value>(&raw).unwrap()).unwrap();
         assert_eq!(created, 1);
         assert_eq!(rules, 1);
+        assert_eq!(skipped, 0);
+        // 同一文件重复导入:供应商与规则都不重复,重复规则被跳过并计数
+        let (created2, rules2, skipped2) =
+            do_import(&pool2, &serde_json::from_str::<Value>(&raw).unwrap()).unwrap();
+        assert_eq!(created2, 0);
+        assert_eq!(rules2, 0);
+        assert_eq!(skipped2, 1);
         let new_p = crate::db::provider_dao::find_by_name(&pool2, "RelayA")
             .unwrap()
             .expect("导入后应存在");

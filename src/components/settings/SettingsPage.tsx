@@ -575,11 +575,18 @@ export function SettingsPage({
                   filters: [{ name: "JSON", extensions: ["json"] }],
                 });
                 if (typeof picked !== "string") return;
-                const [created, rules] = await invoke<[number, number]>(
-                  "import_config",
-                  { path: picked },
+                const [created, rules, skipped] = await invoke<
+                  [number, number, number]
+                >("import_config", { path: picked });
+                onSuccess(
+                  skipped > 0
+                    ? t("settings.configImportedSkip", {
+                        p: created,
+                        r: rules,
+                        s: skipped,
+                      })
+                    : t("settings.configImported", { p: created, r: rules }),
                 );
-                onSuccess(t("settings.configImported", { p: created, r: rules }));
               } catch (e) {
                 onError(String(e));
               }
