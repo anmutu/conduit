@@ -21,9 +21,7 @@ pub struct SkillEntry {
 }
 
 fn home() -> Result<PathBuf> {
-    std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .context("HOME 未设置")
+    dirs::home_dir().context("无法确定用户主目录")
 }
 
 pub fn vault_dir() -> Result<PathBuf> {

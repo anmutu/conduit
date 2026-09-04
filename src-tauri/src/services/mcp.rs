@@ -14,8 +14,7 @@ use anyhow::{anyhow, Context, Result};
 use crate::db::{mcp_dao, mcp_dao::McpServer, Pool};
 
 fn home_path(rel: &[&str]) -> Result<PathBuf> {
-    let home = std::env::var_os("HOME").context("HOME 未设置")?;
-    let mut p = PathBuf::from(home);
+    let mut p = dirs::home_dir().context("无法确定用户主目录")?;
     for seg in rel {
         p.push(seg);
     }
@@ -139,11 +138,14 @@ pub fn sync_all(pool: &Pool) -> Result<Vec<String>> {
             continue;
         }
         match sync_at(&path, &servers, &remove) {
-            Ok(n) => report.push(format!("{app}: {n} 个服务器已同步")),
+            Ok(n) => {
+                report.push(format!("{app}: {n} 个服务器已同步"));
+                // 同步成功才更新已管理清单,失败时保留旧值以便下次正确清理
+                crate::db::kv::set(pool, &kv_key, &serde_json::to_string(&wanted)?)
+                    .map_err(|e| anyhow!("{e}"))?;
+            }
             Err(e) => report.push(format!("{app}: 同步失败({e})")),
         }
-        crate::db::kv::set(pool, &kv_key, &serde_json::to_string(&wanted)?)
-            .map_err(|e| anyhow!("{e}"))?;
     }
     Ok(report)
 }
