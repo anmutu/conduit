@@ -91,6 +91,58 @@ fn scan_gemini() -> Option<(String, Option<String>)> {
     base.map(|b| (b, key))
 }
 
+
+/// 提取 opencode 配置:第一个带 baseURL 的 provider(options.apiKey 可能为空)
+fn scan_opencode_at(path: &std::path::Path) -> Option<(String, Option<String>)> {
+    let raw = std::fs::read_to_string(path).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
+    let providers = v.get("provider")?.as_object()?;
+    for (_, p) in providers {
+        let opts = p.get("options")?;
+        let base = opts.get("baseURL")?.as_str()?.trim().to_string();
+        if base.is_empty() || base.starts_with(takeover::PROXY_URL) {
+            continue;
+        }
+        let key = opts
+            .get("apiKey")
+            .and_then(|k| k.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty() && !s.starts_with("{env:"));
+        return Some((base, key));
+    }
+    None
+}
+
+/// 提取 openclaw 配置(JSON5):第一个带 baseUrl 的 provider
+fn scan_openclaw_at(path: &std::path::Path) -> Option<(String, Option<String>)> {
+    let raw = std::fs::read_to_string(path).ok()?;
+    let v: serde_json::Value = json5::from_str(&raw).ok()?;
+    let providers = v.get("models")?.get("providers")?.as_object()?;
+    for (id, p) in providers {
+        let base = p.get("baseUrl")?.as_str()?.trim().to_string();
+        if base.is_empty() || base.starts_with(takeover::PROXY_URL) {
+            continue;
+        }
+        // "${ENV_VAR}" 形式的占位 Key 无法导入,跳过
+        let key = p
+            .get("apiKey")
+            .and_then(|k| k.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty() && !s.starts_with("${"));
+        let _ = id;
+        return Some((base, key));
+    }
+    None
+}
+
+fn scan_opencode() -> Option<(String, Option<String>)> {
+    scan_opencode_at(&home_join(&[".config", "opencode", "opencode.json"])?)
+}
+
+fn scan_openclaw() -> Option<(String, Option<String>)> {
+    scan_openclaw_at(&home_join(&[".openclaw", "openclaw.json"])?)
+}
+
 /// 扫描并导入;返回本次新建的供应商列表。
 pub fn import_existing(pool: &Pool) -> Result<Vec<ImportedProvider>> {
     let mut imported = Vec::new();
@@ -100,6 +152,8 @@ pub fn import_existing(pool: &Pool) -> Result<Vec<ImportedProvider>> {
         ("导入的 Claude 配置", AppType::Claude, scan_claude),
         ("导入的 Codex 配置", AppType::Codex, scan_codex),
         ("导入的 Gemini 配置", AppType::Gemini, scan_gemini),
+        ("导入的 OpenCode 配置", AppType::OpenCode, scan_opencode),
+        ("导入的 OpenClaw 配置", AppType::OpenClaw, scan_openclaw),
     ];
 
     for (name, app_type, scan) in scanners {
@@ -142,4 +196,60 @@ pub fn import_existing(pool: &Pool) -> Result<Vec<ImportedProvider>> {
         });
     }
     Ok(imported)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tmpfile(tag: &str, content: &str) -> std::path::PathBuf {
+        let d = std::env::temp_dir().join(format!(
+            "conduit_import_test_{tag}_{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&d).unwrap();
+        let p = d.join(tag);
+        std::fs::write(&p, content).unwrap();
+        p
+    }
+
+    #[test]
+    fn scan_opencode_picks_first_base_url_and_key() {
+        let p = tmpfile(
+            "opencode.json",
+            r#"{"provider":{"a":{"options":{"baseURL":"http://127.0.0.1:9527/v1","apiKey":"x"}},"b":{"options":{"baseURL":"https://real.example/v1","apiKey":"sk-1"}}}}"#,
+        );
+        let (base, key) = scan_opencode_at(&p).unwrap();
+        assert_eq!(base, "https://real.example/v1");
+        assert_eq!(key.as_deref(), Some("sk-1"));
+    }
+
+    #[test]
+    fn scan_opencode_skips_env_placeholder_key() {
+        let p = tmpfile(
+            "opencode2.json",
+            r#"{"provider":{"a":{"options":{"baseURL":"https://x.example/v1","apiKey":"{env:MY_KEY}"}}}}"#,
+        );
+        let (base, key) = scan_opencode_at(&p).unwrap();
+        assert_eq!(base, "https://x.example/v1");
+        assert!(key.is_none());
+    }
+
+    #[test]
+    fn scan_openclaw_json5_and_env_key() {
+        let p = tmpfile(
+            "openclaw.json",
+            r#"{
+  // comment
+  "models": { "providers": { "kimi": {
+      "baseUrl": "https://api.moonshot.ai/v1",
+      "apiKey": "${KIMI_KEY}",
+      "models": [],
+  } } },
+}"#,
+        );
+        let (base, key) = scan_openclaw_at(&p).unwrap();
+        assert_eq!(base, "https://api.moonshot.ai/v1");
+        assert!(key.is_none()); // ${} 占位不导入
+    }
 }
