@@ -67,7 +67,7 @@ function RailItem({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative group w-full">
+    <div className="relative group w-full shrink-0">
       <button
         type="button"
         onClick={onClick}
@@ -130,7 +130,7 @@ export function Sidebar({
       data-tauri-drag-region
     >
       {/* 品牌:macOS Overlay 红绿灯占据左上,向下避让 */}
-      <div className={cn("flex flex-col items-center gap-0.5 pb-2", isMac ? "pt-10" : "pt-3")} data-tauri-no-drag>
+      <div className={cn("flex flex-col items-center gap-0.5 pb-2 shrink-0", isMac ? "pt-10" : "pt-3")} data-tauri-no-drag>
         <button
           type="button"
           onClick={onAbout}
@@ -142,8 +142,8 @@ export function Sidebar({
         <span className="text-[9px] font-semibold tracking-wide text-muted-foreground/70">Keyway</span>
       </div>
 
-      {/* CLI 分组导航(⌘1..5,悬停显示名称)+ 添加 */}
-      <nav className="flex flex-col gap-1 pt-2 w-full" data-tauri-no-drag>
+      {/* CLI 分组导航(⌘1..5,悬停显示名称)+ 添加;分组多时此区可滚,下方导航钉住不被挤走 */}
+      <nav className="flex flex-col gap-1 pt-2 w-full min-h-0 overflow-y-auto" data-tauri-no-drag>
         <RailItem
           active={false}
           onClick={onAdd}
@@ -170,10 +170,10 @@ export function Sidebar({
         ))}
       </nav>
 
-      <div className="my-3 mx-3 w-auto self-stretch border-t border-border" />
+      <div className="my-3 mx-3 w-auto self-stretch border-t border-border shrink-0" />
 
       {/* 二级导航 */}
-      <nav className="flex flex-col gap-1 w-full" data-tauri-no-drag>
+      <nav className="flex flex-col gap-1 w-full shrink-0" data-tauri-no-drag>
         <RailItem
           active={currentView === "usage"}
           onClick={() => onViewChange("usage")}
@@ -220,7 +220,7 @@ export function Sidebar({
 
       {/* 底部:代理状态 + 主题,均居中 */}
       <div
-        className="flex flex-col items-center gap-1 pb-3 w-full"
+        className="flex flex-col items-center gap-1 pb-3 w-full shrink-0"
         data-tauri-no-drag
       >
         {proxyOk !== null && (
