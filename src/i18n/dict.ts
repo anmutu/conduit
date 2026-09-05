@@ -100,7 +100,7 @@ export const zh = {
   "settings.healthOff": "关闭",
   "dialog.modelsPh": "如 claude-sonnet-4, gpt-5(仅展示用)",
   "provider.responsesBridgeBadge": "Responses 桥接",
-  "provider.balance": "余额(OpenRouter 兼容渠道)",
+  "provider.balance": "查询余额",
   "dialog.adding": "添加中…",
   // 预设选择
   "preset.pickDesc": "选择一个预设供应商,或自定义;预设会自动填好接口地址。",
@@ -473,7 +473,7 @@ export const en: Dict = {
   "settings.healthOff": "Off",
   "dialog.modelsPh": "e.g. claude-sonnet-4, gpt-5 (display only)",
   "provider.responsesBridgeBadge": "Responses bridge",
-  "provider.balance": "Balance (OpenRouter-compatible relays)",
+  "provider.balance": "Check balance",
   "dialog.endpoints": "Endpoints (per protocol)",
   "dialog.adding": "Adding…",
   "preset.pickDesc": "Pick a preset provider or go custom — presets prefill the base URL.",

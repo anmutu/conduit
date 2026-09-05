@@ -217,7 +217,9 @@ pub async fn get_provider_balance(
     let limit = sub_v
         .get("hard_limit_usd")
         .and_then(|x| x.as_f64())
-        .or_else(|| sub_v.get("system_hard_limit_usd").and_then(|x| x.as_f64()));
+        .or_else(|| sub_v.get("system_hard_limit_usd").and_then(|x| x.as_f64()))
+        // one-api/new-api 未设额度时返回 1e8 哨兵值,视为无上限,不展示
+        .filter(|l| *l < 99_999_999.0);
     let usage = match client
         .get(format!("{v1}/dashboard/billing/usage"))
         .bearer_auth(&key)
