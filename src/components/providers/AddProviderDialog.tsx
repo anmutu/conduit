@@ -106,10 +106,10 @@ export function AddProviderDialog({
     }
   }, [open]);
 
-  // 选预设 → 预填并进入表单;自定义 → 空表单
-  const pick = (p: ProviderPreset | null) => {
+  // 选预设 → 预填并进入表单;自定义 → 空表单(可用搜索词作名称种子)
+  const pick = (p: ProviderPreset | null, nameSeed?: string) => {
     setPreset(p);
-    setName(p?.name ?? "");
+    setName(p?.name ?? nameSeed ?? "");
     setBaseUrl(p?.baseUrl ?? "");
     setUrlError(null);
     // 预填后焦点落到 API Key;自定义则从名称开始
@@ -191,72 +191,80 @@ export function AddProviderDialog({
               />
             </div>
 
-            <div className="grid gap-1.5 max-h-[52vh] overflow-y-auto pr-1">
-              {presets.map((p) => (
-                <button
-                  key={p.name}
-                  type="button"
-                  draggable={!search.trim()}
-                  onDragStart={() => setDragPreset(p.name)}
-                  onDragEnd={() => { setDragPreset(null); setDragOverPreset(null); }}
-                  onDragOver={(e) => {
-                    if (dragPreset) { e.preventDefault(); setDragOverPreset(p.name); }
-                  }}
-                  onDragLeave={() => setDragOverPreset(null)}
-                  onDrop={(e) => {
-                    e.stopPropagation();
-                    dropPreset(p.name);
-                  }}
-                  onClick={() => pick(p)}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
-                    !search.trim() && "cursor-grab active:cursor-grabbing",
-                    dragOverPreset === p.name && dragPreset !== null && dragPreset !== p.name &&
-                      "border-blue-500/60 ring-1 ring-blue-500/40",
-                  )}
-                >
-                  <ProviderIcon
-                    icon={p.icon ?? ""}
-                    name={p.name}
-                    size={18}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5">
-                      <span className="truncate font-medium">{p.name}</span>
-                      {p.partner && (
-                        <span className="shrink-0 rounded bg-amber-500/15 px-1 py-px text-[10px] font-medium text-amber-600 dark:text-amber-400">
-                          {t("preset.badge.partner")}
-                        </span>
-                      )}
+            <div className="grid gap-1.5">
+              <div className="grid gap-1.5 max-h-[52vh] overflow-y-auto pr-1">
+                {presets.map((p) => (
+                  <button
+                    key={p.name}
+                    type="button"
+                    draggable={!search.trim()}
+                    onDragStart={() => setDragPreset(p.name)}
+                    onDragEnd={() => { setDragPreset(null); setDragOverPreset(null); }}
+                    onDragOver={(e) => {
+                      if (dragPreset) { e.preventDefault(); setDragOverPreset(p.name); }
+                    }}
+                    onDragLeave={() => setDragOverPreset(null)}
+                    onDrop={(e) => {
+                      e.stopPropagation();
+                      dropPreset(p.name);
+                    }}
+                    onClick={() => pick(p)}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
+                      !search.trim() && "cursor-grab active:cursor-grabbing",
+                      dragOverPreset === p.name && dragPreset !== null && dragPreset !== p.name &&
+                        "border-blue-500/60 ring-1 ring-blue-500/40",
+                    )}
+                  >
+                    <ProviderIcon
+                      icon={p.icon ?? ""}
+                      name={p.name}
+                      size={18}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate font-medium">{p.name}</span>
+                        {p.partner && (
+                          <span className="shrink-0 rounded bg-amber-500/15 px-1 py-px text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                            {t("preset.badge.partner")}
+                          </span>
+                        )}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {p.baseUrl}
+                      </span>
                     </span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {p.baseUrl}
-                    </span>
-                  </span>
-                  {p.apiKeyUrl && (
-                    <a
-                      href={p.apiKeyUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      title={t("preset.getKey")}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Tauri WebView 拦截新窗口,必须走 opener 插件才能真正打开
-                        e.preventDefault();
-                        void openUrl(p.apiKeyUrl!).catch(() => {});
-                      }}
-                      className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  )}
-                </button>
-              ))}
+                    {p.apiKeyUrl && (
+                      <a
+                        href={p.apiKeyUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={t("preset.getKey")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Tauri WebView 拦截新窗口,必须走 opener 插件才能真正打开
+                          e.preventDefault();
+                          void openUrl(p.apiKeyUrl!).catch(() => {});
+                        }}
+                        className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                  </button>
+                ))}
 
-              {/* 自定义:永远可用 */}
+                {presets.length === 0 && (
+                  <p className="py-3 text-center text-xs text-muted-foreground">
+                    {t("preset.noMatch")}
+                  </p>
+                )}
+              </div>
+
+              {/* 自定义:固定在滚动区外,预设再多也始终可见 */}
               <button
                 type="button"
-                onClick={() => pick(null)}
+                onClick={() => pick(null, search.trim())}
                 className="flex items-center rounded-md border border-dashed px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <Plus className="w-4 h-4 mr-2" />
