@@ -1,6 +1,6 @@
 [package]
 name = "keyway"
-version = "0.2.4"
+version = "0.2.5"
 description = "Keyway — manage every AI CLI provider in one app"
 authors = ["you"]
 edition = "2021"
