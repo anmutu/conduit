@@ -58,6 +58,9 @@ export function AddProviderDialog({
 }: AddProviderDialogProps) {
   const { t } = useI18n();
   const [preset, setPreset] = useState<ProviderPreset | null>(null);
+  // 步骤要独立于 preset:preset===null 既表示"还没选"也表示"自定义",
+  // 若用它推导 step,点「自定义供应商」会永远停在第一步
+  const [step, setStep] = useState<"pick" | "form">("pick");
   const [search, setSearch] = useState("");
   const [name, setName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
@@ -98,6 +101,7 @@ export function AddProviderDialog({
   useEffect(() => {
     if (open) {
       setPreset(null);
+      setStep("pick");
       setSearch("");
       setName("");
       setBaseUrl("");
@@ -109,6 +113,7 @@ export function AddProviderDialog({
   // 选预设 → 预填并进入表单;自定义 → 空表单(可用搜索词作名称种子)
   const pick = (p: ProviderPreset | null, nameSeed?: string) => {
     setPreset(p);
+    setStep("form");
     setName(p?.name ?? nameSeed ?? "");
     setBaseUrl(p?.baseUrl ?? "");
     setUrlError(null);
@@ -116,6 +121,15 @@ export function AddProviderDialog({
     requestAnimationFrame(() => {
       if (p) keyInputRef.current?.focus();
     });
+  };
+
+  // 表单返回重选:回到第一步并清空表单(搜索词保留,方便换词再找)
+  const back = () => {
+    setPreset(null);
+    setStep("pick");
+    setName("");
+    setBaseUrl("");
+    setUrlError(null);
   };
 
   // 扁平预设列表:用户拖拽过的名称优先,其余按默认顺序追加
@@ -167,8 +181,6 @@ export function AddProviderDialog({
       setSubmitting(false);
     }
   };
-
-  const step = preset === null ? "pick" : "form";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -296,7 +308,7 @@ export function AddProviderDialog({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => pick(null)}
+                  onClick={back}
                   className="h-7 px-2 text-xs"
                 >
                   <ArrowLeft className="w-3.5 h-3.5 mr-1" />
