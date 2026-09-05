@@ -144,11 +144,11 @@ export function ProviderActions({
       {balance && (
         <span
           title={balance.limit != null
-            ? `$${(balance.usage ?? 0).toFixed(2)} / $${balance.limit.toFixed(2)}`
-            : `$${(balance.usage ?? 0).toFixed(2)}`}
-          className="text-xs tabular-nums text-muted-foreground max-w-[140px] truncate"
+            ? `${t("provider.balanceUsed")} $${(balance.usage ?? 0).toFixed(2)} / $${balance.limit.toFixed(2)}`
+            : `${t("provider.balanceUsed")} $${(balance.usage ?? 0).toFixed(2)}`}
+          className="text-xs tabular-nums text-muted-foreground max-w-[160px] truncate"
         >
-          ${(balance.usage ?? 0).toFixed(2)}
+          {t("provider.balanceUsed")} ${(balance.usage ?? 0).toFixed(2)}
           {balance.limit != null ? ` / $${balance.limit.toFixed(2)}` : ""}
         </span>
       )}
