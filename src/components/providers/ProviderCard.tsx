@@ -94,9 +94,9 @@ export function ProviderCard({
         )}
       />
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 items-center gap-2">
+        <div className="flex flex-1 min-w-0 items-center gap-2">
           {/* 供应商图标:方形徽标(coderplan 等)全出血填满容器,避免双重边框 */}
-          <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center border border-border overflow-hidden group-hover:scale-105 transition-transform duration-300">
+          <div className="h-8 w-8 shrink-0 rounded-lg bg-muted flex items-center justify-center border border-border overflow-hidden group-hover:scale-105 transition-transform duration-300">
             <ProviderIcon
               icon={provider.app_type}
               name={provider.name}
@@ -105,7 +105,7 @@ export function ProviderCard({
             />
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 min-h-7">
               <h3 className="text-base font-semibold leading-none">
                 {provider.name}

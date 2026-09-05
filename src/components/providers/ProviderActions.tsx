@@ -142,7 +142,12 @@ export function ProviderActions({
         <span className="text-xs text-muted-foreground">…</span>
       )}
       {balance && (
-        <span className="text-xs tabular-nums text-muted-foreground">
+        <span
+          title={balance.limit != null
+            ? `$${(balance.usage ?? 0).toFixed(2)} / $${balance.limit.toFixed(2)}`
+            : `$${(balance.usage ?? 0).toFixed(2)}`}
+          className="text-xs tabular-nums text-muted-foreground max-w-[140px] truncate"
+        >
           ${(balance.usage ?? 0).toFixed(2)}
           {balance.limit != null ? ` / $${balance.limit.toFixed(2)}` : ""}
         </span>
