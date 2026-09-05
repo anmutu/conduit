@@ -202,7 +202,14 @@ export function ProviderCard({
               )}
             </div>
           </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 pointer-events-none group-hover:opacity-100 group-focus-within:opacity-100 group-hover:pointer-events-auto group-focus-within:pointer-events-auto transition-opacity duration-200">
+          <div
+            className="flex items-center gap-1.5 flex-shrink-0 opacity-0 pointer-events-none group-hover:opacity-100 group-focus-within:opacity-100 group-hover:pointer-events-auto group-focus-within:pointer-events-auto transition-opacity duration-200"
+            onMouseUp={() => {
+              // 鼠标点击会把焦点留在按钮上,操作组因 focus-within 常亮不再隐藏;
+              // 点击后立即释放焦点恢复 hover 显隐(键盘 Tab 聚焦不受影响)
+              (document.activeElement as HTMLElement | null)?.blur?.();
+            }}
+          >
             {/* 上移/下移:键盘可达的排序方式(与拖拽并存) */}
             {(onMoveUp || onMoveDown) && (
               <div className="flex flex-col mr-0.5">
